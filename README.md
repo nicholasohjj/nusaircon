@@ -161,6 +161,9 @@ npm test
 
 # Frontend tests
 cd frontend && npm test
+
+# Lint backend and frontend
+npm run lint
 ```
 
 ## Bot commands
@@ -221,7 +224,6 @@ Note: threading only follows the original notification message. If the owner rep
 ├── services/
 │   ├── cp2Service.js             # Purchase flow: EVS WebPOS scraping + eNETS proxy
 │   ├── cp2nusService.js          # Purchase flow: EVS JSON API + eNETS PP + NETS API
-│   ├── errorPage.js              # Shared HTML error page for Express error responses
 │   ├── ore.js                    # ORE API: meter summary and usage history
 │   ├── paymentSession.js         # In-memory payment session store (10-min TTL)
 │   ├── utils.js                  # HTML parsing, result normalisation, XSS escaping
@@ -233,6 +235,8 @@ Note: threading only follows the original notification message. If the owner rep
 │   ├── handlers/                 # Command and text message handlers
 │   ├── services/                 # Bot session, user store, lookup helpers
 │   └── constants.js              # Stage names, keyboards, shared messages
+├── views/
+│   └── errorPage.js              # Shared HTML error page for Express error responses
 └── frontend/                     # React + Vite frontend
     ├── src/
     │   ├── App.jsx               # React Router routes

@@ -339,11 +339,6 @@ router.post(
           session.nets?.merchantTxnRef ||
           "";
         session.reason = normalized.reason || "";
-        console.log(
-          "session after write",
-          token,
-          JSON.stringify({ status: session.status, reason: session.reason }),
-        );
         session.completedAt = Date.now();
 
         const eventName =
@@ -593,11 +588,6 @@ router.get("/webapp/session", (req, res) => {
     reason,
     merchantTxnRef,
   } = session;
-  console.log(
-    "session at read",
-    token,
-    JSON.stringify({ status: session.status, reason: session.reason }),
-  );
   return res.json({
     ok: true,
     txtMtrId,

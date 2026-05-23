@@ -37,8 +37,16 @@ export function validateCardForm({ name, email, cardNo, expMth, expYr, cvv }) {
     errors.expMth = "01–12";
   }
 
+  const yInt = parseInt(expYr, 10);
   if (!expYr || expYr.length !== 2 || !/^\d{2}$/.test(expYr)) {
     errors.expYr = "2-digit year";
+  } else if (!errors.expMth) {
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear() % 100;
+    if (yInt < currentYear || (yInt === currentYear && mInt < currentMonth)) {
+      errors.expYr = "Card expired";
+    }
   }
 
   if (!cvv || cvv.length < 3 || !/^\d+$/.test(cvv)) {

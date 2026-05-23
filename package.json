@@ -10,8 +10,9 @@
     "install:frontend": "npm ci --prefix frontend",
     "build:frontend": "npm run build --prefix frontend",
     "dev:frontend": "npm run dev --prefix frontend",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "npm run lint:backend && npm run lint --prefix frontend",
+    "lint:backend": "eslint .",
+    "lint:fix": "npm run lint:backend -- --fix && npm run lint:fix --prefix frontend",
     "format": "prettier . --write",
     "test": "vitest run",
     "test:watch": "vitest --watch"

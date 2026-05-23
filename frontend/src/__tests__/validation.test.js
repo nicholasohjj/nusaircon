@@ -146,6 +146,32 @@ describe("validateCardForm — expiry validation", () => {
     expect(result.valid).toBe(false);
     expect(result.errors.expYr).toBeDefined();
   });
+
+  test("rejects expired cards", () => {
+    const now = new Date();
+    const expiredYear = String(now.getFullYear() - 1).slice(-2);
+
+    const result = validateCardForm({
+      ...VALID,
+      expMth: "12",
+      expYr: expiredYear,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.errors.expYr).toMatch(/expired/i);
+  });
+
+  test("accepts cards expiring in the current month", () => {
+    const now = new Date();
+
+    const result = validateCardForm({
+      ...VALID,
+      expMth: String(now.getMonth() + 1).padStart(2, "0"),
+      expYr: String(now.getFullYear()).slice(-2),
+    });
+
+    expect(result.valid).toBe(true);
+  });
 });
 
 describe("validateCardForm — CVV validation", () => {

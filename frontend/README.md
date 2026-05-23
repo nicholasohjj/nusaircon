@@ -72,8 +72,8 @@ Output goes to `frontend/dist/`. Express serves this directory at `/app/` in pro
 ## Testing
 
 ```bash
-npm test          # Vitest (watch mode)
-npm run test:run  # Single run (CI)
+npm test             # Single run (CI)
+npm run test:watch   # Vitest watch mode
 ```
 
 Tests use Vitest and Testing Library. Components are tested against the React Router context they expect in production.
