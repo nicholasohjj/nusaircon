@@ -2,7 +2,7 @@
 title EVS cp2 Electricity Top-Up Flow
 
 actor User
-participant "Telegram Bot\n(bot.js)" as Bot
+participant "Telegram Bot\n(bot/index.js)" as Bot
 participant "WebApp UI\n/webapp" as WebApp
 participant "Express Backend\n(cp2 router)" as Backend
 participant "EVS WebPOS\ncp2.evs.com.sg" as EVS
@@ -12,6 +12,11 @@ participant "eNETS Card Payment\n/GW2/uCredit/pay" as ENETSPay
 participant "ORE API\nore.evs.com.sg" as ORE
 
 == Telegram bot flow ==
+note over Bot
+  Production: Telegram updates arrive through
+  the Express webhook at /telegram/webhook/*.
+  Development: Telegraf uses long polling.
+end note
 User -> Bot: /topup
 Bot -> User: Ask hostel selection
 User -> Bot: Select hostel (cp2)

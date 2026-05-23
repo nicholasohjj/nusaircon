@@ -229,7 +229,7 @@ Note: threading only follows the original notification message. If the owner rep
 │   ├── config.js                 # Base URLs and shared HTTP headers
 │   └── analytics.js              # Event tracking and exception capture
 ├── bot/
-│   ├── index.js                  # Telegraf bot setup and handler registration
+│   ├── index.js                  # Telegraf handlers + webhook/polling runtime
 │   ├── handlers/                 # Command and text message handlers
 │   ├── services/                 # Bot session, user store, lookup helpers
 │   └── constants.js              # Stage names, keyboards, shared messages
@@ -248,7 +248,7 @@ Note: threading only follows the original notification message. If the owner rep
 
 ## Notes
 
-- Bot sessions and payment sessions are in-memory — state is lost on restart. Payment sessions expire after 10 minutes; bot sessions after 15 minutes. The user store (saved meter IDs) is SQLite-backed and persists across restarts.
+- Bot sessions and payment sessions are in-memory — state is lost on restart or Railway Serverless sleep. Payment sessions expire after 10 minutes; bot sessions after 15 minutes. The user store (saved meter IDs) is SQLite-backed and persists across restarts.
 - Card details are RSA-encrypted in the browser before being sent to the server. The server never sees plaintext card numbers or CVVs.
 - The cp2nus flow distinguishes between the top-level `netsMid` (`UMID_xxx`) and `paymtNetsMid` (acquiring MID from `paymtSvcInfoList[0]`). Using the wrong MID will cause the payment to fail silently.
 - Minimum top-up: **$6.00 SGD** · Maximum: **$50.00 SGD**
