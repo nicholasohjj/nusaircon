@@ -1,4 +1,7 @@
 require("dotenv").config();
+if (!process.env.SERVER_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
+  process.env.SERVER_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+}
 const path = require("path");
 const express = require("express");
 const cp2nus = require("./routes/cp2nus");
@@ -6,12 +9,17 @@ const cp2 = require("./routes/cp2");
 const { captureException } = require("./services/analytics");
 const swaggerUi = require("swagger-ui-express");
 const YAML = require("yamljs");
+const {
+  mountTelegramWebhook,
+  startBot,
+  stopBot,
+  getBotRuntimeMode,
+} = require("./bot/index");
 
 const openapiSpec = YAML.load(path.join(__dirname, "docs/openapi.yaml"));
 
-require("./bot/index");
-
 const app = express();
+mountTelegramWebhook(app);
 app.use("/assets", express.static("assets"));
 
 app.use("/app", express.static(path.join(__dirname, "frontend/dist")));
@@ -42,6 +50,23 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
+const server = app.listen(port, "0.0.0.0", () => {
   console.log(`App listening on port: ${port}`);
+  startBot().catch((err) => {
+    console.error("Failed to start Telegram bot:", err);
+    server.close(() => process.exit(1));
+  });
 });
+
+async function shutdown(signal) {
+  console.log(`${signal} received, shutting down...`);
+  server.close(async () => {
+    await stopBot(signal);
+    process.exit(0);
+  });
+}
+
+process.once("SIGINT", () => shutdown("SIGINT"));
+process.once("SIGTERM", () => shutdown("SIGTERM"));
+
+module.exports = { app, server, getBotRuntimeMode };

@@ -26,10 +26,12 @@ Telegram Bot (telegraf)          Website (React, /app/)
     ├── /topup                       └── HomePage
     ├── /balance                          └── hostel selection
     └── /usage                                + meter ID + amount
-          │                                       │
+          │ webhook in production,               │
+          │ polling in development               │
           ▼                                       ▼
     Express (server.js)  ←────────────────────────────
           │
+          ├── POST /telegram/webhook/* — Telegram webhook receiver
           ├── GET  /webapp              — fetches meter summary, redirects to React
           ├── GET  /webapp/bootstrap    — runs full payment init, returns token
           ├── GET  /webapp/session      — returns session data as JSON for React
@@ -118,9 +120,12 @@ SERVER_URL=https://your-public-server.example.com
 OWNER_CHAT_ID=your_telegram_chat_id   # receives feedback notifications
 TOPUP_DISABLED=false                  # set to "true" to show maintenance message
 DB_DIR=/data                          # directory for SQLite user store (default: /data if it exists, else .)
+TELEGRAM_BOT_MODE=                    # production defaults to webhook; dev defaults to polling
 ```
 
-`SERVER_URL` must be HTTPS for the Telegram WebApp payment button to work. If it is HTTP, the bot falls back to a plain browser link instead.
+`SERVER_URL` must be HTTPS for the Telegram WebApp payment button to work. If it is HTTP, the bot falls back to a plain browser link instead. On Railway, set it to `https://${{RAILWAY_PUBLIC_DOMAIN}}` or leave it unset and the app will derive it from `RAILWAY_PUBLIC_DOMAIN`.
+
+In production, the bot uses a Telegram webhook by default so Railway Serverless can sleep and wake from inbound Telegram requests. Set `TELEGRAM_BOT_MODE=polling` only for an always-on deployment. Optional webhook variables are `TELEGRAM_WEBHOOK_PATH`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_DROP_PENDING_UPDATES`.
 
 ### Running
 
@@ -135,6 +140,18 @@ npm start
 ```
 
 The frontend is served at `/app/` by Express in production. In development, Vite proxies `/webapp` and `/cp2nus` to the backend.
+
+### Railway Serverless
+
+The repo includes `railway.json` with the production build, start command, and `/health` check. Railway Serverless itself is enabled in the dashboard:
+
+1. Add a public domain for the service.
+2. Set `TELEGRAM_BOT_TOKEN`, `SERVER_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}`, and any optional variables such as `OWNER_CHAT_ID`.
+3. Attach a volume mounted at `/data` and set `DB_DIR=/data` so saved users survive restarts.
+4. Go to service settings > Deploy > Serverless and enable Serverless.
+5. Deploy. Startup will register the Telegram webhook automatically.
+
+Cold starts can make the first Telegram or web request slower, and Railway may return a first-request `502` while waking the service. In-memory bot sessions, payment sessions, and owner reply threads are reset by restarts or sleeps; saved meter IDs remain in SQLite.
 
 ### Testing
 
@@ -160,7 +177,7 @@ cd frontend && npm test
 
 ## Bot session flow
 
-Sessions are stored in-memory with a **15-minute TTL**. All messages for a given chat are serialised through a per-chat lock to prevent race conditions. The top-up flow stages are:
+Sessions are stored in-memory with a **15-minute TTL**. All messages for a given chat are serialised through a per-chat lock to prevent race conditions. On serverless deployments, sessions reset when Railway stops and later restarts the service. The top-up flow stages are:
 
 ```
 idle

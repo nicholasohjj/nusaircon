@@ -15,6 +15,22 @@ export default defineConfig([
     },
   },
 
+  {
+    files: ["**/*.jsx"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+      sourceType: "module",
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+
   // Default normal .js files to CommonJS
   {
     files: ["**/*.js"],
@@ -26,10 +42,11 @@ export default defineConfig([
 
   // Test files use ES modules because Vitest imports are ESM
   {
-    files: ["**/*.test.js", "**/*.spec.js"],
+    files: ["**/*.test.js", "**/*.spec.js", "**/*.test.jsx", "**/*.spec.jsx"],
     languageOptions: {
       globals: {
         ...globals.node,
+        ...globals.browser,
         ...globals.vitest,
       },
       sourceType: "module",
