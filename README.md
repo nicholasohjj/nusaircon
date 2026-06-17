@@ -232,6 +232,7 @@ Note: threading only follows the original notification message. If the owner rep
 │   ├── ore.js                    # ORE API: meter summary and usage history
 │   ├── paymentSession.js         # Sealed payment/result tokens and receipt cache
 │   ├── paymentNotification.js    # Telegram payment result notification helper
+│   ├── paymentSubmitLock.js      # Short-lived duplicate payment submit guard
 │   ├── utils.js                  # HTML parsing, result normalisation, XSS escaping
 │   ├── validators.js             # Meter ID and amount validation
 │   ├── config.js                 # Base URLs and shared HTTP headers
@@ -259,6 +260,7 @@ Note: threading only follows the original notification message. If the owner rep
 ## Notes
 
 - Bot sessions are in-memory and expire after 15 minutes. Payment tokens are sealed and restart-safe if `PAYMENT_SESSION_SECRET` is stable; pending payment tokens expire after 10 minutes, completed result tokens after 24 hours. The user store (saved meter IDs) is SQLite-backed and persists across restarts.
+- `/webapp/enets_pay` uses a process-local submit lock keyed by merchant transaction reference to reject duplicate in-flight payment submits with HTTP 409.
 - Card details are RSA-encrypted in the browser before being sent to the server. The server never sees plaintext card numbers or CVVs.
 - The cp2nus flow distinguishes between the top-level `netsMid` (`UMID_xxx`) and `paymtNetsMid` (acquiring MID from `paymtSvcInfoList[0]`). Using the wrong MID will cause the payment to fail silently.
 - Minimum top-up: **$6.00 SGD** · Maximum: **$50.00 SGD**

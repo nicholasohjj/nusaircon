@@ -13,6 +13,10 @@ const {
   storeReceiptPdf,
 } = require("../services/paymentSession");
 const { sendPaymentNotification } = require("../services/paymentNotification");
+const {
+  acquirePaymentSubmitLock,
+  getPaymentSubmitLockKey,
+} = require("../services/paymentSubmitLock");
 const { DEFAULT_HEADERS, CP2NUS_BASE_PATH } = require("../services/config");
 const { errorPage } = require("../views/errorPage");
 const {
@@ -244,6 +248,7 @@ router.post(
   express.urlencoded({ extended: false, limit: "10mb" }),
   async (req, res) => {
     let session = null;
+    let releaseSubmitLock = null;
 
     try {
       const {
@@ -296,6 +301,20 @@ router.post(
         return res.status(400).json({
           ok: false,
           error: "Missing required fields (enc, netsMid, merchantTxnRef)",
+        });
+      }
+
+      const submitLockKey = getPaymentSubmitLockKey({
+        route: "cp2nus",
+        merchantTxnRef: effectiveMerchantTxnRef,
+        token,
+      });
+      releaseSubmitLock = acquirePaymentSubmitLock(submitLockKey);
+      if (!releaseSubmitLock) {
+        return res.status(409).json({
+          ok: false,
+          code: "PAYMENT_ALREADY_PROCESSING",
+          error: "Payment is already processing. Please wait for the result.",
         });
       }
 
@@ -478,6 +497,8 @@ router.post(
         },
       );
       return res.status(500).json({ ok: false, error: err.message });
+    } finally {
+      releaseSubmitLock?.();
     }
   },
 );

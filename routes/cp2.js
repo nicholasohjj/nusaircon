@@ -27,6 +27,10 @@ const {
   getPaymentSession,
 } = require("../services/paymentSession");
 const { sendPaymentNotification } = require("../services/paymentNotification");
+const {
+  acquirePaymentSubmitLock,
+  getPaymentSubmitLockKey,
+} = require("../services/paymentSubmitLock");
 const { DEFAULT_HEADERS, CP2_WEBPOS_BASE } = require("../services/config");
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
@@ -294,6 +298,7 @@ router.post(
   express.urlencoded({ extended: false, limit: "10mb" }),
   async (req, res) => {
     let meterId; // hoisted
+    let releaseSubmitLock = null;
     try {
       const { token } = req.body;
       const session = getPaymentSession(token);
@@ -315,6 +320,20 @@ router.post(
 
       const merchantTxnRef =
         nets.merchantTxnRef || req.body.merchantTxnRef || "";
+      const submitLockKey = getPaymentSubmitLockKey({
+        route: "cp2",
+        merchantTxnRef,
+        token,
+      });
+      releaseSubmitLock = acquirePaymentSubmitLock(submitLockKey);
+      if (!releaseSubmitLock) {
+        return res.status(409).json({
+          ok: false,
+          code: "PAYMENT_ALREADY_PROCESSING",
+          error: "Payment is already processing. Please wait for the result.",
+        });
+      }
+
       const paymentBody = new URLSearchParams(req.body);
       if (nets.netsMid) paymentBody.set("netsMid", String(nets.netsMid));
       if (nets.netsTxnRef)
@@ -465,6 +484,8 @@ router.post(
         endpoint: "/webapp/enets_pay",
       });
       return res.status(500).json({ ok: false, error: err.message });
+    } finally {
+      releaseSubmitLock?.();
     }
   },
 );
