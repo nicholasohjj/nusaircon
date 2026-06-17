@@ -2,15 +2,81 @@ const { escHtml } = require("../../services/utils");
 const {
   getAllChatIds,
   getActiveChatIds,
+  getUserStats,
   forgetUser,
 } = require("../services/userStore");
-const { state } = require("../bot");
+const { pendingReplies, state } = require("../bot");
 const { track } = require("../../services/analytics");
+const { getSessionStats } = require("../services/session");
+const { getPaymentSubmitLockStats } = require("../../services/paymentSubmitLock");
 
 const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
 
 function isOwner(ctx) {
   return OWNER_CHAT_ID && String(ctx.chat?.id) === String(OWNER_CHAT_ID);
+}
+
+function inferRuntimeMode() {
+  const explicitMode = process.env.TELEGRAM_BOT_MODE?.trim().toLowerCase();
+  if (explicitMode === "webhook" || explicitMode === "polling")
+    return explicitMode;
+  return process.env.NODE_ENV === "production" ? "webhook" : "polling";
+}
+
+function formatUptime(startedAt, now = Date.now()) {
+  if (!startedAt) return "not started";
+
+  const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+  const days = Math.floor(seconds / 86400);
+  const hours = Math.floor((seconds % 86400) / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+
+  if (days) return `${days}d ${hours}h`;
+  if (hours) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function formatStageCounts(byStage = {}) {
+  const entries = Object.entries(byStage).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  if (!entries.length) return "none";
+  return entries.map(([stage, count]) => `${stage}: ${count}`).join(", ");
+}
+
+function buildOwnerStatsMessage({
+  state: runtimeState,
+  userStats,
+  sessionStats,
+  pendingReplyCount,
+  submitLockStats,
+  now = Date.now(),
+}) {
+  const runtimeMode = runtimeState.runtimeMode || inferRuntimeMode();
+  const topupStatus = runtimeState.topupDisabled ? "disabled" : "enabled";
+  const paymentSecret = process.env.PAYMENT_SESSION_SECRET
+    ? "dedicated"
+    : "bot token fallback";
+
+  return [
+    "📊 Bot Stats",
+    "",
+    `Top-ups: ${topupStatus}`,
+    `Runtime: ${runtimeMode}`,
+    `Uptime: ${formatUptime(runtimeState.startedAt, now)}`,
+    `Payment token secret: ${paymentSecret}`,
+    "",
+    `Saved users: ${userStats.total}`,
+    `Active users (30d): ${userStats.active}`,
+    "",
+    `Bot sessions: ${sessionStats.total}`,
+    `Session stages: ${formatStageCounts(sessionStats.byStage)}`,
+    `Queued handlers: ${sessionStats.queuedHandlers}`,
+    `Locked chats: ${sessionStats.lockedChats}`,
+    "",
+    `Pending owner replies: ${pendingReplyCount}`,
+    `Active payment submit locks: ${submitLockStats.active}`,
+  ].join("\n");
 }
 
 // ── /broadcast ────────────────────────────────────────────────────────────────
@@ -134,10 +200,42 @@ function registerTopupToggle(bot) {
   });
 }
 
+function registerStats(bot) {
+  bot.command("stats", async (ctx) => {
+    if (!isOwner(ctx)) return;
+
+    const userStats = getUserStats();
+    const sessionStats = getSessionStats();
+    const submitLockStats = getPaymentSubmitLockStats();
+    const message = buildOwnerStatsMessage({
+      state,
+      userStats,
+      sessionStats,
+      pendingReplyCount: pendingReplies.size,
+      submitLockStats,
+    });
+
+    track("owner_stats_requested", {
+      chatId: ctx.chat?.id,
+      savedUsers: userStats.total,
+      activeUsers: userStats.active,
+    });
+
+    return ctx.reply(message);
+  });
+}
+
 function registerOwnerCommands(bot) {
   registerBroadcast(bot);
   registerAnnounce(bot);
   registerTopupToggle(bot);
+  registerStats(bot);
 }
 
-module.exports = { registerOwnerCommands, isOwner };
+module.exports = {
+  buildOwnerStatsMessage,
+  formatStageCounts,
+  formatUptime,
+  registerOwnerCommands,
+  isOwner,
+};

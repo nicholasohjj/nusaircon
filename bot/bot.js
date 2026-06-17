@@ -10,6 +10,8 @@ const bot = new Telegraf(TOKEN);
 // Exported as a single object so mutations are visible to all importers.
 const state = {
   topupDisabled: process.env.TOPUP_DISABLED === "true",
+  runtimeMode: null,
+  startedAt: null,
 };
 
 // pendingReplies: messageId → { chatId, ownerMsgId, createdAt }

@@ -65,6 +65,16 @@ function getActiveChatIds(windowMs = 30 * 24 * 60 * 60 * 1000) {
     .map((r) => r.chat_id);
 }
 
+function getUserStats(windowMs = 30 * 24 * 60 * 60 * 1000) {
+  const cutoff = Date.now() - windowMs;
+  const total = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
+  const active = db
+    .prepare("SELECT COUNT(*) AS count FROM users WHERE last_seen >= ?")
+    .get(cutoff).count;
+
+  return { total, active };
+}
+
 /**
  * Retrieve saved meter ID and hostel for a user.
  * @param {string|number} chatId
@@ -96,5 +106,6 @@ module.exports = {
   forgetUser,
   getAllChatIds,
   getActiveChatIds,
+  getUserStats,
   touchUser,
 };

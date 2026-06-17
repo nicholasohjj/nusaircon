@@ -3,7 +3,7 @@ if (!process.env.SERVER_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
   process.env.SERVER_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
 }
 const { createHash } = require("crypto");
-const { bot, pendingReplies } = require("./bot");
+const { bot, pendingReplies, state } = require("./bot");
 const { captureException, shutdownAnalytics } = require("../services/analytics");
 const { PENDING_REPLY_TTL_MS } = require("./constants");
 const { resetSession } = require("./services/session");
@@ -119,6 +119,8 @@ async function startBot() {
       drop_pending_updates: process.env.TELEGRAM_DROP_PENDING_UPDATES === "true",
     });
     runtimeMode = "webhook";
+    state.runtimeMode = runtimeMode;
+    state.startedAt = Date.now();
     started = true;
     console.log(`🤖 EVS Telegram bot listening via webhook at ${webhookPath}`);
     return;
@@ -131,8 +133,9 @@ async function startBot() {
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
       await bot.launch({ dropPendingUpdates: true });
-      const { state } = require("./bot");
       runtimeMode = "polling";
+      state.runtimeMode = runtimeMode;
+      state.startedAt = Date.now();
       started = true;
       console.log(
         `🤖 EVS Telegram bot running via polling (top-ups ${state.topupDisabled ? "DISABLED" : "enabled"})`,

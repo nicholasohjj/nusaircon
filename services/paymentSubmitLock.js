@@ -37,6 +37,21 @@ function clearPaymentSubmitLocks() {
   locks.clear();
 }
 
+function getPaymentSubmitLockStats() {
+  const now = Date.now();
+  let active = 0;
+
+  for (const [key, entry] of locks.entries()) {
+    if (entry.expiresAt <= now) {
+      locks.delete(key);
+    } else {
+      active++;
+    }
+  }
+
+  return { active };
+}
+
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of locks.entries()) {
@@ -48,5 +63,6 @@ module.exports = {
   DEFAULT_TTL_MS,
   acquirePaymentSubmitLock,
   clearPaymentSubmitLocks,
+  getPaymentSubmitLockStats,
   getPaymentSubmitLockKey,
 };

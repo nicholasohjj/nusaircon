@@ -5,14 +5,18 @@ const { SESSION_TTL_MS } = require("../constants");
 //                             webAppUrl?, feedbackRating?, updatedAt }
 const sessions = {};
 
-// Prune expired sessions every SESSION_TTL_MS
-setInterval(() => {
-  const now = Date.now();
+function pruneExpiredSessions(now = Date.now()) {
   for (const chatId of Object.keys(sessions)) {
     if (now - (sessions[chatId].updatedAt ?? 0) > SESSION_TTL_MS) {
       delete sessions[chatId];
     }
   }
+}
+
+// Prune expired sessions every SESSION_TTL_MS
+setInterval(() => {
+  const now = Date.now();
+  pruneExpiredSessions(now);
 }, SESSION_TTL_MS).unref();
 
 /**
@@ -35,6 +39,26 @@ function getSession(chatId) {
 /** Hard-reset a session to idle, discarding all pending state. */
 function resetSession(chatId) {
   sessions[chatId] = { stage: "idle", updatedAt: Date.now() };
+}
+
+function getSessionStats() {
+  pruneExpiredSessions();
+
+  const byStage = {};
+  for (const session of Object.values(sessions)) {
+    const stage = session.stage || "unknown";
+    byStage[stage] = (byStage[stage] || 0) + 1;
+  }
+
+  return {
+    total: Object.keys(sessions).length,
+    byStage,
+    lockedChats: chatLocks.size,
+    queuedHandlers: [...chatWaiters.values()].reduce(
+      (sum, count) => sum + count,
+      0,
+    ),
+  };
 }
 
 // ── Per-chat concurrency lock ─────────────────────────────────────────────────
@@ -69,4 +93,4 @@ async function withChatLock(chatId, fn) {
   }
 }
 
-module.exports = { getSession, resetSession, withChatLock };
+module.exports = { getSession, resetSession, withChatLock, getSessionStats };

@@ -180,6 +180,7 @@ npm run lint
 | `/feedback` | Share feedback or report an issue |
 | `/cancel`   | Cancel the current flow           |
 | `/help`     | Show help and hostel information  |
+| `/stats`    | Owner-only runtime snapshot       |
 
 ## Bot session flow
 
