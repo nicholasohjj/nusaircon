@@ -7,8 +7,12 @@ const { isValidMeterId, isValidAmount } = require("../services/validators");
 const { normalizeFinalOutcome } = require("../services/utils");
 const {
   createPaymentSession,
+  createPaymentResultSession,
   getPaymentSession,
+  getReceiptPdf,
+  storeReceiptPdf,
 } = require("../services/paymentSession");
+const { sendPaymentNotification } = require("../services/paymentNotification");
 const { DEFAULT_HEADERS, CP2NUS_BASE_PATH } = require("../services/config");
 const { errorPage } = require("../views/errorPage");
 const {
@@ -23,6 +27,19 @@ const { bot } = require("../bot");
 
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
+
+async function createNotifiedResultToken(session, updates) {
+  const resultSession = { ...session, ...updates };
+
+  try {
+    const notifiedAt = await sendPaymentNotification(bot, resultSession);
+    if (notifiedAt) resultSession.notifiedAt = notifiedAt;
+  } catch (err) {
+    console.error("notify error", err);
+  }
+
+  return createPaymentResultSession(resultSession);
+}
 
 router.get("/webapp", async (req, res) => {
   const { txtMtrId, txtAmount, chatId } = req.query;
@@ -83,6 +100,7 @@ router.get("/webapp/session", (req, res) => {
     reason,
     merchantTxnRef,
     source,
+    receiptId,
   } = session;
   return res.json({
     ok: true,
@@ -94,6 +112,7 @@ router.get("/webapp/session", (req, res) => {
     reason: reason || "",
     merchantTxnRef: merchantTxnRef || "",
     source: source || "",
+    receiptAvailable: !!receiptId,
     ...nets,
   });
 });
@@ -194,13 +213,13 @@ router.get("/webapp/pay", (req, res) => {
 
 router.get("/webapp/receipt", (req, res) => {
   const { token } = req.query;
-  const session = getPaymentSession(token);
-  if (!session?.receiptPdf) {
+  const receiptPdf = getReceiptPdf(token);
+  if (!receiptPdf) {
     return res.status(404).json({ ok: false, error: "Receipt not available." });
   }
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", 'inline; filename="receipt.pdf"');
-  return res.send(session.receiptPdf);
+  return res.send(receiptPdf);
 });
 
 router.post("/webapp/notify", express.json(), async (req, res) => {
@@ -209,33 +228,9 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     const session = getPaymentSession(token);
     if (!session || !session.chatId) return res.json({ ok: true });
     if (session.notifiedAt) return res.json({ ok: true });
+    if (session.status === "pending") return res.json({ ok: true });
 
-    const {
-      status,
-      merchantTxnRef,
-      txtMtrId,
-      txtAmount,
-      reason,
-      address,
-      balance,
-    } = session;
-    const ok = status === "success";
-    const lines = [
-      ok ? "✅ *Top-Up Successful*" : "⚠️ *Top-Up Failed*",
-      "",
-      `🔌 Meter ID: \`${txtMtrId || "-"}\``,
-    ];
-    if (address) lines.push(`🏠 Address: ${address}`);
-    if (txtAmount) lines.push(`💵 Amount: SGD ${Number(txtAmount).toFixed(2)}`);
-    if (balance !== "" && balance != null)
-      lines.push(`💰 New Balance: SGD ${Number(balance).toFixed(2)}`);
-    if (merchantTxnRef) lines.push(`🧾 Reference: \`${merchantTxnRef}\``);
-    if (!ok && reason) lines.push(`\n❌ Reason: ${reason}`);
-
-    await bot.telegram.sendMessage(session.chatId, lines.join("\n"), {
-      parse_mode: "Markdown",
-    });
-    session.notifiedAt = Date.now();
+    await sendPaymentNotification(bot, session);
   } catch (err) {
     console.error("notify error", err);
   }
@@ -364,6 +359,13 @@ router.post(
         session.reason = normalized.reason || "";
         session.source = "pan_result";
         session.completedAt = Date.now();
+        const resultToken = await createNotifiedResultToken(session, {
+          status: session.status,
+          merchantTxnRef: session.merchantTxnRef,
+          reason: session.reason,
+          source: session.source,
+          completedAt: session.completedAt,
+        });
 
         track(
           normalized.status === "success"
@@ -383,6 +385,7 @@ router.post(
 
         return res.status(200).json({
           ok: true,
+          resultToken,
           source: "pan_result",
           status: normalized.status,
           merchantTxnRef:
@@ -407,7 +410,7 @@ router.post(
 
       if (b2sResult.parsed?.status === "success") {
         const pdfBuffer = await fetchReceipt(jsessionId, b2sResult.finalUrl);
-        if (pdfBuffer) session.receiptPdf = pdfBuffer;
+        if (pdfBuffer) session.receiptId = storeReceiptPdf(pdfBuffer);
       }
 
       const parsed = b2sResult.parsed || {};
@@ -424,6 +427,14 @@ router.post(
         normalized.merchantTxnRef || effectiveMerchantTxnRef;
       session.source = "pay_result";
       session.completedAt = Date.now();
+      const resultToken = await createNotifiedResultToken(session, {
+        status: session.status,
+        merchantTxnRef: session.merchantTxnRef,
+        reason: normalized.reason || "",
+        source: session.source,
+        completedAt: session.completedAt,
+        receiptId: session.receiptId || null,
+      });
 
       track(
         normalized.status === "success"
@@ -443,6 +454,7 @@ router.post(
 
       return res.status(200).json({
         ok: true,
+        resultToken,
         source: "pay_result",
         status: normalized.status,
         merchantTxnRef:

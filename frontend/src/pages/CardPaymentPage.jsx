@@ -269,7 +269,8 @@ export default function CardPaymentPage({ basePath = "" }) {
         throw err;
       }
 
-      window.location.href = `${basePath}/webapp/result?token=${encodeURIComponent(token)}`;
+      const resultToken = out.resultToken || token;
+      window.location.href = `${basePath}/webapp/result?token=${encodeURIComponent(resultToken)}`;
     } catch (err) {
       // A 400 from enets_pay mid-submit means the session expired during form fill.
       // Surface a restart prompt rather than a generic error.

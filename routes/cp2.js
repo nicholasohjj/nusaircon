@@ -23,11 +23,26 @@ const {
 } = require("../services/cp2Service");
 const {
   createPaymentSession,
+  createPaymentResultSession,
   getPaymentSession,
 } = require("../services/paymentSession");
+const { sendPaymentNotification } = require("../services/paymentNotification");
 const { DEFAULT_HEADERS, CP2_WEBPOS_BASE } = require("../services/config");
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
+
+async function createNotifiedResultToken(session, updates) {
+  const resultSession = { ...session, ...updates };
+
+  try {
+    const notifiedAt = await sendPaymentNotification(bot, resultSession);
+    if (notifiedAt) resultSession.notifiedAt = notifiedAt;
+  } catch (err) {
+    console.error("notify error", err);
+  }
+
+  return createPaymentResultSession(resultSession);
+}
 
 // ── Existing routes ───────────────────────────────────────────────────────────
 
@@ -37,33 +52,9 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     const session = getPaymentSession(token);
     if (!session || !session.chatId) return res.json({ ok: true });
     if (session.notifiedAt) return res.json({ ok: true });
+    if (session.status === "pending") return res.json({ ok: true });
 
-    const {
-      status,
-      merchantTxnRef,
-      txtMtrId,
-      txtAmount,
-      reason,
-      address,
-      balance,
-    } = session;
-    const ok = status === "success";
-    const lines = [
-      ok ? "✅ *Top-Up Successful*" : "⚠️ *Top-Up Failed*",
-      "",
-      `🔌 Meter ID: \`${txtMtrId || "-"}\``,
-    ];
-    if (address) lines.push(`🏠 Address: ${address}`);
-    if (txtAmount) lines.push(`💵 Amount: SGD ${Number(txtAmount).toFixed(2)}`);
-    if (balance !== "" && balance != null)
-      lines.push(`💰 New Balance: SGD ${Number(balance).toFixed(2)}`);
-    if (merchantTxnRef) lines.push(`🧾 Reference: \`${merchantTxnRef}\``);
-    if (!ok && reason) lines.push(`\n❌ Reason: ${reason}`);
-
-    await bot.telegram.sendMessage(session.chatId, lines.join("\n"), {
-      parse_mode: "Markdown",
-    });
-    session.notifiedAt = Date.now();
+    await sendPaymentNotification(bot, session);
   } catch (err) {
     console.error("notify error", err);
   }
@@ -352,6 +343,13 @@ router.post(
           normalized.merchantTxnRef || evsCb.id || merchantTxnRef || "";
         session.reason = normalized.reason || "";
         session.completedAt = Date.now();
+        const resultToken = await createNotifiedResultToken(session, {
+          status: session.status,
+          merchantTxnRef: session.merchantTxnRef,
+          reason: session.reason,
+          source: "evs_transsum",
+          completedAt: session.completedAt,
+        });
 
         const eventName =
           normalized.status === "success"
@@ -367,6 +365,7 @@ router.post(
 
         return res.status(200).json({
           ok: true,
+          resultToken,
           source: "evs_transsum",
           status: normalized.status || "unknown",
           merchantTxnRef:
@@ -400,6 +399,13 @@ router.post(
       session.merchantTxnRef = receipt.merchantTxnRef || merchantTxnRef || "";
       session.reason = normalized.reason || "";
       session.completedAt = Date.now();
+      const resultToken = await createNotifiedResultToken(session, {
+        status: session.status,
+        merchantTxnRef: session.merchantTxnRef,
+        reason: session.reason,
+        source: "enets_receipt_fallback",
+        completedAt: session.completedAt,
+      });
 
       const eventName =
         normalized.status === "success"
@@ -415,6 +421,7 @@ router.post(
 
       return res.status(200).json({
         ok: true,
+        resultToken,
         source: "enets_receipt_fallback",
         status: normalized.status,
         merchantTxnRef: session.merchantTxnRef,
@@ -591,6 +598,7 @@ router.get("/webapp/session", (req, res) => {
     status,
     reason,
     merchantTxnRef,
+    receiptId,
   } = session;
   return res.json({
     ok: true,
@@ -601,6 +609,7 @@ router.get("/webapp/session", (req, res) => {
     status,
     reason: reason || "",
     merchantTxnRef: merchantTxnRef || "",
+    receiptAvailable: !!receiptId,
     ...nets,
   });
 });
@@ -645,6 +654,13 @@ router.post(
           parsed.merchantTxnRef || id || session.nets?.merchantTxnRef || "";
         session.reason = parsed.reason || session.reason || "";
         session.completedAt = Date.now();
+        const resultToken = await createNotifiedResultToken(session, {
+          status: session.status,
+          merchantTxnRef: session.merchantTxnRef,
+          reason: session.reason,
+          source: "evs_transsum",
+          completedAt: session.completedAt,
+        });
 
         const eventName =
           session.status === "success" ? "payment_completed" : "payment_failed";
@@ -656,7 +672,9 @@ router.post(
           reason: session.reason || null,
         });
 
-        return res.redirect(`/webapp/result?token=${token}`);
+        return res.redirect(
+          `/webapp/result?token=${encodeURIComponent(resultToken)}`,
+        );
       }
 
       const q = new URLSearchParams({

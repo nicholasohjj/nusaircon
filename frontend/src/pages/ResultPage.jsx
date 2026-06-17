@@ -156,7 +156,7 @@ export default function ResultPage({ basePath = "" }) {
       </div>
 
       <div className={styles.actions}>
-        {ok && basePath === "/cp2nus" && (
+        {ok && basePath === "/cp2nus" && session.receiptAvailable && (
           <a
             href={`/cp2nus/webapp/receipt?token=${encodeURIComponent(token)}`}
             target="_blank"

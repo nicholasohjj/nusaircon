@@ -37,7 +37,7 @@ Telegram Bot (telegraf)          Website (React, /app/)
           ├── GET  /webapp/session      — returns session data as JSON for React
           ├── GET  /webapp/pay          — redirects to React card entry page
           ├── POST /webapp/enets_pay    — proxies encrypted card data to eNETS
-          ├── POST /webapp/notify       — sends payment result to Telegram chat
+          ├── POST /webapp/notify       — fallback Telegram payment notification
           └── GET  /webapp/result       — redirects to React result page
 
     React Frontend (/app/)
@@ -116,6 +116,7 @@ Create a `.env` file:
 
 ```env
 TELEGRAM_BOT_TOKEN=your_bot_token_here
+PAYMENT_SESSION_SECRET=replace_with_openssl_rand_hex_32 # stable secret for signed payment/result tokens
 SERVER_URL=https://your-public-server.example.com
 OWNER_CHAT_ID=your_telegram_chat_id   # receives feedback notifications
 TOPUP_DISABLED=false                  # set to "true" to show maintenance message
@@ -124,6 +125,8 @@ TELEGRAM_BOT_MODE=                    # production defaults to webhook; dev defa
 ```
 
 `SERVER_URL` must be HTTPS for the Telegram WebApp payment button to work. If it is HTTP, the bot falls back to a plain browser link instead. On Railway, set it to `https://${{RAILWAY_PUBLIC_DOMAIN}}` or leave it unset and the app will derive it from `RAILWAY_PUBLIC_DOMAIN`.
+
+`PAYMENT_SESSION_SECRET` should be a stable random value, for example from `openssl rand -hex 32`. If it is omitted, the app falls back to `TELEGRAM_BOT_TOKEN`, which still survives Railway sleeps as long as the bot token does not change.
 
 In production, the bot uses a Telegram webhook by default so Railway Serverless can sleep and wake from inbound Telegram requests. Set `TELEGRAM_BOT_MODE=polling` only for an always-on deployment. Optional webhook variables are `TELEGRAM_WEBHOOK_PATH`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_DROP_PENDING_UPDATES`.
 
@@ -146,12 +149,12 @@ The frontend is served at `/app/` by Express in production. In development, Vite
 The repo includes `railway.json` with the production build, start command, and `/health` check. Railway Serverless itself is enabled in the dashboard:
 
 1. Add a public domain for the service.
-2. Set `TELEGRAM_BOT_TOKEN`, `SERVER_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}`, and any optional variables such as `OWNER_CHAT_ID`.
+2. Set `TELEGRAM_BOT_TOKEN`, `PAYMENT_SESSION_SECRET`, `SERVER_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}`, and any optional variables such as `OWNER_CHAT_ID`.
 3. Attach a volume mounted at `/data` and set `DB_DIR=/data` so saved users survive restarts.
 4. Go to service settings > Deploy > Serverless and enable Serverless.
 5. Deploy. Startup will register the Telegram webhook automatically.
 
-Cold starts can make the first Telegram or web request slower, and Railway may return a first-request `502` while waking the service. In-memory bot sessions, payment sessions, and owner reply threads are reset by restarts or sleeps; saved meter IDs remain in SQLite.
+Cold starts can make the first Telegram or web request slower, and Railway may return a first-request `502` while waking the service. Bot sessions and owner reply threads are in-memory and reset by restarts or sleeps; payment/result tokens are sealed with `PAYMENT_SESSION_SECRET` and can still be read after a restart until their TTL expires. Saved meter IDs remain in SQLite.
 
 ### Testing
 
@@ -200,9 +203,11 @@ idle
 
 `/balance` and `/usage` use single-step stages that return to idle after one response.
 
-## Payment session
+## Payment Session
 
-Payment sessions (created by `/webapp/bootstrap`) are stored in-memory with a **10-minute TTL**, separate from bot sessions. The session holds the meter ID, amount, address, balance, eNETS keys, and the payment outcome once complete. The React frontend reads outcome data from the session via `GET /webapp/session?token=` — query params are never trusted for payment results.
+Payment sessions (created by `/webapp/bootstrap`) are sealed encrypted tokens with a **10-minute TTL**, separate from bot sessions. The token holds the meter ID, amount, address, balance, and eNETS gateway fields needed for payment. This avoids losing an active payment session when Railway Free wakes the service on a new process.
+
+Once `/webapp/enets_pay` has a final outcome, the server sends the Telegram payment notification immediately and returns a sealed result token with a **24-hour TTL**. The React result page reads outcome data from `GET /webapp/session?token=`; query params are never trusted for payment results. CP2NUS receipt PDFs are still held in a volatile in-memory cache, so the result page only shows the receipt link when that cache entry is available.
 
 ## User store
 
@@ -225,7 +230,8 @@ Note: threading only follows the original notification message. If the owner rep
 │   ├── cp2Service.js             # Purchase flow: EVS WebPOS scraping + eNETS proxy
 │   ├── cp2nusService.js          # Purchase flow: EVS JSON API + eNETS PP + NETS API
 │   ├── ore.js                    # ORE API: meter summary and usage history
-│   ├── paymentSession.js         # In-memory payment session store (10-min TTL)
+│   ├── paymentSession.js         # Sealed payment/result tokens and receipt cache
+│   ├── paymentNotification.js    # Telegram payment result notification helper
 │   ├── utils.js                  # HTML parsing, result normalisation, XSS escaping
 │   ├── validators.js             # Meter ID and amount validation
 │   ├── config.js                 # Base URLs and shared HTTP headers
@@ -252,7 +258,7 @@ Note: threading only follows the original notification message. If the owner rep
 
 ## Notes
 
-- Bot sessions and payment sessions are in-memory — state is lost on restart or Railway Serverless sleep. Payment sessions expire after 10 minutes; bot sessions after 15 minutes. The user store (saved meter IDs) is SQLite-backed and persists across restarts.
+- Bot sessions are in-memory and expire after 15 minutes. Payment tokens are sealed and restart-safe if `PAYMENT_SESSION_SECRET` is stable; pending payment tokens expire after 10 minutes, completed result tokens after 24 hours. The user store (saved meter IDs) is SQLite-backed and persists across restarts.
 - Card details are RSA-encrypted in the browser before being sent to the server. The server never sees plaintext card numbers or CVVs.
 - The cp2nus flow distinguishes between the top-level `netsMid` (`UMID_xxx`) and `paymtNetsMid` (acquiring MID from `paymtSvcInfoList[0]`). Using the wrong MID will cause the payment to fail silently.
 - Minimum top-up: **$6.00 SGD** · Maximum: **$50.00 SGD**
