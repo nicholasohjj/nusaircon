@@ -58,8 +58,8 @@ function startTopUp(chatId, savedInSession = null) {
  *   2. Only meter ID saved → ask hostel
  *   3. Nothing saved → ask hostel
  */
-async function handleTopUpStart(ctx, chatId) {
-  const session = startTopUp(chatId, null);
+async function handleTopUpStart(ctx, chatId, savedInSession = null) {
+  const session = startTopUp(chatId, savedInSession);
 
   if (session.stage === STAGES.AWAITING_AMOUNT) {
     return ctx.reply(

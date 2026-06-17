@@ -208,6 +208,7 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     const { token } = req.body;
     const session = getPaymentSession(token);
     if (!session || !session.chatId) return res.json({ ok: true });
+    if (session.notifiedAt) return res.json({ ok: true });
 
     const {
       status,
@@ -234,6 +235,7 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     await bot.telegram.sendMessage(session.chatId, lines.join("\n"), {
       parse_mode: "Markdown",
     });
+    session.notifiedAt = Date.now();
   } catch (err) {
     console.error("notify error", err);
   }
@@ -284,9 +286,18 @@ router.post(
         txtAmount: amount,
         address,
         balance,
+        nets: sessionNets = {},
       } = session;
+      const effectiveNetsMid =
+        sessionNets.paymtNetsMid || sessionNets.netsMid || netsMid;
+      const effectiveNetsTxnRef = sessionNets.netsTxnRef || netsTxnRef || "";
+      const effectiveMerchantTxnRef =
+        sessionNets.merchantTxnRef || merchantTxnRef || "";
+      const effectiveTxnRand = sessionNets.txnRand || txnRand || "";
+      const effectiveKeyId = sessionNets.keyId || reqKeyId || "";
+      const effectiveHmac = sessionNets.hmac || reqHmac || "";
 
-      if (!enc || !netsMid || !merchantTxnRef) {
+      if (!enc || !effectiveNetsMid || !effectiveMerchantTxnRef) {
         return res.status(400).json({
           ok: false,
           error: "Missing required fields (enc, netsMid, merchantTxnRef)",
@@ -296,7 +307,7 @@ router.post(
       track("payment_attempted", {
         meterId,
         amount,
-        merchantTxnRef,
+        merchantTxnRef: effectiveMerchantTxnRef,
         route: "cp2nus",
       });
 
@@ -314,9 +325,9 @@ router.post(
 
       // Step 4a: establish credit session
       const { jsessionId } = await callCreditInit({
-        txnRand: txnRand || "",
-        keyId: reqKeyId || "",
-        hmac: reqHmac || "",
+        txnRand: effectiveTxnRand,
+        keyId: effectiveKeyId,
+        hmac: effectiveHmac,
         jsessionId: envJsessionId, // ← seed with env.jsp session
       });
 
@@ -326,10 +337,10 @@ router.post(
       // expiryYear arrives as 4-digit string ("2027") — pass through as-is
       const panResult = await submitPanForm({
         jsessionId,
-        txnRand: txnRand || "",
-        netsMid,
-        netsTxnRef: netsTxnRef || "",
-        merchantTxnRef,
+        txnRand: effectiveTxnRand,
+        netsMid: effectiveNetsMid,
+        netsTxnRef: effectiveNetsTxnRef,
+        merchantTxnRef: effectiveMerchantTxnRef,
         enc: (enc || "").replace(/[\r\n]/g, ""),
         name: name || "",
         expiryMonth: expiryMonth || "",
@@ -348,7 +359,8 @@ router.post(
         const normalized = normalizeFinalOutcome(panResult.preParsed);
 
         session.status = normalized.status;
-        session.merchantTxnRef = normalized.merchantTxnRef || merchantTxnRef;
+        session.merchantTxnRef =
+          normalized.merchantTxnRef || effectiveMerchantTxnRef;
         session.reason = normalized.reason || "";
         session.source = "pan_result";
         session.completedAt = Date.now();
@@ -360,7 +372,8 @@ router.post(
           {
             meterId,
             amount,
-            merchantTxnRef: normalized.merchantTxnRef || merchantTxnRef || "",
+            merchantTxnRef:
+              normalized.merchantTxnRef || effectiveMerchantTxnRef || "",
             status: normalized.status,
             reason: normalized.reason || "",
             route: "cp2nus",
@@ -372,7 +385,8 @@ router.post(
           ok: true,
           source: "pan_result",
           status: normalized.status,
-          merchantTxnRef: normalized.merchantTxnRef || merchantTxnRef || "",
+          merchantTxnRef:
+            normalized.merchantTxnRef || effectiveMerchantTxnRef || "",
           meterId: meterId || "",
           address: address || "",
           balance: balance || "",
@@ -406,7 +420,8 @@ router.post(
       }
 
       session.status = normalized.status;
-      session.merchantTxnRef = normalized.merchantTxnRef || merchantTxnRef;
+      session.merchantTxnRef =
+        normalized.merchantTxnRef || effectiveMerchantTxnRef;
       session.source = "pay_result";
       session.completedAt = Date.now();
 
@@ -417,7 +432,8 @@ router.post(
         {
           meterId: normalized.meterId || meterId || "",
           amount: finalAmount,
-          merchantTxnRef: normalized.merchantTxnRef || merchantTxnRef || "",
+          merchantTxnRef:
+            normalized.merchantTxnRef || effectiveMerchantTxnRef || "",
           status: normalized.status,
           reason: normalized.reason || "",
           route: "cp2nus",
@@ -429,7 +445,8 @@ router.post(
         ok: true,
         source: "pay_result",
         status: normalized.status,
-        merchantTxnRef: normalized.merchantTxnRef || merchantTxnRef || "",
+        merchantTxnRef:
+          normalized.merchantTxnRef || effectiveMerchantTxnRef || "",
         meterId: normalized.meterId || meterId || "",
         address: address || "",
         balance: balance || "",

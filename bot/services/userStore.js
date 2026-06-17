@@ -6,6 +6,8 @@ const fs = require("fs");
 const DB_DIR = process.env.DB_DIR || (fs.existsSync("/data") ? "/data" : ".");
 const DB_PATH = path.join(DB_DIR, "evs_users.db");
 
+fs.mkdirSync(DB_DIR, { recursive: true });
+
 const db = new Database(DB_PATH);
 
 // WAL mode: better concurrent read performance, safer on crashes

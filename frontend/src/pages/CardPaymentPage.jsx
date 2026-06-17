@@ -203,6 +203,7 @@ export default function CardPaymentPage({ basePath = "" }) {
         n,
         e, // cp2 keys
         netsMid,
+        paymtNetsMid,
         netsTxnRef,
         merchantTxnRef,
         txnRand = "",
@@ -231,7 +232,7 @@ export default function CardPaymentPage({ basePath = "" }) {
         browserTz: String(new Date().getTimezoneOffset()),
         browserUserAgent: navigator.userAgent,
         enc,
-        netsMid,
+        netsMid: paymtNetsMid || netsMid,
         netsTxnRef: netsTxnRef || "",
         merchantTxnRef: merchantTxnRef || "",
         txnRand,

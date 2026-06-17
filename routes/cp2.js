@@ -36,6 +36,7 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     const { token } = req.body;
     const session = getPaymentSession(token);
     if (!session || !session.chatId) return res.json({ ok: true });
+    if (session.notifiedAt) return res.json({ ok: true });
 
     const {
       status,
@@ -62,6 +63,7 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     await bot.telegram.sendMessage(session.chatId, lines.join("\n"), {
       parse_mode: "Markdown",
     });
+    session.notifiedAt = Date.now();
   } catch (err) {
     console.error("notify error", err);
   }
@@ -282,16 +284,30 @@ router.post(
           .json({ ok: false, error: "Invalid or expired payment session." });
       }
 
-      const { txtMtrId, txtAmount: amount, address, balance } = session;
+      const {
+        txtMtrId,
+        txtAmount: amount,
+        address,
+        balance,
+        nets = {},
+      } = session;
 
       meterId = txtMtrId;
 
-      const body = new URLSearchParams(req.body).toString();
+      const merchantTxnRef =
+        nets.merchantTxnRef || req.body.merchantTxnRef || "";
+      const paymentBody = new URLSearchParams(req.body);
+      if (nets.netsMid) paymentBody.set("netsMid", String(nets.netsMid));
+      if (nets.netsTxnRef)
+        paymentBody.set("netsTxnRef", String(nets.netsTxnRef));
+      if (merchantTxnRef)
+        paymentBody.set("merchantTxnRef", String(merchantTxnRef));
+      const body = paymentBody.toString();
 
       track("payment_attempted", {
         meterId,
         amount,
-        merchantTxnRef: req.body.merchantTxnRef,
+        merchantTxnRef,
       });
       const enetsResp = await axios.post(
         "https://www.enets.sg/GW2/uCredit/pay",
@@ -333,11 +349,7 @@ router.post(
 
         session.status = normalized.status;
         session.merchantTxnRef =
-          normalized.merchantTxnRef ||
-          evsCb.id ||
-          req.body.merchantTxnRef ||
-          session.nets?.merchantTxnRef ||
-          "";
+          normalized.merchantTxnRef || evsCb.id || merchantTxnRef || "";
         session.reason = normalized.reason || "";
         session.completedAt = Date.now();
 
@@ -358,11 +370,7 @@ router.post(
           source: "evs_transsum",
           status: normalized.status || "unknown",
           merchantTxnRef:
-            normalized.merchantTxnRef ||
-            evsCb.id ||
-            req.body.merchantTxnRef ||
-            session.nets?.merchantTxnRef ||
-            "",
+            normalized.merchantTxnRef || evsCb.id || merchantTxnRef || "",
           meterId: meterId || normalized.meterId || "",
           address: address || "",
           balance: balance || "",
@@ -389,11 +397,7 @@ router.post(
       const normalized = normalizeFinalOutcome(receipt);
 
       session.status = normalized.status;
-      session.merchantTxnRef =
-        receipt.merchantTxnRef ||
-        req.body.merchantTxnRef ||
-        session.nets?.merchantTxnRef ||
-        "";
+      session.merchantTxnRef = receipt.merchantTxnRef || merchantTxnRef || "";
       session.reason = normalized.reason || "";
       session.completedAt = Date.now();
 

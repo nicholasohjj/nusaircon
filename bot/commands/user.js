@@ -185,7 +185,7 @@ function registerFeedback(bot) {
     session.stage = STAGES.AWAITING_FEEDBACK_RATING;
 
     return ctx.reply(
-      "💬 <b>Share your feedback<b>\n\nHow would you rate your experience?",
+      "💬 <b>Share your feedback</b>\n\nHow would you rate your experience?",
       {
         parse_mode: "HTML",
         ...ratingKeyboard(),

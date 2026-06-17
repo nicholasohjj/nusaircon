@@ -36,7 +36,7 @@ setInterval(() => {
   for (const [token, entry] of store.entries()) {
     if (now - entry.createdAt > TTL_MS) store.delete(token);
   }
-}, TTL_MS);
+}, TTL_MS).unref();
 
 module.exports = {
   createPaymentSession,
