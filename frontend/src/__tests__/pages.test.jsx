@@ -252,6 +252,7 @@ describe("ResultPage", () => {
     await waitFor(() => {
       expect(screen.getByText("Top-Up Successful")).toBeInTheDocument();
     });
+    expect(screen.getByText("Balance before top-up")).toBeInTheDocument();
   });
 
   test("renders failure result page", async () => {
@@ -323,6 +324,45 @@ describe("ResultPage", () => {
       expect(
         screen.getByRole("button", { name: /Close/i }),
       ).toBeInTheDocument();
+    });
+  });
+
+  test("verifies the latest balance on demand", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          status: "success",
+          txtMtrId: "12345678",
+          txtAmount: "20",
+          merchantTxnRef: "MTR-001",
+          reason: "Payment completed.",
+          address: "",
+          balance: "18.50",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          txtMtrId: "12345678",
+          balance: "24.50",
+        }),
+      });
+
+    renderWithRouter(<ResultPage basePath="" />, { token: "test-token" });
+
+    const verifyButton = await screen.findByRole("button", {
+      name: /Verify Balance/i,
+    });
+    fireEvent.click(verifyButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Verified balance")).toBeInTheDocument();
+      expect(screen.getByText("SGD 24.50")).toBeInTheDocument();
     });
   });
 });

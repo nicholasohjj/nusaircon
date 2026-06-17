@@ -116,6 +116,34 @@ router.get("/webapp/result", (req, res) => {
   return res.redirect(`/app/result?token=${encodeURIComponent(token)}`);
 });
 
+router.get("/webapp/balance", async (req, res) => {
+  const { token } = req.query;
+  const session = getPaymentSession(token);
+  if (!session?.txtMtrId) {
+    return res.status(400).json({ ok: false, error: "Session expired." });
+  }
+
+  try {
+    const summary = await getMeterSummary(session.txtMtrId);
+    return res.json({
+      ok: true,
+      txtMtrId: session.txtMtrId,
+      address: summary.address || session.address || "",
+      balance: summary.credit_bal ?? "",
+      checkedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    captureException(err, String(session.txtMtrId || "anonymous"), {
+      route: "cp2",
+      endpoint: "/webapp/balance",
+    });
+    return res.status(502).json({
+      ok: false,
+      error: "Unable to fetch the latest balance. Please try again.",
+    });
+  }
+});
+
 router.get("/webapp/bootstrap", async (req, res) => {
   const { txtMtrId, txtAmount, chatId } = req.query;
 

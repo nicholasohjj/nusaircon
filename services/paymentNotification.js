@@ -18,7 +18,7 @@ function buildPaymentNotificationLines(session) {
   if (address) lines.push(`🏠 Address: ${address}`);
   if (txtAmount) lines.push(`💵 Amount: SGD ${Number(txtAmount).toFixed(2)}`);
   if (balance !== "" && balance != null)
-    lines.push(`💰 New Balance: SGD ${Number(balance).toFixed(2)}`);
+    lines.push(`💰 Balance before top-up: SGD ${Number(balance).toFixed(2)}`);
   if (merchantTxnRef) lines.push(`🧾 Reference: \`${merchantTxnRef}\``);
   if (!ok && reason) lines.push(`\n❌ Reason: ${reason}`);
 

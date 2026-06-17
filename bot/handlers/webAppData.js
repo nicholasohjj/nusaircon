@@ -41,7 +41,7 @@ function registerWebAppDataHandler(bot) {
       if (balance !== "" && balance != null) {
         const balNum = Number(balance);
         if (!isNaN(balNum))
-          lines.push(`💰 New Balance: SGD ${balNum.toFixed(2)}`);
+          lines.push(`💰 Balance before top-up: SGD ${balNum.toFixed(2)}`);
 
         if (ok) {
           const warn = lowBalanceWarning(balance);
