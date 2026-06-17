@@ -86,6 +86,35 @@ function registerButtonHandlers(bot) {
     );
   });
 
+  // ── 🧾 Top-ups ─────────────────────────────────────────────────────────────
+  bot.hears("🧾 Top-ups", async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId) return;
+
+    track("topups_button", { chatId });
+    const saved = getUser(chatId);
+    if (saved?.meterId) {
+      getSession(chatId).stage = STAGES.IDLE;
+      return handleMeterIdLookup(ctx, chatId, saved.meterId, "topups", {
+        fromSaved: true,
+      });
+    }
+
+    const session = getSession(chatId);
+    session.stage = STAGES.AWAITING_METER_ID_TOPUPS;
+
+    return ctx.reply(
+      "🔌 Please enter your 8-digit Meter ID to view recent top-ups:",
+      {
+        ...cancelKeyboard,
+        reply_markup: {
+          ...cancelKeyboard.reply_markup,
+          input_field_placeholder: "e.g. 12345678",
+        },
+      },
+    );
+  });
+
   // ── ℹ️ Help ─────────────────────────────────────────────────────────────────
   bot.hears("ℹ️ Help", sendHelp);
 

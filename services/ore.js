@@ -1,5 +1,6 @@
 const axios = require("axios");
 const { ORE_HEADERS } = require("./config");
+const { escHtml } = require("./utils");
 
 const AXIOS_TIMEOUT_MS = 10_000; // 10 s — prevents hung handlers blocking the chat lock
 
@@ -149,6 +150,80 @@ async function getRecentUsageStat(meterDisplayName, lookBackHours = 168) {
   return resp.data?.usage_stat?.kwh_rank_in_building || null;
 }
 
+function extractTopupHistory(data) {
+  const candidates = [
+    data?.topup_history_3months,
+    data?.recent_topups,
+    data?.topups,
+    data?.topup_history,
+    data?.history,
+    data?.data,
+    data,
+  ];
+
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+    if (Array.isArray(candidate?.history)) return candidate.history;
+    if (Array.isArray(candidate?.records)) return candidate.records;
+    if (Array.isArray(candidate?.topups)) return candidate.topups;
+    if (Array.isArray(candidate?.data)) return candidate.data;
+  }
+
+  return [];
+}
+
+async function getRecentTopups(
+  meterDisplayName,
+  { numberOfTopups = 10, lookbackDays = 90 } = {},
+) {
+  const meterId = String(meterDisplayName || "").trim();
+  if (!meterId) {
+    return {
+      numberOfTopups,
+      lookbackDays,
+      history: [],
+      meta: null,
+    };
+  }
+
+  const resp = await axios.post(
+    "https://ore.evs.com.sg/cp/get_recent_topups",
+    {
+      svcClaimDto: {
+        username: meterId,
+        user_id: null,
+        svcName: "oresvc",
+        endpoint: "/cp/get_recent_topups",
+        scope: "self",
+        target: "evs2user.topup_history_3months",
+        operation: "list",
+      },
+      request: {
+        meter_displayname: meterId,
+        number_of_topups: numberOfTopups,
+        lookback_days: lookbackDays,
+      },
+    },
+    {
+      headers: ORE_HEADERS,
+      validateStatus: () => true,
+      timeout: AXIOS_TIMEOUT_MS,
+    },
+  );
+
+  if (resp.status !== 200) {
+    throw new Error(`get_recent_topups failed with HTTP ${resp.status}`);
+  }
+
+  const root = resp.data?.topup_history_3months || resp.data || {};
+  return {
+    numberOfTopups,
+    lookbackDays,
+    history: extractTopupHistory(resp.data),
+    meta: root.meta || null,
+  };
+}
+
 async function getMonthToDateUsage(meterDisplayName) {
   const meterId = String(meterDisplayName || "").trim();
   if (!meterId) return null;
@@ -180,6 +255,118 @@ async function getMonthToDateUsage(meterDisplayName) {
   if (resp.status !== 200) return null;
   const val = resp.data?.month_to_date_usage;
   return typeof val === "number" ? val : null;
+}
+
+function pickFirst(obj, keys) {
+  for (const key of keys) {
+    const value = obj?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return null;
+}
+
+function toFiniteNumber(value) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  const normalized = String(value ?? "")
+    .replace(/[^\d.+-]/g, "")
+    .trim();
+  if (!normalized) return null;
+  const n = Number(normalized);
+  return Number.isFinite(n) ? n : null;
+}
+
+function parseOreDate(value) {
+  if (value instanceof Date) return value;
+
+  if (typeof value === "number") {
+    const millis = value > 10_000_000_000 ? value : value * 1000;
+    return new Date(millis);
+  }
+
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+
+  const sgDateTime = raw.match(
+    /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2})?)$/,
+  );
+  if (sgDateTime) {
+    return new Date(`${sgDateTime[1]}T${sgDateTime[2]}+08:00`);
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatSgDateTime(value) {
+  const parsed = parseOreDate(value);
+  if (!parsed) return escHtml(value);
+
+  return new Intl.DateTimeFormat("en-SG", {
+    timeZone: "Asia/Singapore",
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(parsed);
+}
+
+function formatTopupAmount(record) {
+  const amount = pickFirst(record, [
+    "topup_amount",
+    "topup_amt",
+    "amount",
+    "amount_sgd",
+    "txn_amount",
+    "transaction_amount",
+    "credit_amt",
+    "topup_value",
+    "value",
+    "amt",
+  ]);
+  const n = toFiniteNumber(amount);
+  if (n !== null) return `SGD ${Math.abs(n).toFixed(2)}`;
+  return amount == null ? "amount unavailable" : escHtml(amount);
+}
+
+function formatTopupHistory(history = []) {
+  if (!Array.isArray(history) || history.length === 0) {
+    return "No top-ups found in the last 90 days.";
+  }
+
+  return history
+    .slice(0, 10)
+    .map((record, idx) => {
+      const when = pickFirst(record, [
+        "topup_datetime",
+        "transaction_log_timestamp",
+        "transaction_datetime",
+        "txn_datetime",
+        "payment_datetime",
+        "created_at",
+        "datetime",
+        "date",
+        "time",
+      ]);
+      const ref = pickFirst(record, [
+        "transaction_id",
+        "transaction_code",
+        "txn_id",
+        "transaction_ref",
+        "txn_ref",
+        "reference",
+        "ref",
+        "receipt_no",
+      ]);
+      const status = pickFirst(record, ["status", "state", "result"]);
+
+      const parts = [`${idx + 1}. <b>${formatTopupAmount(record)}</b>`];
+      if (when) parts.push(`on ${formatSgDateTime(when)}`);
+      if (ref) parts.push(`(<code>${escHtml(ref)}</code>)`);
+      if (status) parts.push(`- ${escHtml(status)}`);
+
+      return parts.join(" ");
+    })
+    .join("\n");
 }
 
 function analyzeUsage(history = [], creditBal = null) {
@@ -314,8 +501,11 @@ async function formatUsageSummary(
 module.exports = {
   getMeterSummary,
   getMeterUsage,
+  getRecentTopups,
+  extractTopupHistory,
   analyzeUsage,
   formatUsageSummary,
+  formatTopupHistory,
   getMonthToDateUsage,
   getRecentUsageStat,
 };

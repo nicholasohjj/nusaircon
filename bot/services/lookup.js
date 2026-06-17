@@ -2,7 +2,9 @@ const { escHtml } = require("../../services/utils");
 const {
   getMeterSummary,
   getMeterUsage,
+  getRecentTopups,
   formatUsageSummary,
+  formatTopupHistory,
 } = require("../../services/ore");
 const { track } = require("../../services/analytics");
 const { getSession } = require("./session");
@@ -15,10 +17,10 @@ function lowBalanceWarning(bal) {
 }
 
 /**
- * Fetches meter balance and/or 7-day usage, edits a loading message in-place,
- * then prompts the user to choose their next action.
+ * Fetches meter balance, 7-day usage, or recent top-ups, edits a loading
+ * message in-place, then prompts the user to choose their next action.
  *
- * @param {"balance"|"usage"} mode
+ * @param {"balance"|"usage"|"topups"} mode
  * @param {{ fromSaved?: boolean }} opts
  */
 async function handleMeterIdLookup(
@@ -30,23 +32,41 @@ async function handleMeterIdLookup(
 ) {
   const session = getSession(chatId);
   session.stage = "idle";
+  const modeLabels = {
+    balance: "balance",
+    usage: "usage history",
+    topups: "top-up history",
+  };
+  const loadingText = {
+    balance: "🔍 Checking balance…",
+    usage: "🔍 Checking recent usage…",
+    topups: "🔍 Checking recent top-ups…",
+  };
 
   await ctx.sendChatAction("typing");
   const loadingMsg = await ctx
-    .reply(
-      mode === "usage" ? "🔍 Checking recent usage…" : "🔍 Checking balance…",
-    )
+    .reply(loadingText[mode] || "🔍 Checking meter details…")
     .catch(() => null);
   if (!loadingMsg) return;
 
   try {
-    const [summary, usage] =
-      mode === "usage"
-        ? await Promise.all([
-            getMeterSummary(meterId),
-            getMeterUsage(meterId, 7),
-          ])
-        : [await getMeterSummary(meterId), null];
+    let summary;
+    let usage;
+    let topups;
+
+    if (mode === "usage") {
+      [summary, usage] = await Promise.all([
+        getMeterSummary(meterId),
+        getMeterUsage(meterId, 7),
+      ]);
+    } else if (mode === "topups") {
+      [summary, topups] = await Promise.all([
+        getMeterSummary(meterId),
+        getRecentTopups(meterId, { numberOfTopups: 10, lookbackDays: 90 }),
+      ]);
+    } else {
+      summary = await getMeterSummary(meterId);
+    }
 
     const lines = [`⚡ <b>Meter ID:</b> <code>${meterId}</code>`];
 
@@ -73,6 +93,11 @@ async function handleMeterIdLookup(
           meterId,
         )) || "No usage data available.",
       );
+    }
+
+    if (mode === "topups") {
+      lines.push("", "<b>Recent top-ups (last 90 days)</b>");
+      lines.push(formatTopupHistory(topups.history));
     }
 
     if (fromSaved) {
@@ -104,7 +129,7 @@ async function handleMeterIdLookup(
   } catch (err) {
     track(`${mode}_error`, { chatId, meterId, error: err.message });
 
-    const errorText = `⚠️ Failed to fetch ${mode === "usage" ? "usage history" : "balance"}. Please try again.`;
+    const errorText = `⚠️ Failed to fetch ${modeLabels[mode] || "meter details"}. Please try again.`;
     const edited = await ctx.telegram
       .editMessageText(chatId, loadingMsg.message_id, undefined, errorText)
       .catch(async () => {

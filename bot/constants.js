@@ -7,6 +7,7 @@ const STAGES = {
   AWAITING_METER_ID: "awaiting_meter_id",
   AWAITING_METER_ID_BALANCE: "awaiting_meter_id_balance",
   AWAITING_METER_ID_USAGE: "awaiting_meter_id_usage",
+  AWAITING_METER_ID_TOPUPS: "awaiting_meter_id_topups",
   AWAITING_AMOUNT: "awaiting_amount",
   AWAITING_PAYMENT: "awaiting_payment",
   AWAITING_FEEDBACK_RATING: "awaiting_feedback_rating",
@@ -33,6 +34,7 @@ const PENDING_REPLY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const mainKeyboard = Markup.keyboard([
   ["⚡ Top Up"],
   ["💰 Balance", "📊 Usage"],
+  ["🧾 Top-ups"],
   ["ℹ️ Help"],
 ]).resize();
 

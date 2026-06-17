@@ -405,6 +405,14 @@ function registerTextHandler(telegramBot) {
             );
           return handleMeterIdLookup(ctx, chatId, text, "balance");
 
+        case STAGES.AWAITING_METER_ID_TOPUPS:
+          if (!isValidMeterId(text))
+            return ctx.reply(
+              "⚠️ Invalid Meter ID. Please try again.",
+              cancelKeyboard,
+            );
+          return handleMeterIdLookup(ctx, chatId, text, "topups");
+
         case STAGES.AWAITING_AMOUNT:
           return handleAwaitingAmount(ctx, chatId, text, session);
 
@@ -431,14 +439,14 @@ function registerTextHandler(telegramBot) {
           }
 
           return ctx.reply(
-            "I didn't understand that. Use /topup to top up, /balance to check balance, or /help for instructions.",
+            "I didn't understand that. Use /topup to top up, /balance to check balance, /topups to view recent top-ups, or /help for instructions.",
             mainKeyboard,
           );
         }
 
         default:
           return ctx.reply(
-            "I didn't understand that. Use /topup to top up, /balance to check balance, or /help for instructions.",
+            "I didn't understand that. Use /topup to top up, /balance to check balance, /topups to view recent top-ups, or /help for instructions.",
             mainKeyboard,
           );
       }

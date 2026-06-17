@@ -153,6 +153,37 @@ function registerUsage(bot) {
   });
 }
 
+// ── /topups ──────────────────────────────────────────────────────────────────
+function registerTopups(bot) {
+  bot.command("topups", async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId) return;
+
+    track("topups_command", { chatId });
+    const saved = getUser(chatId);
+    if (saved?.meterId) {
+      getSession(chatId).stage = STAGES.IDLE;
+      return handleMeterIdLookup(ctx, chatId, saved.meterId, "topups", {
+        fromSaved: true,
+      });
+    }
+
+    const session = getSession(chatId);
+    session.stage = STAGES.AWAITING_METER_ID_TOPUPS;
+
+    return ctx.reply(
+      "🔌 Please enter your 8-digit Meter ID to view recent top-ups:",
+      {
+        ...cancelKeyboard,
+        reply_markup: {
+          ...cancelKeyboard.reply_markup,
+          input_field_placeholder: "e.g. 12345678",
+        },
+      },
+    );
+  });
+}
+
 // ── /forget ───────────────────────────────────────────────────────────────────
 function registerForget(bot) {
   bot.command("forget", async (ctx) => {
@@ -221,6 +252,7 @@ function registerUserCommands(bot) {
   registerTopup(bot);
   registerBalance(bot);
   registerUsage(bot);
+  registerTopups(bot);
   registerForget(bot);
   registerFeedback(bot);
   registerHelp(bot);

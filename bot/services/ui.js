@@ -23,6 +23,7 @@ function helpText() {
     `• /balance — check meter balance\n` +
     `• /usage — show last 7 days of daily consumption,\n` +
     `  estimated days remaining, and current balance\n` +
+    `• /topups — show recent top-ups from the last 90 days\n` +
     `• /feedback — share feedback or report an issue\n` +
     `• /forget — clear your saved Meter ID and hostel\n` +
     `• /cancel — cancel the current flow\n` +
@@ -42,6 +43,7 @@ async function setupTelegramUi(bot) {
     { command: "topup", description: "Start electricity top-up" },
     { command: "balance", description: "Check meter balance" },
     { command: "usage", description: "Show recent daily usage" },
+    { command: "topups", description: "Show recent top-ups" },
     { command: "forget", description: "Clear your saved Meter ID" },
     { command: "feedback", description: "Share feedback or report an issue" },
     { command: "help", description: "Show help and usage" },

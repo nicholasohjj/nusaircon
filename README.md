@@ -11,7 +11,7 @@ A Telegram bot and web app that lets NUS hostel residents top up their EVS elect
 
 ## Features
 
-- Check meter balance and 7-day usage history from within Telegram
+- Check meter balance, 7-day usage history, and recent top-ups from within Telegram
 - Top up electricity via credit card (SGD $6–$50)
 - RSA-encrypted card entry — card details never leave the browser in plaintext
 - Works as a Telegram Mini App and as a standalone website
@@ -25,7 +25,8 @@ Telegram Bot (telegraf)          Website (React, /app/)
     │                                │
     ├── /topup                       └── HomePage
     ├── /balance                          └── hostel selection
-    └── /usage                                + meter ID + amount
+    ├── /usage                                + meter ID + amount
+    └── /topups
           │ webhook in production,               │
           │ polling in development               │
           ▼                                       ▼
@@ -177,6 +178,7 @@ npm run lint
 | `/topup`    | Start an electricity top-up       |
 | `/balance`  | Check meter balance               |
 | `/usage`    | Show last 7 days of usage         |
+| `/topups`   | Show recent top-ups               |
 | `/feedback` | Share feedback or report an issue |
 | `/cancel`   | Cancel the current flow           |
 | `/help`     | Show help and hostel information  |
@@ -196,13 +198,14 @@ idle
 
   → awaiting_meter_id_balance  (/balance with no saved meter)
   → awaiting_meter_id_usage    (/usage with no saved meter)
+  → awaiting_meter_id_topups   (/topups with no saved meter)
 
   → awaiting_feedback_rating   (/feedback — star rating keyboard)
   → awaiting_feedback_text     (free-text or ⏭ Skip)
   → idle
 ```
 
-`/balance` and `/usage` use single-step stages that return to idle after one response.
+`/balance`, `/usage`, and `/topups` use single-step stages that return to idle after one response.
 
 ## Payment Session
 
@@ -230,7 +233,7 @@ Note: threading only follows the original notification message. If the owner rep
 ├── services/
 │   ├── cp2Service.js             # Purchase flow: EVS WebPOS scraping + eNETS proxy
 │   ├── cp2nusService.js          # Purchase flow: EVS JSON API + eNETS PP + NETS API
-│   ├── ore.js                    # ORE API: meter summary and usage history
+│   ├── ore.js                    # ORE API: meter summary, usage history, top-up history
 │   ├── paymentSession.js         # Sealed payment/result tokens and receipt cache
 │   ├── paymentNotification.js    # Telegram payment result notification helper
 │   ├── paymentSubmitLock.js      # Short-lived duplicate payment submit guard
