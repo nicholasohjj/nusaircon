@@ -311,6 +311,11 @@ router.post(
       });
       releaseSubmitLock = acquirePaymentSubmitLock(submitLockKey);
       if (!releaseSubmitLock) {
+        track("payment_duplicate_blocked", {
+          meterId,
+          merchantTxnRef: effectiveMerchantTxnRef,
+          route: "cp2nus",
+        });
         return res.status(409).json({
           ok: false,
           code: "PAYMENT_ALREADY_PROCESSING",
@@ -535,6 +540,11 @@ router.get("/webapp/balance", async (req, res) => {
 
   try {
     const summary = await getMeterSummary(session.txtMtrId);
+    track("balance_verified", {
+      meterId: session.txtMtrId,
+      route: "cp2nus",
+      balance: String(summary.credit_bal ?? ""),
+    });
     return res.json({
       ok: true,
       txtMtrId: session.txtMtrId,
