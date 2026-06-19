@@ -123,11 +123,15 @@ OWNER_CHAT_ID=your_telegram_chat_id   # receives feedback notifications
 TOPUP_DISABLED=false                  # set to "true" to show maintenance message
 DB_DIR=.                              # local SQLite dir; use /data on Railway with a mounted volume
 TELEGRAM_BOT_MODE=                    # production/Railway defaults to webhook; dev defaults to polling
+GOOGLE_SITE_VERIFICATION_FILE=        # optional Search Console HTML file name, e.g. googleabc123.html
+GOOGLE_SITE_VERIFICATION_CONTENT=     # optional exact file body if Google provides non-default content
 ```
 
 `SERVER_URL` must be HTTPS for the Telegram WebApp payment button to work. If it is HTTP, the bot falls back to a plain browser link instead. On Railway, set it to `https://${{RAILWAY_PUBLIC_DOMAIN}}` or leave it unset and the app will derive it from `RAILWAY_PUBLIC_DOMAIN`.
 
 `PAYMENT_SESSION_SECRET` should be a stable random value, for example from `openssl rand -hex 32`. If it is omitted, the app falls back to `TELEGRAM_BOT_TOKEN`, which still survives Railway sleeps as long as the bot token does not change.
+
+For Google Search Console URL-prefix verification, use the HTML file method and set `GOOGLE_SITE_VERIFICATION_FILE` to the downloaded file name. The default response body is `google-site-verification: <file name>`. If Google's downloaded file contains different text, set `GOOGLE_SITE_VERIFICATION_CONTENT` to the exact file body.
 
 In production, or when `RAILWAY_PUBLIC_DOMAIN` is present, the bot uses a Telegram webhook by default so Railway Serverless can sleep and wake from inbound Telegram requests. Set `TELEGRAM_BOT_MODE=polling` only for an always-on deployment. Optional webhook variables are `TELEGRAM_WEBHOOK_PATH`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_DROP_PENDING_UPDATES`.
 

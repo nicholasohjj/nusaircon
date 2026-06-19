@@ -2,6 +2,27 @@ function normalizeBaseUrl(baseUrl = "") {
   return String(baseUrl || "").replace(/\/+$/, "");
 }
 
+function normalizeGoogleVerificationFileName(fileName = "") {
+  const normalized = String(fileName || "").trim();
+  if (!normalized || normalized.includes("/") || normalized.includes("\\")) {
+    return "";
+  }
+
+  return /^google[a-zA-Z0-9_-]+\.html$/.test(normalized) ? normalized : "";
+}
+
+function buildGoogleVerificationFileContent(fileName, content = "") {
+  const normalizedFileName = normalizeGoogleVerificationFileName(fileName);
+  if (!normalizedFileName) return "";
+
+  const body =
+    content === ""
+      ? `google-site-verification: ${normalizedFileName}`
+      : String(content);
+
+  return body.endsWith("\n") ? body : `${body}\n`;
+}
+
 function buildRobotsTxt(baseUrl = "") {
   const lines = [
     "User-agent: *",
@@ -55,7 +76,9 @@ ${urls
 }
 
 module.exports = {
+  buildGoogleVerificationFileContent,
   buildRobotsTxt,
   buildSitemapXml,
   normalizeBaseUrl,
+  normalizeGoogleVerificationFileName,
 };

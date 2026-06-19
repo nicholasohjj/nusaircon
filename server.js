@@ -7,7 +7,12 @@ const express = require("express");
 const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
 const { captureException } = require("./services/analytics");
-const { buildRobotsTxt, buildSitemapXml } = require("./services/seo");
+const {
+  buildGoogleVerificationFileContent,
+  buildRobotsTxt,
+  buildSitemapXml,
+  normalizeGoogleVerificationFileName,
+} = require("./services/seo");
 const {
   httpLogger,
   paymentBootstrapLimiter,
@@ -53,6 +58,25 @@ app.get("/robots.txt", (req, res) => {
 app.get("/sitemap.xml", (req, res) => {
   res.type("application/xml").send(buildSitemapXml(getPublicBaseUrl(req)));
 });
+
+const googleVerificationFileName = normalizeGoogleVerificationFileName(
+  process.env.GOOGLE_SITE_VERIFICATION_FILE,
+);
+
+if (googleVerificationFileName) {
+  app.get(`/${googleVerificationFileName}`, (req, res) => {
+    res
+      .type("text/html")
+      .send(
+        buildGoogleVerificationFileContent(
+          googleVerificationFileName,
+          process.env.GOOGLE_SITE_VERIFICATION_CONTENT || "",
+        ),
+      );
+  });
+} else if (process.env.GOOGLE_SITE_VERIFICATION_FILE) {
+  console.warn("Ignoring invalid GOOGLE_SITE_VERIFICATION_FILE value.");
+}
 
 app.get("/", (req, res) => {
   res.redirect(301, "/app/");

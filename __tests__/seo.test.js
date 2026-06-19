@@ -2,7 +2,12 @@ import { describe, expect, test } from "vitest";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { buildRobotsTxt, buildSitemapXml } = require("../services/seo");
+const {
+  buildGoogleVerificationFileContent,
+  buildRobotsTxt,
+  buildSitemapXml,
+  normalizeGoogleVerificationFileName,
+} = require("../services/seo");
 
 describe("SEO metadata", () => {
   test("robots allows public app pages and blocks payment routes", () => {
@@ -24,5 +29,28 @@ describe("SEO metadata", () => {
     expect(sitemap).not.toContain("webapp");
     expect(sitemap).not.toContain("pay");
     expect(sitemap).not.toContain("result");
+  });
+
+  test("normalizes Google verification file names", () => {
+    expect(normalizeGoogleVerificationFileName(" googleabc123.html ")).toBe(
+      "googleabc123.html",
+    );
+    expect(normalizeGoogleVerificationFileName("../googleabc123.html")).toBe(
+      "",
+    );
+    expect(normalizeGoogleVerificationFileName("not-google.html")).toBe("");
+  });
+
+  test("builds Google verification file content", () => {
+    expect(buildGoogleVerificationFileContent("googleabc123.html")).toBe(
+      "google-site-verification: googleabc123.html\n",
+    );
+    expect(
+      buildGoogleVerificationFileContent(
+        "googleabc123.html",
+        "custom-verification-body",
+      ),
+    ).toBe("custom-verification-body\n");
+    expect(buildGoogleVerificationFileContent("../googleabc123.html")).toBe("");
   });
 });
