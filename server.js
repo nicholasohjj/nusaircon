@@ -7,6 +7,7 @@ const express = require("express");
 const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
 const { captureException } = require("./services/analytics");
+const { buildRobotsTxt, buildSitemapXml } = require("./services/seo");
 const {
   httpLogger,
   paymentBootstrapLimiter,
@@ -24,6 +25,14 @@ const {
 
 const openapiSpec = YAML.load(path.join(__dirname, "docs/openapi.yaml"));
 
+function getPublicBaseUrl(req) {
+  if (process.env.SERVER_URL) {
+    return process.env.SERVER_URL.replace(/\/+$/, "");
+  }
+
+  return `${req.protocol}://${req.get("host")}`;
+}
+
 const app = express();
 if (process.env.RAILWAY_PUBLIC_DOMAIN || process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1);
@@ -36,6 +45,18 @@ mountTelegramWebhook(app);
 app.use("/assets", express.static("assets"));
 
 app.use("/app", express.static(path.join(__dirname, "frontend/dist")));
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send(buildRobotsTxt(getPublicBaseUrl(req)));
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  res.type("application/xml").send(buildSitemapXml(getPublicBaseUrl(req)));
+});
+
+app.get("/", (req, res) => {
+  res.redirect(301, "/app/");
+});
 
 app.get(/^\/app\/.*$/, (req, res) => {
   res.sendFile(path.join(__dirname, "frontend/dist/index.html"));
