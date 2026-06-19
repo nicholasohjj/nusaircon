@@ -12,6 +12,21 @@ function useTelegram() {
   }, []);
 }
 
+function buildTopUpAgainUrl(basePath, session) {
+  const params = new URLSearchParams({
+    txtMtrId: session?.txtMtrId || "",
+    txtAmount: String(session?.txtAmount || "").replace(/[^0-9.]/g, ""),
+  });
+
+  if (session?.chatId) params.set("chatId", String(session.chatId));
+
+  return `${basePath}/webapp?${params.toString()}`;
+}
+
+function isTelegramWebApp() {
+  return Boolean(window.Telegram?.WebApp);
+}
+
 // ── Small presentational pieces ───────────────────────────────────────────────
 
 function DetailRow({ label, value }) {
@@ -37,6 +52,7 @@ export default function ResultPage({ basePath = "" }) {
   const [verifiedBalance, setVerifiedBalance] = useState(null);
   const [verifyErr, setVerifyErr] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const telegramWebApp = isTelegramWebApp();
 
   // ── Fetch session ───────────────────────────────────────────────────────────
   // All result data lives server-side in the session — we never trust query
@@ -69,16 +85,17 @@ export default function ResultPage({ basePath = "" }) {
 
   async function handleClose() {
     await sendNotify();
-    window.Telegram?.WebApp?.close();
+    if (telegramWebApp) {
+      window.Telegram.WebApp.close();
+      return;
+    }
+
+    window.location.href = "/app/";
   }
 
   async function handleTopUpAgain() {
     await sendNotify();
-    const meterId = session?.txtMtrId || "";
-    const amount = String(session?.txtAmount || "").replace(/[^0-9.]/g, "");
-    window.location.href =
-      `${basePath}/webapp?txtMtrId=${encodeURIComponent(meterId)}` +
-      `&txtAmount=${encodeURIComponent(amount)}`;
+    window.location.href = buildTopUpAgainUrl(basePath, session);
   }
 
   async function handleVerifyBalance() {
@@ -226,7 +243,7 @@ export default function ResultPage({ basePath = "" }) {
           className={[styles.btn, styles.btnSecondary].join(" ")}
           onClick={handleClose}
         >
-          Close
+          {telegramWebApp ? "Close" : "Done"}
         </button>
       </div>
     </div>

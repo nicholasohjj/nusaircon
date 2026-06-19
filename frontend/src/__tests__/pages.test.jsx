@@ -147,7 +147,7 @@ describe("CardPaymentPage", () => {
     });
   });
 
-  test("shows expired hint on 400 response", async () => {
+  test("shows restart action on 400 response", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       ok: false,
       status: 400,
@@ -155,8 +155,43 @@ describe("CardPaymentPage", () => {
     });
     renderWithRouter(<CardPaymentPage basePath="" />, TOKEN_PARAMS);
     await waitFor(() => {
-      expect(screen.getByText(/return to the bot/i)).toBeInTheDocument();
+      expect(screen.getByText(/Start a new top-up/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Start Again/i }),
+      ).toBeInTheDocument();
     });
+  });
+
+  test("uses restart URL when session expires", async () => {
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { ...window.location, href: "" },
+    });
+    Object.defineProperty(window.location, "href", {
+      set: assignSpy,
+      get: () => "",
+    });
+
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ ok: false, error: "Session expired." }),
+    });
+
+    renderWithRouter(<CardPaymentPage basePath="" />, {
+      token: "test-token-abc",
+      restartUrl: "/webapp?txtMtrId=12345678&txtAmount=20&chatId=999",
+    });
+
+    const restartButton = await screen.findByRole("button", {
+      name: /Start Again/i,
+    });
+    fireEvent.click(restartButton);
+
+    expect(assignSpy).toHaveBeenCalledWith(
+      "/webapp?txtMtrId=12345678&txtAmount=20&chatId=999",
+    );
   });
 
   test("renders card form after session loads", async () => {
@@ -204,7 +239,19 @@ describe("CardPaymentPage", () => {
 // ── ResultPage ────────────────────────────────────────────────────────────────
 
 describe("ResultPage", () => {
+  let originalTelegram;
+
+  beforeEach(() => {
+    originalTelegram = window.Telegram;
+    delete window.Telegram;
+  });
+
   afterEach(() => {
+    if (originalTelegram === undefined) {
+      delete window.Telegram;
+    } else {
+      window.Telegram = originalTelegram;
+    }
     vi.restoreAllMocks();
   });
 
@@ -301,7 +348,7 @@ describe("ResultPage", () => {
     });
   });
 
-  test("renders Top Up Again and Close buttons", async () => {
+  test("renders standalone Top Up Again and Done buttons", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
       status: 200,
@@ -322,8 +369,88 @@ describe("ResultPage", () => {
         screen.getByRole("button", { name: /Top Up Again/i }),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("button", { name: /Close/i }),
+        screen.getByRole("button", { name: /Done/i }),
       ).toBeInTheDocument();
+    });
+  });
+
+  test("preserves chatId when topping up again", async () => {
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { ...window.location, href: "" },
+    });
+    Object.defineProperty(window.location, "href", {
+      set: assignSpy,
+      get: () => "",
+    });
+
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        status: "success",
+        txtMtrId: "12345678",
+        txtAmount: "20",
+        chatId: "999",
+        merchantTxnRef: "MTR-001",
+        reason: "Payment completed.",
+        address: "",
+        balance: "",
+      }),
+    });
+
+    renderWithRouter(<ResultPage basePath="/cp2nus" />, {
+      token: "test-token",
+    });
+
+    const topUpAgainButton = await screen.findByRole("button", {
+      name: /Top Up Again/i,
+    });
+    fireEvent.click(topUpAgainButton);
+
+    await waitFor(() => {
+      expect(assignSpy).toHaveBeenCalledWith(
+        "/cp2nus/webapp?txtMtrId=12345678&txtAmount=20&chatId=999",
+      );
+    });
+  });
+
+  test("renders Close inside Telegram WebApp", async () => {
+    window.Telegram = {
+      WebApp: {
+        ready: vi.fn(),
+        expand: vi.fn(),
+        close: vi.fn(),
+      },
+    };
+
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        status: "success",
+        txtMtrId: "12345678",
+        txtAmount: "20",
+        chatId: "999",
+        merchantTxnRef: "MTR-001",
+        reason: "Payment completed.",
+        address: "",
+        balance: "",
+      }),
+    });
+
+    renderWithRouter(<ResultPage basePath="" />, { token: "test-token" });
+
+    const closeButton = await screen.findByRole("button", {
+      name: /Close/i,
+    });
+    fireEvent.click(closeButton);
+
+    await waitFor(() => {
+      expect(window.Telegram.WebApp.close).toHaveBeenCalled();
     });
   });
 

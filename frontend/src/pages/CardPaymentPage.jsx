@@ -16,6 +16,28 @@ function useTelegram() {
   }, []);
 }
 
+function safeRestartUrl(value) {
+  const fallback = "/app/";
+  if (!value) return fallback;
+
+  try {
+    const url = new URL(value, window.location.origin);
+    const allowedPaths = new Set([
+      "/webapp",
+      "/cp2nus/webapp",
+      "/app",
+      "/app/",
+    ]);
+
+    if (url.origin !== window.location.origin) return fallback;
+    if (!allowedPaths.has(url.pathname)) return fallback;
+
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return fallback;
+  }
+}
+
 // ── Field component ───────────────────────────────────────────────────────────
 
 function Field({ label, error, children }) {
@@ -47,6 +69,7 @@ export default function CardPaymentPage({ basePath = "" }) {
   const [searchParams] = useSearchParams();
 
   const token = searchParams.get("token") || "";
+  const restartUrl = safeRestartUrl(searchParams.get("restartUrl"));
 
   const initialLoadErr = token
     ? null
@@ -181,6 +204,10 @@ export default function CardPaymentPage({ basePath = "" }) {
     if (e.key === "Backspace" && !e.target.value) expYrRef.current?.focus();
   }, []);
 
+  function handleRestart() {
+    window.location.href = restartUrl;
+  }
+
   // ── Submit ──────────────────────────────────────────────────────────────────
   async function handleSubmit(e) {
     e.preventDefault();
@@ -294,8 +321,6 @@ export default function CardPaymentPage({ basePath = "" }) {
   // ── Render: loading / error / form ─────────────────────────────────────────
 
   if (loadErr) {
-    // On expiry, offer to restart — we don't have meterId/amount in scope here
-    // since the session never loaded, so we link back to the Telegram bot.
     return (
       <Card align="center">
         <span
@@ -308,10 +333,14 @@ export default function CardPaymentPage({ basePath = "" }) {
         </span>
         <div className={styles.loadErr}>{loadErr.message}</div>
         {loadErr.expired && (
-          <p className={styles.loadErrHint}>
-            Your session expired. Please return to the bot and start a new
-            top-up.
-          </p>
+          <>
+            <p className={styles.loadErrHint}>
+              Your session expired. Start a new top-up to continue.
+            </p>
+            <button className={styles.btn} onClick={handleRestart}>
+              Start Again
+            </button>
+          </>
         )}
       </Card>
     );

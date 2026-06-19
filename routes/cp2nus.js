@@ -45,6 +45,17 @@ async function createNotifiedResultToken(session, updates) {
   return createPaymentResultSession(resultSession);
 }
 
+function buildRestartUrl(session) {
+  const params = new URLSearchParams({
+    txtMtrId: session.txtMtrId || "",
+    txtAmount: session.txtAmount || "",
+  });
+
+  if (session.chatId) params.set("chatId", String(session.chatId));
+
+  return `${CP2NUS_BASE_PATH}/webapp?${params.toString()}`;
+}
+
 router.get("/webapp", async (req, res) => {
   const { txtMtrId, txtAmount, chatId } = req.query;
   if (!txtMtrId || !txtAmount)
@@ -105,6 +116,7 @@ router.get("/webapp/session", (req, res) => {
     merchantTxnRef,
     source,
     receiptId,
+    chatId,
   } = session;
   return res.json({
     ok: true,
@@ -117,6 +129,7 @@ router.get("/webapp/session", (req, res) => {
     merchantTxnRef: merchantTxnRef || "",
     source: source || "",
     receiptAvailable: !!receiptId,
+    chatId: chatId || "",
     ...nets,
   });
 });
@@ -212,7 +225,12 @@ router.get("/webapp/pay", (req, res) => {
         errorPage("Payment session expired or invalid. Please start again."),
       );
 
-  return res.redirect(`/app/cp2nus/pay?token=${encodeURIComponent(token)}`);
+  const qs = new URLSearchParams({
+    token,
+    restartUrl: buildRestartUrl(session),
+  }).toString();
+
+  return res.redirect(`/app/cp2nus/pay?${qs}`);
 });
 
 router.get("/webapp/receipt", (req, res) => {

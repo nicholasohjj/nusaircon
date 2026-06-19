@@ -78,6 +78,7 @@ describe("paymentSession sealed tokens", () => {
       txtAmount: "20",
       address: "Blk 12",
       balance: "18.50",
+      chatId: "999",
       nets: { rsaModulus: "secret-gateway-field" },
       status: "success",
       merchantTxnRef: "MTR-001",
@@ -88,6 +89,7 @@ describe("paymentSession sealed tokens", () => {
 
     expect(session.status).toBe("success");
     expect(session.merchantTxnRef).toBe("MTR-001");
+    expect(session.chatId).toBe("999");
     expect(session.nets).toBeUndefined();
     expect(session.notifiedAt).toBe(123);
   });

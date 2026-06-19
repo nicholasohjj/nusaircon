@@ -48,6 +48,17 @@ async function createNotifiedResultToken(session, updates) {
   return createPaymentResultSession(resultSession);
 }
 
+function buildRestartUrl(session) {
+  const params = new URLSearchParams({
+    txtMtrId: session.txtMtrId || "",
+    txtAmount: session.txtAmount || "",
+  });
+
+  if (session.chatId) params.set("chatId", String(session.chatId));
+
+  return `/webapp?${params.toString()}`;
+}
+
 // ── Existing routes ───────────────────────────────────────────────────────────
 
 router.post("/webapp/notify", express.json(), async (req, res) => {
@@ -512,7 +523,12 @@ router.get("/webapp/pay", (req, res) => {
         errorPage("Payment session expired or invalid. Please start again."),
       );
 
-  return res.redirect(`/app/pay?token=${encodeURIComponent(token)}`);
+  const qs = new URLSearchParams({
+    token,
+    restartUrl: buildRestartUrl(session),
+  }).toString();
+
+  return res.redirect(`/app/pay?${qs}`);
 });
 
 router.post("/evs/creditpayment", async (req, res) => {
@@ -658,6 +674,7 @@ router.get("/webapp/session", (req, res) => {
     reason,
     merchantTxnRef,
     receiptId,
+    chatId,
   } = session;
   return res.json({
     ok: true,
@@ -669,6 +686,7 @@ router.get("/webapp/session", (req, res) => {
     reason: reason || "",
     merchantTxnRef: merchantTxnRef || "",
     receiptAvailable: !!receiptId,
+    chatId: chatId || "",
     ...nets,
   });
 });
