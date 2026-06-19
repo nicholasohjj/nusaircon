@@ -121,7 +121,7 @@ PAYMENT_SESSION_SECRET=replace_with_openssl_rand_hex_32 # stable secret for sign
 SERVER_URL=https://your-public-server.example.com
 OWNER_CHAT_ID=your_telegram_chat_id   # receives feedback notifications
 TOPUP_DISABLED=false                  # set to "true" to show maintenance message
-DB_DIR=/data                          # directory for SQLite user store (default: /data if it exists, else .)
+DB_DIR=.                              # local SQLite dir; use /data on Railway with a mounted volume
 TELEGRAM_BOT_MODE=                    # production/Railway defaults to webhook; dev defaults to polling
 ```
 
@@ -144,6 +144,8 @@ npm start
 ```
 
 The frontend is served at `/app/` by Express in production. In development, Vite proxies `/webapp` and `/cp2nus` to the backend.
+
+For local development, keep `DB_DIR=.` or omit it. On Railway, set `DB_DIR=/data` only after attaching a volume mounted at `/data`.
 
 ### Railway Serverless
 

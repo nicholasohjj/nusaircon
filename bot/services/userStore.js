@@ -1,10 +1,17 @@
 const Database = require("better-sqlite3");
 const path = require("path");
 const fs = require("fs");
+const { resolveDbDir } = require("./dbDir");
 
 // Railway Volume should be mounted at /data. Fall back to local for dev.
-const DB_DIR = process.env.DB_DIR || (fs.existsSync("/data") ? "/data" : ".");
+const DB_DIR = resolveDbDir();
 const DB_PATH = path.join(DB_DIR, "evs_users.db");
+
+if (process.env.DB_DIR?.trim() === "/data" && DB_DIR === ".") {
+  console.warn(
+    "DB_DIR=/data but /data is not available locally; using ./evs_users.db. Use DB_DIR=/data on Railway with a mounted volume.",
+  );
+}
 
 fs.mkdirSync(DB_DIR, { recursive: true });
 
