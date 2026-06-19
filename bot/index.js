@@ -6,6 +6,7 @@ const { createHash } = require("crypto");
 const { bot, pendingReplies, state } = require("./bot");
 const { captureException, shutdownAnalytics } = require("../services/analytics");
 const { PENDING_REPLY_TTL_MS } = require("./constants");
+const { shouldUseWebhook } = require("./runtimeMode");
 const { resetSession } = require("./services/session");
 const { setupTelegramUi } = require("./services/ui");
 
@@ -43,7 +44,6 @@ bot.catch((err, ctx) => {
 });
 
 // ── Runtime mode ──────────────────────────────────────────────────────────────
-const explicitMode = process.env.TELEGRAM_BOT_MODE?.trim().toLowerCase();
 const serverUrl = (process.env.SERVER_URL || "").replace(/\/+$/, "");
 const webhookPath = normalizeWebhookPath(process.env.TELEGRAM_WEBHOOK_PATH);
 const webhookSecret =
@@ -70,17 +70,6 @@ function normalizeWebhookPath(value) {
 
   const withSlash = value.startsWith("/") ? value : `/${value}`;
   return withSlash.replace(/\/+$/, "") || "/";
-}
-
-function shouldUseWebhook() {
-  if (explicitMode === "webhook") return true;
-  if (explicitMode === "polling") return false;
-  if (explicitMode) {
-    throw new Error(
-      `Unsupported TELEGRAM_BOT_MODE "${process.env.TELEGRAM_BOT_MODE}". Use "webhook" or "polling".`,
-    );
-  }
-  return process.env.NODE_ENV === "production";
 }
 
 function getWebhookUrl() {

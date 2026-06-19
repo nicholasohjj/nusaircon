@@ -6,6 +6,7 @@ const {
   forgetUser,
 } = require("../services/userStore");
 const { pendingReplies, state } = require("../bot");
+const { inferRuntimeMode } = require("../runtimeMode");
 const { track } = require("../../services/analytics");
 const { getSessionStats } = require("../services/session");
 const { getPaymentSubmitLockStats } = require("../../services/paymentSubmitLock");
@@ -14,13 +15,6 @@ const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
 
 function isOwner(ctx) {
   return OWNER_CHAT_ID && String(ctx.chat?.id) === String(OWNER_CHAT_ID);
-}
-
-function inferRuntimeMode() {
-  const explicitMode = process.env.TELEGRAM_BOT_MODE?.trim().toLowerCase();
-  if (explicitMode === "webhook" || explicitMode === "polling")
-    return explicitMode;
-  return process.env.NODE_ENV === "production" ? "webhook" : "polling";
 }
 
 function formatUptime(startedAt, now = Date.now()) {
