@@ -7,6 +7,12 @@ const express = require("express");
 const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
 const { captureException } = require("./services/analytics");
+const {
+  httpLogger,
+  paymentBootstrapLimiter,
+  paymentSubmitLimiter,
+  securityHeaders,
+} = require("./services/httpMiddleware");
 const swaggerUi = require("swagger-ui-express");
 const YAML = require("yamljs");
 const {
@@ -19,6 +25,13 @@ const {
 const openapiSpec = YAML.load(path.join(__dirname, "docs/openapi.yaml"));
 
 const app = express();
+if (process.env.RAILWAY_PUBLIC_DOMAIN || process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
+app.use(httpLogger);
+app.use(securityHeaders);
+
 mountTelegramWebhook(app);
 app.use("/assets", express.static("assets"));
 
@@ -38,6 +51,11 @@ if (process.env.NODE_ENV !== "production") {
   app.get("/debug", (req, res) => res.send("cp2nus prefix reachable"));
 }
 app.use("/api", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+
+app.use("/webapp/bootstrap", paymentBootstrapLimiter);
+app.use("/cp2nus/webapp/bootstrap", paymentBootstrapLimiter);
+app.use("/webapp/enets_pay", paymentSubmitLimiter);
+app.use("/cp2nus/webapp/enets_pay", paymentSubmitLimiter);
 
 app.use("/cp2nus", cp2nus);
 app.use("/", cp2);
