@@ -3,10 +3,14 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const {
+  buildSeoHeadTags,
   buildGoogleVerificationFileContent,
   buildRobotsTxt,
   buildSitemapXml,
+  getSeoMetadata,
+  injectSeoHead,
   normalizeGoogleVerificationFileName,
+  shouldSendNoindexHeader,
 } = require("../services/seo");
 
 describe("SEO metadata", () => {
@@ -29,6 +33,59 @@ describe("SEO metadata", () => {
     expect(sitemap).not.toContain("webapp");
     expect(sitemap).not.toContain("pay");
     expect(sitemap).not.toContain("result");
+  });
+
+  test("builds route-specific metadata for public pages", () => {
+    const home = getSeoMetadata("/app/", "https://example.com/");
+    const terms = getSeoMetadata("/app/terms", "https://example.com/");
+
+    expect(home.title).toBe(
+      "NUS EVS Electricity Top-Up | Hostel Meter Payments",
+    );
+    expect(home.canonicalUrl).toBe("https://example.com/app/");
+    expect(home.robots).toBe("index, follow");
+    expect(terms.title).toBe("Terms of Use | NUS EVS Electricity Top-Up");
+    expect(terms.canonicalUrl).toBe("https://example.com/app/terms");
+  });
+
+  test("builds canonical social tags and structured data", () => {
+    const head = buildSeoHeadTags("/app/", "https://example.com/");
+
+    expect(head).toContain(
+      '<link rel="canonical" href="https://example.com/app/" />',
+    );
+    expect(head).toContain(
+      '<meta property="og:url" content="https://example.com/app/" />',
+    );
+    expect(head).toContain('type="application/ld+json"');
+    expect(head).toContain('"@type":"WebApplication"');
+  });
+
+  test("marks transactional app pages as noindex", () => {
+    const head = buildSeoHeadTags("/app/pay", "https://example.com/");
+
+    expect(head).toContain('<meta name="robots" content="noindex, nofollow"');
+    expect(head).not.toContain('rel="canonical"');
+    expect(shouldSendNoindexHeader("/app/pay")).toBe(true);
+    expect(shouldSendNoindexHeader("/webapp/bootstrap")).toBe(true);
+    expect(shouldSendNoindexHeader("/app/terms")).toBe(false);
+  });
+
+  test("injects SEO into the HTML marker block", () => {
+    const html = `<!doctype html><html><head>
+    <!-- seo:head:start -->
+    <title>Old title</title>
+    <!-- seo:head:end -->
+  </head><body></body></html>`;
+    const injected = injectSeoHead(html, "/app/terms", "https://example.com/");
+
+    expect(injected).toContain(
+      "<title>Terms of Use | NUS EVS Electricity Top-Up</title>",
+    );
+    expect(injected).toContain(
+      '<link rel="canonical" href="https://example.com/app/terms" />',
+    );
+    expect(injected).not.toContain("Old title");
   });
 
   test("normalizes Google verification file names", () => {

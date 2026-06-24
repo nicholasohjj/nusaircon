@@ -3,6 +3,7 @@ if (!process.env.SERVER_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
   process.env.SERVER_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
 }
 const path = require("path");
+const fs = require("fs");
 const express = require("express");
 const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
@@ -11,7 +12,9 @@ const {
   buildGoogleVerificationFileContent,
   buildRobotsTxt,
   buildSitemapXml,
+  injectSeoHead,
   normalizeGoogleVerificationFileName,
+  shouldSendNoindexHeader,
 } = require("./services/seo");
 const {
   httpLogger,
@@ -45,11 +48,30 @@ if (process.env.RAILWAY_PUBLIC_DOMAIN || process.env.NODE_ENV === "production") 
 
 app.use(httpLogger);
 app.use(securityHeaders);
+app.use((req, res, next) => {
+  if (shouldSendNoindexHeader(req.path)) {
+    res.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  next();
+});
 
 mountTelegramWebhook(app);
 app.use("/assets", express.static("assets"));
 
-app.use("/app", express.static(path.join(__dirname, "frontend/dist")));
+const appDistDir = path.join(__dirname, "frontend/dist");
+const appIndexPath = path.join(appDistDir, "index.html");
+
+app.use("/app", express.static(appDistDir, { index: false }));
+
+function sendAppIndex(req, res, next) {
+  fs.readFile(appIndexPath, "utf8", (err, html) => {
+    if (err) return next(err);
+
+    res
+      .type("html")
+      .send(injectSeoHead(html, req.path, getPublicBaseUrl(req)));
+  });
+}
 
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain").send(buildRobotsTxt(getPublicBaseUrl(req)));
@@ -82,9 +104,11 @@ app.get("/", (req, res) => {
   res.redirect(301, "/app/");
 });
 
-app.get(/^\/app\/.*$/, (req, res) => {
-  res.sendFile(path.join(__dirname, "frontend/dist/index.html"));
+app.get("/app", (req, res) => {
+  res.redirect(301, "/app/");
 });
+
+app.get(/^\/app\/.*$/, sendAppIndex);
 
 app.get("/health", (req, res) => res.status(200).json({ ok: true }));
 

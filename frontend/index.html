@@ -3,18 +3,43 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0d0d0d" />
+    <meta name="application-name" content="NUS EVS Electricity Top-Up" />
+    <link rel="preconnect" href="https://telegram.org" />
+    <link rel="preconnect" href="https://www.enets.sg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- seo:head:start -->
+    <title>NUS EVS Electricity Top-Up | Hostel Meter Payments</title>
     <meta
       name="description"
-      content="Top up NUS hostel EVS electricity meters online for PGPR, Houses at PGP, Residential Colleges, NUS College, UTown Residence, and RVRC."
+      content="Top up supported NUS hostel EVS electricity meters online for PGPR, Houses at PGP, Residential Colleges, NUS College, UTown Residence, and RVRC."
     />
     <meta name="robots" content="index, follow" />
-    <meta property="og:title" content="NUS EVS Electricity Top-Up" />
+    <meta property="og:site_name" content="NUS EVS Electricity Top-Up" />
+    <meta
+      property="og:title"
+      content="NUS EVS Electricity Top-Up | Hostel Meter Payments"
+    />
     <meta
       property="og:description"
-      content="Check EVS meter details and top up supported NUS hostel electricity meters online."
+      content="Top up supported NUS hostel EVS electricity meters online for PGPR, Houses at PGP, Residential Colleges, NUS College, UTown Residence, and RVRC."
     />
     <meta property="og:type" content="website" />
-    <title>NUS EVS Electricity Top-Up</title>
+    <meta property="og:url" content="&sol;app&sol;" />
+    <meta name="twitter:card" content="summary" />
+    <meta
+      name="twitter:title"
+      content="NUS EVS Electricity Top-Up | Hostel Meter Payments"
+    />
+    <meta
+      name="twitter:description"
+      content="Top up supported NUS hostel EVS electricity meters online for PGPR, Houses at PGP, Residential Colleges, NUS College, UTown Residence, and RVRC."
+    />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebApplication","name":"NUS EVS Electricity Top-Up","url":"\/app\/","description":"Top up supported NUS hostel EVS electricity meters online for PGPR, Houses at PGP, Residential Colleges, NUS College, UTown Residence, and RVRC.","inLanguage":"en-SG","applicationCategory":"FinanceApplication","operatingSystem":"Web","isAccessibleForFree":true,"audience":{"@type":"Audience","audienceType":"NUS hostel residents"},"termsOfService":"\/app\/terms"}
+    </script>
+    <!-- seo:head:end -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- eNETS RSA scripts — must load before React; set window.RSAKey globally -->
     <script src="https://www.enets.sg/GW2/js/jsbn.js"></script>
@@ -23,6 +48,17 @@
     <script src="https://www.enets.sg/GW2/js/rsa.js"></script>
   </head>
   <body>
+    <noscript>
+      <main>
+        <h1>NUS EVS Electricity Top-Up</h1>
+        <p>
+          Top up supported NUS hostel EVS electricity meters online for PGPR,
+          Houses at PGP, Residential Colleges, NUS College, UTown Residence,
+          and RVRC.
+        </p>
+        <p>JavaScript is required to use the payment flow.</p>
+      </main>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
