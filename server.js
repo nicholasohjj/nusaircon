@@ -104,7 +104,7 @@ app.get("/", (req, res) => {
   res.redirect(301, "/app/");
 });
 
-app.get("/app", (req, res) => {
+app.get(/^\/app$/, (req, res) => {
   res.redirect(301, "/app/");
 });
 
@@ -137,13 +137,21 @@ app.use((err, req, res, next) => {
 });
 
 const port = process.env.PORT || 3000;
-const server = app.listen(port, "0.0.0.0", () => {
-  console.log(`App listening on port: ${port}`);
-  startBot().catch((err) => {
-    console.error("Failed to start Telegram bot:", err);
-    server.close(() => process.exit(1));
+let server;
+
+function startServer() {
+  if (server) return server;
+
+  server = app.listen(port, "0.0.0.0", () => {
+    console.log(`App listening on port: ${port}`);
+    startBot().catch((err) => {
+      console.error("Failed to start Telegram bot:", err);
+      server.close(() => process.exit(1));
+    });
   });
-});
+
+  return server;
+}
 
 async function shutdown(signal) {
   console.log(`${signal} received, shutting down...`);
@@ -153,7 +161,17 @@ async function shutdown(signal) {
   });
 }
 
-process.once("SIGINT", () => shutdown("SIGINT"));
-process.once("SIGTERM", () => shutdown("SIGTERM"));
+if (require.main === module) {
+  startServer();
+  process.once("SIGINT", () => shutdown("SIGINT"));
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+}
 
-module.exports = { app, server, getBotRuntimeMode };
+module.exports = {
+  app,
+  startServer,
+  getBotRuntimeMode,
+  get server() {
+    return server;
+  },
+};
