@@ -1,8 +1,11 @@
 import styles from "./Card.module.css";
 
-export function Card({ children, align = "center" }) {
+export function Card({ children, align = "center", className = "" }) {
   return (
-    <div className={styles.card} style={{ textAlign: align }}>
+    <div
+      className={[styles.card, className].filter(Boolean).join(" ")}
+      style={{ textAlign: align }}
+    >
       {children}
     </div>
   );

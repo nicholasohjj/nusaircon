@@ -7,6 +7,7 @@ const fs = require("fs");
 const express = require("express");
 const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
+const { router: websiteRoutes } = require("./routes/website");
 const { captureException } = require("./services/analytics");
 const {
   buildGoogleVerificationFileContent,
@@ -119,6 +120,7 @@ app.get("/terms", (req, res) => {
 if (process.env.NODE_ENV !== "production") {
   app.get("/debug", (req, res) => res.send("cp2nus prefix reachable"));
 }
+app.use("/website", websiteRoutes);
 app.use("/api", swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
 app.use("/webapp/bootstrap", paymentBootstrapLimiter);
