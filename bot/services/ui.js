@@ -25,7 +25,7 @@ function helpText() {
     `  estimated days remaining, and current balance\n` +
     `• /topups — show recent top-ups from the last 90 days\n` +
     `• /feedback — share feedback or report an issue\n` +
-    `• /forget — clear your saved Meter ID and hostel\n` +
+    `• /forget — clear your saved meters\n` +
     `• /cancel — cancel the current flow\n` +
     `• /help — show this message\n\n` +
     `*Terms of Use*\n` +
@@ -44,7 +44,7 @@ async function setupTelegramUi(bot) {
     { command: "balance", description: "Check meter balance" },
     { command: "usage", description: "Show recent daily usage" },
     { command: "topups", description: "Show recent top-ups" },
-    { command: "forget", description: "Clear your saved Meter ID" },
+    { command: "forget", description: "Clear saved meters" },
     { command: "feedback", description: "Share feedback or report an issue" },
     { command: "help", description: "Show help and usage" },
     { command: "cancel", description: "Cancel current flow" },

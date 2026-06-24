@@ -642,6 +642,7 @@ describe("HomePage › hostel selection", () => {
 
 describe("HomePage › saved meters", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     window.localStorage.clear();
   });
 
@@ -729,6 +730,76 @@ describe("HomePage › saved meters", () => {
 
     expect(screen.queryByRole("button", { name: /Room/i })).toBeNull();
     expect(screen.getByRole("button", { name: /^Friend/i })).toBeInTheDocument();
+  });
+
+  test("saved meter balance action checks the selected meter", async () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "0:12345678",
+        profiles: [
+          {
+            id: "0:12345678",
+            label: "Room",
+            meterId: "12345678",
+            groupIndex: 0,
+            savedAt: 1,
+          },
+        ],
+      }),
+    );
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        mode: "balance",
+        meterId: "12345678",
+        address: "",
+        balance: "12.5",
+        checkedAt: "2026-06-24T12:00:00.000Z",
+      }),
+    });
+
+    renderHomePage();
+    fireEvent.click(screen.getByRole("button", { name: /Balance Room/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/website/lookup?meterId=12345678&mode=balance",
+      );
+      expect(screen.getByText("SGD 12.50")).toBeInTheDocument();
+    });
+  });
+
+  test("saved meter top-up action opens the top-up form for that meter", () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "1:87654321",
+        profiles: [
+          {
+            id: "1:87654321",
+            label: "Friend",
+            meterId: "87654321",
+            groupIndex: 1,
+            savedAt: 1,
+          },
+        ],
+      }),
+    );
+
+    renderHomePage();
+    fireEvent.click(screen.getByRole("button", { name: /^Usage$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Top up Friend/i }));
+
+    expect(screen.getByPlaceholderText(/8-digit meter ID/i).value).toBe(
+      "87654321",
+    );
+    expect(screen.getByPlaceholderText(/Room, Friend/i).value).toBe("Friend");
+    expect(screen.getByPlaceholderText(/6\.00/i)).toBeInTheDocument();
   });
 });
 

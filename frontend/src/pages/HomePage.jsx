@@ -344,8 +344,8 @@ export default function HomePage() {
     return e;
   }
 
-  function validateLookup() {
-    if (!isValidMeterId(meterId)) {
+  function validateLookup(value = meterId) {
+    if (!isValidMeterId(value)) {
       setErrors({ meterId: "Must be exactly 8 digits" });
       return false;
     }
@@ -359,7 +359,7 @@ export default function HomePage() {
     if (errors.meterId) setErrors((p) => ({ ...p, meterId: undefined }));
   }
 
-  function handleSavedMeterSelect(profile) {
+  function activateSavedMeter(profile) {
     setActiveSavedId(profile.id);
     setGroupIndex(profile.groupIndex);
     setMeterId(profile.meterId);
@@ -367,6 +367,19 @@ export default function HomePage() {
     setErrors({});
     setLookupError("");
     persistSavedState(savedMeters, profile.id);
+  }
+
+  function handleSavedMeterSelect(profile) {
+    activateSavedMeter(profile);
+  }
+
+  function handleSavedMeterQuickAction(profile, mode) {
+    activateSavedMeter(profile);
+    setActiveMode(mode);
+
+    if (mode === "balance" || mode === "usage") {
+      runLookup(mode, profile.meterId);
+    }
   }
 
   function handleSavedMeterForget(profileId) {
@@ -422,9 +435,8 @@ export default function HomePage() {
     window.location.href = `${group.basePath}/webapp?${qs}`;
   }
 
-  async function handleLookupSubmit(e) {
-    e.preventDefault();
-    if (!validateLookup()) return;
+  async function runLookup(mode, lookupMeterId = meterId) {
+    if (!validateLookup(lookupMeterId)) return;
 
     setLookupLoading(true);
     setLookupError("");
@@ -432,8 +444,8 @@ export default function HomePage() {
 
     try {
       const qs = new URLSearchParams({
-        meterId: meterId.trim(),
-        mode: activeMode,
+        meterId: lookupMeterId.trim(),
+        mode,
       }).toString();
       const resp = await fetch(`/website/lookup?${qs}`);
       const data = await resp.json().catch(() => ({}));
@@ -446,6 +458,11 @@ export default function HomePage() {
     } finally {
       setLookupLoading(false);
     }
+  }
+
+  async function handleLookupSubmit(e) {
+    e.preventDefault();
+    await runLookup(activeMode, meterId);
   }
 
   async function handleFeedbackSubmit(e) {
@@ -547,6 +564,31 @@ export default function HomePage() {
                   {profile.meterId} · {HOSTEL_GROUPS[profile.groupIndex].label}
                 </span>
               </button>
+              <div className={styles.savedMeterActions}>
+                <button
+                  type="button"
+                  aria-label={`Top up ${profile.label}`}
+                  onClick={() => handleSavedMeterQuickAction(profile, "topup")}
+                >
+                  Top up
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Balance ${profile.label}`}
+                  onClick={() =>
+                    handleSavedMeterQuickAction(profile, "balance")
+                  }
+                >
+                  Balance
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Usage ${profile.label}`}
+                  onClick={() => handleSavedMeterQuickAction(profile, "usage")}
+                >
+                  Usage
+                </button>
+              </div>
               <button
                 type="button"
                 className={styles.savedMeterForget}

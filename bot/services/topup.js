@@ -6,7 +6,11 @@ const {
   hostelInlineKeyboard,
 } = require("../constants");
 const { getSession, resetSession } = require("./session");
-const { getUser } = require("./userStore");
+const { getSavedMeters, getUser } = require("./userStore");
+const {
+  savedMeterPickerKeyboard,
+  savedMeterPickerText,
+} = require("./savedMeterPicker");
 
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
 
@@ -59,6 +63,15 @@ function startTopUp(chatId, savedInSession = null) {
  *   3. Nothing saved → ask hostel
  */
 async function handleTopUpStart(ctx, chatId, savedInSession = null) {
+  const savedMeters = savedInSession ? [] : getSavedMeters(chatId);
+  if (savedMeters.length > 1) {
+    resetSession(chatId);
+    return ctx.reply(
+      savedMeterPickerText("topup"),
+      savedMeterPickerKeyboard("topup", savedMeters),
+    );
+  }
+
   const session = startTopUp(chatId, savedInSession);
 
   if (session.stage === STAGES.AWAITING_AMOUNT) {

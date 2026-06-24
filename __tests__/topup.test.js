@@ -1,9 +1,10 @@
-import { beforeAll, describe, expect, test } from "vitest";
+import { beforeAll, describe, expect, test, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 let startTopUp;
+let handleTopUpStart;
 let saveUser;
 let STAGES;
 let HOSTELS;
@@ -11,7 +12,7 @@ let HOSTELS;
 beforeAll(async () => {
   process.env.DB_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "evs-topup-"));
 
-  ({ startTopUp } = await import("../bot/services/topup.js"));
+  ({ handleTopUpStart, startTopUp } = await import("../bot/services/topup.js"));
   ({ saveUser } = await import("../bot/services/userStore.js"));
   ({ STAGES, HOSTELS } = await import("../bot/constants.js"));
 });
@@ -42,5 +43,28 @@ describe("startTopUp", () => {
     expect(session.txtMtrId).toBe("87654321");
     expect(session.hostel).toBe(HOSTELS.CP2);
     expect(session.stage).toBe(STAGES.AWAITING_AMOUNT);
+  });
+
+  test("prompts for a saved meter when multiple meters exist", async () => {
+    saveUser("multiple-saved", "11111111", HOSTELS.CP2, "Room");
+    saveUser("multiple-saved", "22222222", HOSTELS.CP2NUS, "Friend");
+    const ctx = { reply: vi.fn() };
+
+    await handleTopUpStart(ctx, "multiple-saved");
+
+    expect(ctx.reply).toHaveBeenCalledWith(
+      "Choose a saved meter for top-up:",
+      expect.objectContaining({
+        reply_markup: expect.objectContaining({
+          inline_keyboard: expect.arrayContaining([
+            [
+              expect.objectContaining({
+                text: expect.stringContaining("Friend"),
+              }),
+            ],
+          ]),
+        }),
+      }),
+    );
   });
 });

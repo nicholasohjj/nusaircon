@@ -8,12 +8,70 @@ const {
 } = require("../../services/ore");
 const { track } = require("../../services/analytics");
 const { getSession } = require("./session");
+const { getSavedMeters } = require("./userStore");
+const {
+  savedMeterPickerKeyboard,
+  savedMeterPickerText,
+} = require("./savedMeterPicker");
 const { mainKeyboard } = require("../constants");
+const { STAGES, cancelKeyboard } = require("../constants");
 
 function lowBalanceWarning(bal) {
   const n = Number(bal);
   if (!Number.isFinite(n) || n >= 5) return null;
   return `⚠️ <b>Low balance:</b> Your balance is SGD ${n.toFixed(2)}. Consider topping up soon.`;
+}
+
+const LOOKUP_STAGES = {
+  balance: STAGES.AWAITING_METER_ID_BALANCE,
+  usage: STAGES.AWAITING_METER_ID_USAGE,
+  topups: STAGES.AWAITING_METER_ID_TOPUPS,
+};
+
+const LOOKUP_PROMPTS = {
+  balance: "🔌 Please enter your 8-digit Meter ID to check your balance:",
+  usage: "🔌 Please enter your 8-digit Meter ID to view the last 7 days of usage:",
+  topups: "🔌 Please enter your 8-digit Meter ID to view recent top-ups:",
+};
+
+function meterIdReplyOptions() {
+  return {
+    ...cancelKeyboard,
+    reply_markup: {
+      ...cancelKeyboard.reply_markup,
+      input_field_placeholder: "e.g. 12345678",
+    },
+  };
+}
+
+function promptForLookupMeterId(ctx, chatId, mode) {
+  const session = getSession(chatId);
+  session.stage = LOOKUP_STAGES[mode];
+
+  return ctx.reply(
+    LOOKUP_PROMPTS[mode] || "🔌 Please enter your 8-digit Meter ID:",
+    meterIdReplyOptions(),
+  );
+}
+
+function handleMeterLookupStart(ctx, chatId, mode) {
+  const savedMeters = getSavedMeters(chatId);
+  if (savedMeters.length > 1) {
+    getSession(chatId).stage = STAGES.IDLE;
+    return ctx.reply(
+      savedMeterPickerText(mode),
+      savedMeterPickerKeyboard(mode, savedMeters),
+    );
+  }
+
+  if (savedMeters.length === 1) {
+    getSession(chatId).stage = STAGES.IDLE;
+    return handleMeterIdLookup(ctx, chatId, savedMeters[0].meterId, mode, {
+      fromSaved: true,
+    });
+  }
+
+  return promptForLookupMeterId(ctx, chatId, mode);
 }
 
 /**
@@ -141,4 +199,9 @@ async function handleMeterIdLookup(
   }
 }
 
-module.exports = { handleMeterIdLookup, lowBalanceWarning };
+module.exports = {
+  handleMeterIdLookup,
+  handleMeterLookupStart,
+  lowBalanceWarning,
+  promptForLookupMeterId,
+};
