@@ -32,6 +32,18 @@ function renderHomePage() {
   );
 }
 
+function getPgprHostelButton() {
+  return screen.getByRole("button", {
+    name: /PGPR.*Residential Colleges/i,
+  });
+}
+
+function getUtownHostelButton() {
+  return screen.getByRole("button", {
+    name: /UTown Residence/i,
+  });
+}
+
 // ── LoadingPage ───────────────────────────────────────────────────────────────
 
 describe("LoadingPage", () => {
@@ -506,8 +518,8 @@ describe("HomePage › static rendering", () => {
 
   test("renders hostel group buttons", () => {
     renderHomePage();
-    expect(screen.getByText(/PGPR.*Residential Colleges/i)).toBeInTheDocument();
-    expect(screen.getByText(/UTown Residence/i)).toBeInTheDocument();
+    expect(getPgprHostelButton()).toBeInTheDocument();
+    expect(getUtownHostelButton()).toBeInTheDocument();
   });
 
   test("renders meter ID input", () => {
@@ -541,21 +553,21 @@ describe("HomePage › static rendering", () => {
 describe("HomePage › hostel selection", () => {
   test("no group is active on initial render", () => {
     renderHomePage();
-    const pgprBtn = screen.getByText(/PGPR.*Residential Colleges/i);
+    const pgprBtn = getPgprHostelButton();
     expect(pgprBtn.className).not.toMatch(/Active/i);
   });
 
   test("clicking a group marks it active", () => {
     renderHomePage();
-    const pgprBtn = screen.getByText(/PGPR.*Residential Colleges/i);
+    const pgprBtn = getPgprHostelButton();
     fireEvent.click(pgprBtn);
     expect(pgprBtn.className).toMatch(/Active/i);
   });
 
   test("clicking second group deactivates the first", () => {
     renderHomePage();
-    const pgprBtn = screen.getByText(/PGPR.*Residential Colleges/i);
-    const utownBtn = screen.getByText(/UTown Residence/i);
+    const pgprBtn = getPgprHostelButton();
+    const utownBtn = getUtownHostelButton();
     fireEvent.click(pgprBtn);
     fireEvent.click(utownBtn);
     expect(pgprBtn.className).not.toMatch(/Active/i);
@@ -688,7 +700,7 @@ describe("HomePage › submission", () => {
     });
 
     renderHomePage();
-    fireEvent.click(screen.getByText(/PGPR.*Residential Colleges/i));
+    fireEvent.click(getPgprHostelButton());
     fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
       target: { value: "12345678" },
     });
@@ -720,7 +732,7 @@ describe("HomePage › submission", () => {
     });
 
     renderHomePage();
-    fireEvent.click(screen.getByText(/UTown Residence/i));
+    fireEvent.click(getUtownHostelButton());
     fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
       target: { value: "87654321" },
     });
