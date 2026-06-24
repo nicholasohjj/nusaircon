@@ -6,6 +6,8 @@ import CardPaymentPage from "../pages/CardPaymentPage";
 import ResultPage from "../pages/ResultPage";
 import HomePage from "../pages/HomePage";
 
+const WEB_PROFILE_STORAGE_KEY = "nusaircon:webProfile";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -34,13 +36,13 @@ function renderHomePage() {
 
 function getPgprHostelButton() {
   return screen.getByRole("button", {
-    name: /PGPR.*Residential Colleges/i,
+    name: /^PGPR, Houses @ PGP, Residential Colleges, NUS College$/i,
   });
 }
 
 function getUtownHostelButton() {
   return screen.getByRole("button", {
-    name: /UTown Residence/i,
+    name: /^UTown Residence, RVRC$/i,
   });
 }
 
@@ -314,6 +316,30 @@ describe("ResultPage", () => {
     expect(screen.getByText("Balance before top-up")).toBeInTheDocument();
   });
 
+  test("renders negative pre-top-up balance with its sign", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        status: "success",
+        txtMtrId: "12345678",
+        txtAmount: "20",
+        merchantTxnRef: "MTR-001",
+        reason: "Payment completed.",
+        address: "",
+        balance: "-2.50",
+      }),
+    });
+
+    renderWithRouter(<ResultPage basePath="" />, { token: "test-token" });
+
+    await waitFor(() => {
+      expect(screen.getByText("Balance before top-up")).toBeInTheDocument();
+      expect(screen.getByText("SGD -2.50")).toBeInTheDocument();
+    });
+  });
+
   test("renders failure result page", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
@@ -504,6 +530,45 @@ describe("ResultPage", () => {
       expect(screen.getByText("SGD 24.50")).toBeInTheDocument();
     });
   });
+
+  test("renders negative verified balance with its sign", async () => {
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          status: "success",
+          txtMtrId: "12345678",
+          txtAmount: "20",
+          merchantTxnRef: "MTR-001",
+          reason: "Payment completed.",
+          address: "",
+          balance: "1.50",
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ok: true,
+          txtMtrId: "12345678",
+          balance: "-0.75",
+        }),
+      });
+
+    renderWithRouter(<ResultPage basePath="" />, { token: "test-token" });
+
+    const verifyButton = await screen.findByRole("button", {
+      name: /Verify Balance/i,
+    });
+    fireEvent.click(verifyButton);
+
+    await waitFor(() => {
+      expect(screen.getByText("Verified balance")).toBeInTheDocument();
+      expect(screen.getByText("SGD -0.75")).toBeInTheDocument();
+    });
+  });
 });
 
 // ── HomePage ──────────────────────────────────────────────────────────────────
@@ -572,6 +637,98 @@ describe("HomePage › hostel selection", () => {
     fireEvent.click(utownBtn);
     expect(pgprBtn.className).not.toMatch(/Active/i);
     expect(utownBtn.className).toMatch(/Active/i);
+  });
+});
+
+describe("HomePage › saved meters", () => {
+  afterEach(() => {
+    window.localStorage.clear();
+  });
+
+  test("loads and selects multiple saved meters", () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "0:12345678",
+        profiles: [
+          {
+            id: "0:12345678",
+            label: "Room",
+            meterId: "12345678",
+            groupIndex: 0,
+            savedAt: 1,
+          },
+          {
+            id: "1:87654321",
+            label: "Friend",
+            meterId: "87654321",
+            groupIndex: 1,
+            savedAt: 2,
+          },
+        ],
+      }),
+    );
+
+    renderHomePage();
+    expect(screen.getByRole("button", { name: /^Room/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /^Friend/i }));
+
+    expect(screen.getByPlaceholderText(/8-digit meter ID/i).value).toBe(
+      "87654321",
+    );
+    expect(getUtownHostelButton().className).toMatch(/Active/i);
+  });
+
+  test("migrates the old single saved meter shape", () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        groupIndex: 0,
+        meterId: "12345678",
+      }),
+    );
+
+    renderHomePage();
+
+    expect(
+      screen.getByRole("button", { name: /^Meter 5678/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/8-digit meter ID/i).value).toBe(
+      "12345678",
+    );
+  });
+
+  test("forgets one saved meter without clearing the others", () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "0:12345678",
+        profiles: [
+          {
+            id: "0:12345678",
+            label: "Room",
+            meterId: "12345678",
+            groupIndex: 0,
+            savedAt: 1,
+          },
+          {
+            id: "1:87654321",
+            label: "Friend",
+            meterId: "87654321",
+            groupIndex: 1,
+            savedAt: 2,
+          },
+        ],
+      }),
+    );
+
+    renderHomePage();
+    fireEvent.click(screen.getByRole("button", { name: /Forget Room/i }));
+
+    expect(screen.queryByRole("button", { name: /Room/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Friend/i })).toBeInTheDocument();
   });
 });
 
@@ -714,6 +871,52 @@ describe("HomePage › lookup", () => {
     await waitFor(() => {
       expect(screen.getByText("SGD -2.50")).toBeInTheDocument();
     });
+  });
+
+  test("suggests a top-up amount from recent usage", async () => {
+    window.localStorage.clear();
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        mode: "usage",
+        meterId: "12345678",
+        address: "",
+        balance: "2",
+        checkedAt: "2026-06-24T12:00:00.000Z",
+        usage: {
+          days: 7,
+          history: [],
+          analysis: {
+            avgDaily: 2,
+            lastDay: 2,
+            total: 14,
+            warnings: [],
+          },
+          rank: null,
+          monthToDate: 20,
+        },
+      }),
+    });
+
+    renderHomePage();
+    fireEvent.click(screen.getByRole("button", { name: /^Usage$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Check Meter/i }));
+
+    const useRecommendation = await screen.findByRole("button", {
+      name: /Use SGD 18/i,
+    });
+    expect(
+      screen.getByText("Top up SGD 18 to last about 10 days."),
+    ).toBeInTheDocument();
+
+    fireEvent.click(useRecommendation);
+
+    expect(screen.getByPlaceholderText(/6\.00/i).value).toBe("18");
   });
 });
 

@@ -3,6 +3,10 @@ import { Card, DetailRow, Logo } from "../components/Card";
 import styles from "./HomePage.module.css";
 
 const STORAGE_KEY = "nusaircon:webProfile";
+const MAX_SAVED_METERS = 6;
+const RECOMMENDATION_DAYS = 10;
+const MIN_TOPUP_AMOUNT = 6;
+const MAX_TOPUP_AMOUNT = 50;
 
 const HOSTEL_GROUPS = [
   {
@@ -34,32 +38,90 @@ function isValidAmount(v) {
   return Number.isFinite(n) && n >= 6 && n <= 50;
 }
 
-function readSavedProfile() {
+function getProfileId(groupIndex, meterId) {
+  return `${groupIndex}:${meterId}`;
+}
+
+function sanitizeMeterLabel(label, meterId) {
+  const clean = String(label || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 24);
+  return clean || `Meter ${String(meterId).slice(-4)}`;
+}
+
+function normalizeSavedProfile(profile) {
+  const meterId = String(profile?.meterId || "").trim();
+  const groupIndex = Number(profile?.groupIndex);
+  if (!isValidMeterId(meterId) || !HOSTEL_GROUPS[groupIndex]) return null;
+
+  return {
+    id: getProfileId(groupIndex, meterId),
+    label: sanitizeMeterLabel(profile?.label, meterId),
+    groupIndex,
+    meterId,
+    savedAt: Number.isFinite(Number(profile?.savedAt))
+      ? Number(profile.savedAt)
+      : Date.now(),
+  };
+}
+
+function dedupeProfiles(profiles) {
+  const seen = new Set();
+  const next = [];
+  for (const profile of profiles) {
+    if (!profile || seen.has(profile.id)) continue;
+    seen.add(profile.id);
+    next.push(profile);
+  }
+  return next.slice(0, MAX_SAVED_METERS);
+}
+
+function readSavedState() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : null;
-    if (!parsed || !isValidMeterId(parsed.meterId)) return null;
-    if (!HOSTEL_GROUPS[parsed.groupIndex]) return null;
-    return parsed;
+    if (!parsed) return { profiles: [], activeId: null };
+
+    if (Array.isArray(parsed.profiles)) {
+      const profiles = dedupeProfiles(
+        parsed.profiles.map(normalizeSavedProfile),
+      );
+      const activeId = profiles.some((profile) => profile.id === parsed.activeId)
+        ? parsed.activeId
+        : profiles[0]?.id || null;
+      return { profiles, activeId };
+    }
+
+    const migrated = normalizeSavedProfile(parsed);
+    return migrated
+      ? { profiles: [migrated], activeId: migrated.id }
+      : { profiles: [], activeId: null };
   } catch {
-    return null;
+    return { profiles: [], activeId: null };
   }
 }
 
-function saveProfile(profile) {
+function persistSavedState(profiles, activeId) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId,
+        profiles,
+      }),
+    );
   } catch {
     // Storage can be unavailable in private browsing; continue without saving.
   }
 }
 
-function clearSavedProfile() {
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // Ignore storage failures.
-  }
+function upsertSavedProfile(profiles, profile) {
+  return dedupeProfiles([
+    profile,
+    ...profiles.filter((saved) => saved.id !== profile.id),
+  ]);
 }
 
 function parseMoney(value) {
@@ -78,6 +140,36 @@ function formatSignedMoney(value) {
 function formatCostMoney(value) {
   const n = parseMoney(value);
   return n === null ? "Unavailable" : `SGD ${Math.abs(n).toFixed(2)}`;
+}
+
+function formatCompactSgd(value) {
+  return Number.isInteger(value) ? `SGD ${value}` : `SGD ${value.toFixed(2)}`;
+}
+
+function buildTopupRecommendation(result) {
+  const avgDaily = parseMoney(result?.usage?.analysis?.avgDaily);
+  const balance = parseMoney(result?.balance);
+  if (avgDaily === null || avgDaily <= 0 || balance === null) return null;
+
+  const currentDays = balance / avgDaily;
+  if (currentDays >= RECOMMENDATION_DAYS) return null;
+
+  const rawAmount = RECOMMENDATION_DAYS * avgDaily - balance;
+  const amount = Math.min(
+    MAX_TOPUP_AMOUNT,
+    Math.max(MIN_TOPUP_AMOUNT, Math.ceil(rawAmount)),
+  );
+  const projectedDays = Math.max(0, Math.round((balance + amount) / avgDaily));
+  const amountLabel = formatCompactSgd(amount);
+
+  return {
+    amount,
+    amountLabel,
+    text:
+      projectedDays >= 1
+        ? `Top up ${amountLabel} to last about ${projectedDays} day${projectedDays === 1 ? "" : "s"}.`
+        : `Top up ${amountLabel} to reduce the negative balance.`,
+  };
 }
 
 function formatDate(value) {
@@ -109,12 +201,13 @@ function SummaryRows({ result }) {
   );
 }
 
-function UsageResult({ result }) {
+function UsageResult({ result, onUseRecommendation }) {
   const usage = result?.usage;
   if (!usage) return null;
 
   const analysis = usage.analysis || {};
   const rows = (usage.history || []).filter((row) => row.amount !== null);
+  const recommendation = buildTopupRecommendation(result);
   const rank = usage.rank;
   const rankPct =
     rank?.rank_val !== undefined && Number.isFinite(Number(rank.rank_val))
@@ -153,6 +246,18 @@ function UsageResult({ result }) {
           {analysis.warnings.map((warning) => (
             <div key={warning}>{warning}</div>
           ))}
+        </div>
+      )}
+
+      {recommendation && (
+        <div className={styles.recommendation}>
+          <strong>{recommendation.text}</strong>
+          <button
+            type="button"
+            onClick={() => onUseRecommendation(recommendation.amount)}
+          >
+            Use {recommendation.amountLabel}
+          </button>
         </div>
       )}
 
@@ -202,9 +307,11 @@ export default function HomePage() {
   const [activeMode, setActiveMode] = useState("topup");
   const [groupIndex, setGroupIndex] = useState(null);
   const [meterId, setMeterId] = useState("");
+  const [meterLabel, setMeterLabel] = useState("");
   const [amount, setAmount] = useState("");
   const [errors, setErrors] = useState({});
-  const [savedProfile, setSavedProfile] = useState(null);
+  const [savedMeters, setSavedMeters] = useState([]);
+  const [activeSavedId, setActiveSavedId] = useState(null);
   const [lookupResult, setLookupResult] = useState(null);
   const [lookupError, setLookupError] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -215,11 +322,18 @@ export default function HomePage() {
   const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   useEffect(() => {
-    const saved = readSavedProfile();
-    if (!saved) return;
-    setSavedProfile(saved);
-    setGroupIndex(saved.groupIndex);
-    setMeterId(saved.meterId);
+    const saved = readSavedState();
+    setSavedMeters(saved.profiles);
+
+    const active =
+      saved.profiles.find((profile) => profile.id === saved.activeId) ||
+      saved.profiles[0];
+    if (!active) return;
+
+    setActiveSavedId(active.id);
+    setGroupIndex(active.groupIndex);
+    setMeterId(active.meterId);
+    setMeterLabel(active.label);
   }, []);
 
   function validateTopUp() {
@@ -241,7 +355,41 @@ export default function HomePage() {
 
   function handleMeterChange(value) {
     setMeterId(value.replace(/\D/g, "").slice(0, 8));
+    setActiveSavedId(null);
     if (errors.meterId) setErrors((p) => ({ ...p, meterId: undefined }));
+  }
+
+  function handleSavedMeterSelect(profile) {
+    setActiveSavedId(profile.id);
+    setGroupIndex(profile.groupIndex);
+    setMeterId(profile.meterId);
+    setMeterLabel(profile.label);
+    setErrors({});
+    setLookupError("");
+    persistSavedState(savedMeters, profile.id);
+  }
+
+  function handleSavedMeterForget(profileId) {
+    const next = savedMeters.filter((profile) => profile.id !== profileId);
+    const nextActiveId =
+      activeSavedId === profileId ? next[0]?.id || null : activeSavedId;
+
+    setSavedMeters(next);
+    setActiveSavedId(nextActiveId);
+    persistSavedState(next, nextActiveId);
+
+    if (activeSavedId !== profileId) return;
+    const nextActive = next.find((profile) => profile.id === nextActiveId);
+    if (nextActive) {
+      setGroupIndex(nextActive.groupIndex);
+      setMeterId(nextActive.meterId);
+      setMeterLabel(nextActive.label);
+      return;
+    }
+
+    setGroupIndex(null);
+    setMeterId("");
+    setMeterLabel("");
   }
 
   function handleSubmit(e) {
@@ -254,8 +402,17 @@ export default function HomePage() {
 
     const group = HOSTEL_GROUPS[groupIndex];
     const cleanMeterId = meterId.trim();
-    saveProfile({ groupIndex, meterId: cleanMeterId });
-    setSavedProfile({ groupIndex, meterId: cleanMeterId });
+    const savedProfile = normalizeSavedProfile({
+      groupIndex,
+      meterId: cleanMeterId,
+      label: meterLabel,
+      savedAt: Date.now(),
+    });
+    const nextSavedMeters = upsertSavedProfile(savedMeters, savedProfile);
+    setSavedMeters(nextSavedMeters);
+    setActiveSavedId(savedProfile.id);
+    setMeterLabel(savedProfile.label);
+    persistSavedState(nextSavedMeters, savedProfile.id);
 
     const qs = new URLSearchParams({
       txtMtrId: cleanMeterId,
@@ -320,13 +477,6 @@ export default function HomePage() {
     }
   }
 
-  function handleForgetSaved() {
-    clearSavedProfile();
-    setSavedProfile(null);
-    setGroupIndex(null);
-    setMeterId("");
-  }
-
   function handleCancel() {
     setErrors({});
     setLookupError("");
@@ -335,6 +485,12 @@ export default function HomePage() {
     setFeedbackMessage("");
     setFeedbackContact("");
     setAmount("");
+    setActiveMode("topup");
+  }
+
+  function handleUseRecommendation(recommendedAmount) {
+    setAmount(String(recommendedAmount));
+    setErrors((p) => ({ ...p, amount: undefined }));
     setActiveMode("topup");
   }
 
@@ -370,15 +526,37 @@ export default function HomePage() {
         ))}
       </div>
 
-      {savedProfile && (
-        <div className={styles.savedBar}>
-          <span>
-            Saved meter {savedProfile.meterId} ·{" "}
-            {HOSTEL_GROUPS[savedProfile.groupIndex].label}
-          </span>
-          <button type="button" onClick={handleForgetSaved}>
-            Forget saved
-          </button>
+      {savedMeters.length > 0 && (
+        <div className={styles.savedList} aria-label="Saved meters">
+          {savedMeters.map((profile) => (
+            <div
+              key={profile.id}
+              className={[
+                styles.savedMeter,
+                activeSavedId === profile.id ? styles.savedMeterActive : "",
+              ].join(" ")}
+            >
+              <button
+                type="button"
+                className={styles.savedMeterSelect}
+                aria-pressed={activeSavedId === profile.id}
+                onClick={() => handleSavedMeterSelect(profile)}
+              >
+                <strong>{profile.label}</strong>
+                <span>
+                  {profile.meterId} · {HOSTEL_GROUPS[profile.groupIndex].label}
+                </span>
+              </button>
+              <button
+                type="button"
+                className={styles.savedMeterForget}
+                aria-label={`Forget ${profile.label}`}
+                onClick={() => handleSavedMeterForget(profile.id)}
+              >
+                Forget
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -408,6 +586,7 @@ export default function HomePage() {
                   ].join(" ")}
                   onClick={() => {
                     setGroupIndex(i);
+                    setActiveSavedId(null);
                     setErrors((p) => ({ ...p, group: undefined }));
                   }}
                 >
@@ -425,6 +604,21 @@ export default function HomePage() {
             error={errors.meterId}
             onChange={handleMeterChange}
           />
+
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="meterLabel">
+              Label
+            </label>
+            <input
+              id="meterLabel"
+              className={styles.input}
+              type="text"
+              maxLength={24}
+              placeholder="Room, Friend, Old room"
+              value={meterLabel}
+              onChange={(e) => setMeterLabel(e.target.value)}
+            />
+          </div>
 
           <div className={styles.field}>
             <label className={styles.label} htmlFor="amount">
@@ -523,7 +717,12 @@ export default function HomePage() {
           {lookupResult && (
             <div className={styles.resultPanel}>
               <SummaryRows result={lookupResult} />
-              {activeMode === "usage" && <UsageResult result={lookupResult} />}
+              {activeMode === "usage" && (
+                <UsageResult
+                  result={lookupResult}
+                  onUseRecommendation={handleUseRecommendation}
+                />
+              )}
               {activeMode === "topups" && (
                 <TopupsResult result={lookupResult} />
               )}

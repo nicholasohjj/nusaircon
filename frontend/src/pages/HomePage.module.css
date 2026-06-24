@@ -35,27 +35,64 @@
   background: var(--accent-dim);
 }
 
-.savedBar {
+.savedList {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.savedMeter {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: center;
+  gap: 8px;
+  align-items: stretch;
   border: 1px solid var(--border);
   border-radius: 8px;
+  background: #111;
+  overflow: hidden;
+}
+
+.savedMeterActive {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.savedMeterSelect {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
   padding: 10px 12px;
-  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.savedMeterSelect strong,
+.savedMeterSelect span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.savedMeterSelect strong {
+  font-size: 0.86rem;
+  margin-bottom: 2px;
+}
+
+.savedMeterSelect span {
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.35;
 }
 
-.savedBar button {
+.savedMeterForget {
   border: 0;
   background: transparent;
   color: var(--accent);
   font: inherit;
   font-weight: 700;
   cursor: pointer;
+  padding: 0 12px;
 }
 
 .helpBox {
@@ -84,8 +121,13 @@
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .savedBar {
+  .savedMeter {
     grid-template-columns: 1fr;
+  }
+
+  .savedMeterForget {
+    height: 34px;
+    border-top: 1px solid var(--border);
   }
 }
 
@@ -533,6 +575,38 @@
   color: var(--text);
 }
 
+.recommendation {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid rgba(0, 229, 160, 0.25);
+  background: var(--accent-dim);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  margin-top: 10px;
+}
+
+.recommendation strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.recommendation button {
+  height: 34px;
+  border: 1px solid var(--accent);
+  background: #111;
+  color: var(--accent);
+  border-radius: 8px;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
 .errorBox,
 .warningList {
   border: 1px solid rgba(255, 92, 92, 0.28);
@@ -621,5 +695,13 @@
 
   .historyRow strong {
     white-space: normal;
+  }
+
+  .recommendation {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendation button {
+    width: 100%;
   }
 }
