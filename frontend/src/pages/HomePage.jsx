@@ -62,12 +62,22 @@ function clearSavedProfile() {
   }
 }
 
-function formatMoney(value) {
+function parseMoney(value) {
   if (value === undefined || value === null || value === "") {
-    return "Unavailable";
+    return null;
   }
   const n = Number(value);
-  return Number.isFinite(n) ? `SGD ${Math.abs(n).toFixed(2)}` : "Unavailable";
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatSignedMoney(value) {
+  const n = parseMoney(value);
+  return n === null ? "Unavailable" : `SGD ${n.toFixed(2)}`;
+}
+
+function formatCostMoney(value) {
+  const n = parseMoney(value);
+  return n === null ? "Unavailable" : `SGD ${Math.abs(n).toFixed(2)}`;
 }
 
 function formatDate(value) {
@@ -91,7 +101,7 @@ function SummaryRows({ result }) {
     <div className={styles.summaryRows}>
       <DetailRow label="Meter ID" value={result.meterId || "-"} />
       {result.address && <DetailRow label="Address" value={result.address} />}
-      <DetailRow label="Balance" value={formatMoney(result.balance)} />
+      <DetailRow label="Balance" value={formatSignedMoney(result.balance)} />
       {result.checkedAt && (
         <DetailRow label="Checked" value={formatDate(result.checkedAt)} />
       )}
@@ -116,19 +126,19 @@ function UsageResult({ result }) {
       <div className={styles.metricGrid}>
         <div>
           <span>Yesterday</span>
-          <strong>{formatMoney(analysis.lastDay)}</strong>
+          <strong>{formatCostMoney(analysis.lastDay)}</strong>
         </div>
         <div>
           <span>7-day avg</span>
-          <strong>{formatMoney(analysis.avgDaily)}</strong>
+          <strong>{formatCostMoney(analysis.avgDaily)}</strong>
         </div>
         <div>
           <span>7-day total</span>
-          <strong>{formatMoney(analysis.total)}</strong>
+          <strong>{formatCostMoney(analysis.total)}</strong>
         </div>
         <div>
           <span>This month</span>
-          <strong>{formatMoney(usage.monthToDate)}</strong>
+          <strong>{formatCostMoney(usage.monthToDate)}</strong>
         </div>
       </div>
 
@@ -151,7 +161,7 @@ function UsageResult({ result }) {
           rows.map((row, index) => (
             <div className={styles.historyRow} key={`${row.date}-${index}`}>
               <span>{formatDate(row.date) || `Day ${index + 1}`}</span>
-              <strong>{formatMoney(row.amount)}</strong>
+              <strong>{formatCostMoney(row.amount)}</strong>
             </div>
           ))
         ) : (
@@ -176,7 +186,7 @@ function TopupsResult({ result }) {
                 <small>Reference {row.reference}</small>
               ) : null}
             </span>
-            <strong>{formatMoney(row.amount)}</strong>
+            <strong>{formatCostMoney(row.amount)}</strong>
           </div>
         ))
       ) : (

@@ -424,7 +424,9 @@ function analyzeUsage(history = [], creditBal = null) {
   const bal = Number(creditBal);
   if (Number.isFinite(bal) && avgDaily > 0) {
     const daysLeft = bal / avgDaily;
-    if (daysLeft <= 3) {
+    if (bal < 0) {
+      warnings.push("🟠 Current balance is below zero. Top up soon.");
+    } else if (daysLeft <= 3) {
       warnings.push(
         `🟠 Current balance may last only about ${daysLeft.toFixed(1)} day(s) at your recent usage.`,
       );

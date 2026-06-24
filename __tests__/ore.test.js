@@ -1,6 +1,10 @@
 import { describe, expect, test } from "vitest";
 
-const { extractTopupHistory, formatTopupHistory } = require("../services/ore");
+const {
+  analyzeUsage,
+  extractTopupHistory,
+  formatTopupHistory,
+} = require("../services/ore");
 
 describe("extractTopupHistory", () => {
   test("reads topup_history_3months.history", () => {
@@ -59,5 +63,18 @@ describe("formatTopupHistory", () => {
 
   test("shows an empty state", () => {
     expect(formatTopupHistory([])).toBe("No top-ups found in the last 90 days.");
+  });
+});
+
+describe("analyzeUsage", () => {
+  test("reports below-zero balances without negative days-left text", () => {
+    const result = analyzeUsage(
+      [{ reading_diff: 2 }, { reading_diff: 2 }],
+      "-3.50",
+    );
+    const warnings = result.warnings.join(" ");
+
+    expect(warnings).toContain("below zero");
+    expect(warnings).not.toContain("-1.8 day");
   });
 });

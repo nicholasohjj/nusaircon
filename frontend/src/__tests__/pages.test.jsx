@@ -683,6 +683,40 @@ describe("HomePage › validation", () => {
   });
 });
 
+describe("HomePage › lookup", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.clear();
+  });
+
+  test("renders negative balances with their sign", async () => {
+    window.localStorage.clear();
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        mode: "balance",
+        meterId: "12345678",
+        address: "",
+        balance: "-2.5",
+        checkedAt: "2026-06-24T12:00:00.000Z",
+      }),
+    });
+
+    renderHomePage();
+    fireEvent.click(screen.getByRole("button", { name: /^Balance$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Check Meter/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("SGD -2.50")).toBeInTheDocument();
+    });
+  });
+});
+
 describe("HomePage › submission", () => {
   afterEach(() => {
     vi.restoreAllMocks();
