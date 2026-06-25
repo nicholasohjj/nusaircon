@@ -3,76 +3,107 @@ if (!process.env.SERVER_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
   process.env.SERVER_URL = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
 }
 const { createHash } = require("crypto");
-const { bot, pendingReplies, state } = require("./bot");
+const { bot, botContexts } = require("./bot");
 const { captureException, shutdownAnalytics } = require("../services/analytics");
 const { PENDING_REPLY_TTL_MS } = require("./constants");
 const { shouldUseWebhook } = require("./runtimeMode");
 const { resetSession } = require("./services/session");
 const { setupTelegramUi } = require("./services/ui");
 
-// ── Register handlers (order matters — ownerReply before text) ────────────────
-require("./commands/user").registerUserCommands(bot);
-require("./commands/owner").registerOwnerCommands(bot);
-require("./handlers/buttons").registerButtonHandlers(bot);
-require("./handlers/actions").registerActionHandlers(bot);
-require("./handlers/webAppData").registerWebAppDataHandler(bot);
-require("./handlers/ownerReply").registerOwnerReplyHandler(bot);
-require("./handlers/text").registerTextHandler(bot);
+function registerHandlers(context) {
+  const telegramBot = context.bot;
+
+  // Order matters: ownerReply before generic text.
+  require("./commands/user").registerUserCommands(telegramBot, context);
+  require("./commands/owner").registerOwnerCommands(telegramBot, context);
+  require("./handlers/buttons").registerButtonHandlers(telegramBot, context);
+  require("./handlers/actions").registerActionHandlers(telegramBot, context);
+  require("./handlers/webAppData").registerWebAppDataHandler(
+    telegramBot,
+    context,
+  );
+  require("./handlers/ownerReply").registerOwnerReplyHandler(
+    telegramBot,
+    context,
+  );
+  require("./handlers/text").registerTextHandler(telegramBot, context);
+
+  telegramBot.catch((err, ctx) => {
+    console.error(`${context.config.displayName} error`, err);
+    captureException(err, String(ctx?.chat?.id ?? "anonymous"), {
+      botAudience: context.config.audience,
+    });
+    if (ctx?.chat?.id) {
+      resetSession(ctx.chat.id, context.config.sessionKey);
+      ctx
+        .reply(
+          context.config.supportsTopup
+            ? "⚠️ Something went wrong. Please try /topup again."
+            : "⚠️ Something went wrong. Please try /balance or /topups again.",
+        )
+        .catch(() => {});
+    }
+  });
+}
+
+for (const context of botContexts) registerHandlers(context);
 
 // ── Housekeeping: prune stale pending-reply entries ───────────────────────────
 setInterval(
   () => {
     const now = Date.now();
-    for (const [id, entry] of pendingReplies) {
-      if (now - entry.createdAt > PENDING_REPLY_TTL_MS)
-        pendingReplies.delete(id);
+    for (const context of botContexts) {
+      for (const [id, entry] of context.pendingReplies) {
+        if (now - entry.createdAt > PENDING_REPLY_TTL_MS) {
+          context.pendingReplies.delete(id);
+        }
+      }
     }
   },
   60 * 60 * 1000,
 ).unref();
 
-// ── Global error handler ──────────────────────────────────────────────────────
-bot.catch((err, ctx) => {
-  console.error("Telegram bot error", err);
-  captureException(err, String(ctx?.chat?.id ?? "anonymous"));
-  if (ctx?.chat?.id) {
-    resetSession(ctx.chat.id);
-    ctx
-      .reply("⚠️ Something went wrong. Please try /topup again.")
-      .catch(() => {});
-  }
-});
-
 // ── Runtime mode ──────────────────────────────────────────────────────────────
 const serverUrl = (process.env.SERVER_URL || "").replace(/\/+$/, "");
-const webhookPath = normalizeWebhookPath(process.env.TELEGRAM_WEBHOOK_PATH);
-const webhookSecret =
-  process.env.TELEGRAM_WEBHOOK_SECRET || defaultWebhookSecret();
 let runtimeMode = null;
 let started = false;
 
-function defaultWebhookSecret() {
+function envFor(context, key) {
+  const scoped = process.env[`${context.envPrefix}_${key}`];
+  if (scoped) return scoped;
+  return botContexts.length === 1 ? process.env[key] : undefined;
+}
+
+function defaultWebhookSecret(context) {
   return createHash("sha256")
-    .update(process.env.TELEGRAM_BOT_TOKEN || "")
+    .update(context.token)
     .update(":evs-telegram-webhook")
     .digest("hex");
 }
 
-function normalizeWebhookPath(value) {
+function normalizeWebhookPath(value, context) {
   if (!value) {
     const suffix = createHash("sha256")
-      .update(process.env.TELEGRAM_BOT_TOKEN || "")
+      .update(context.token)
       .update(":evs-telegram-webhook-path")
       .digest("hex")
       .slice(0, 32);
-    return `/telegram/webhook/${suffix}`;
+    return `/telegram/webhook/${context.key}/${suffix}`;
   }
 
   const withSlash = value.startsWith("/") ? value : `/${value}`;
   return withSlash.replace(/\/+$/, "") || "/";
 }
 
-function getWebhookUrl() {
+function getWebhookPath(context) {
+  return normalizeWebhookPath(envFor(context, "TELEGRAM_WEBHOOK_PATH"), context);
+}
+
+function getWebhookSecret(context) {
+  return envFor(context, "TELEGRAM_WEBHOOK_SECRET") || defaultWebhookSecret(context);
+}
+
+function getWebhookUrl(context) {
   if (!serverUrl) {
     throw new Error(
       "SERVER_URL is required for Telegram webhook mode. On Railway, set SERVER_URL=https://${{RAILWAY_PUBLIC_DOMAIN}} or rely on RAILWAY_PUBLIC_DOMAIN.",
@@ -85,12 +116,18 @@ function getWebhookUrl() {
     );
   }
 
-  return `${serverUrl}${webhookPath}`;
+  return `${serverUrl}${getWebhookPath(context)}`;
 }
 
 function mountTelegramWebhook(app) {
   if (!shouldUseWebhook()) return;
-  app.use(bot.webhookCallback(webhookPath, { secretToken: webhookSecret }));
+  for (const context of botContexts) {
+    app.use(
+      context.bot.webhookCallback(getWebhookPath(context), {
+        secretToken: getWebhookSecret(context),
+      }),
+    );
+  }
 }
 
 function getBotRuntimeMode() {
@@ -99,36 +136,54 @@ function getBotRuntimeMode() {
 
 async function startBot() {
   if (started) return;
-  await setupTelegramUi(bot);
+  await Promise.all(
+    botContexts.map((context) => setupTelegramUi(context.bot, context.config)),
+  );
 
   if (shouldUseWebhook()) {
-    const webhookUrl = getWebhookUrl();
-    await bot.telegram.setWebhook(webhookUrl, {
-      secret_token: webhookSecret,
-      drop_pending_updates: process.env.TELEGRAM_DROP_PENDING_UPDATES === "true",
-    });
+    for (const context of botContexts) {
+      const webhookUrl = getWebhookUrl(context);
+      await context.bot.telegram.setWebhook(webhookUrl, {
+        secret_token: getWebhookSecret(context),
+        drop_pending_updates:
+          process.env.TELEGRAM_DROP_PENDING_UPDATES === "true",
+      });
+      context.state.runtimeMode = "webhook";
+      context.state.startedAt = Date.now();
+      console.log(
+        `🤖 ${context.config.displayName} listening via webhook at ${getWebhookPath(context)}`,
+      );
+    }
     runtimeMode = "webhook";
-    state.runtimeMode = runtimeMode;
-    state.startedAt = Date.now();
     started = true;
-    console.log(`🤖 EVS Telegram bot listening via webhook at ${webhookPath}`);
     return;
   }
 
-  await bot.telegram.deleteWebhook({ drop_pending_updates: true });
+  await Promise.all(
+    botContexts.map((context) =>
+      context.bot.telegram.deleteWebhook({ drop_pending_updates: true }),
+    ),
+  );
 
   // Retry up to 5 times — handles Railway deploy overlap where the old
   // instance hasn't fully released the long-poll connection yet.
   for (let attempt = 1; attempt <= 5; attempt++) {
     try {
-      await bot.launch({ dropPendingUpdates: true });
-      runtimeMode = "polling";
-      state.runtimeMode = runtimeMode;
-      state.startedAt = Date.now();
-      started = true;
-      console.log(
-        `🤖 EVS Telegram bot running via polling (top-ups ${state.topupDisabled ? "DISABLED" : "enabled"})`,
+      await Promise.all(
+        botContexts.map((context) =>
+          context.bot.launch({ dropPendingUpdates: true }).then(() => {
+            context.state.runtimeMode = "polling";
+            context.state.startedAt = Date.now();
+          }),
+        ),
       );
+      runtimeMode = "polling";
+      started = true;
+      for (const context of botContexts) {
+        console.log(
+          `🤖 ${context.config.displayName} running via polling (top-ups ${context.state.topupDisabled ? "DISABLED" : "enabled"})`,
+        );
+      }
       return;
     } catch (err) {
       if (err.response?.error_code === 409 && attempt < 5) {
@@ -148,7 +203,7 @@ async function startBot() {
 async function stopBot(reason = "unspecified") {
   await shutdownAnalytics();
   if (runtimeMode !== "polling") return;
-  bot.stop(reason);
+  for (const context of botContexts) context.bot.stop(reason);
 }
 
 module.exports = {

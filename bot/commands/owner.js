@@ -5,7 +5,6 @@ const {
   getUserStats,
   forgetUser,
 } = require("../services/userStore");
-const { pendingReplies, state } = require("../bot");
 const { inferRuntimeMode } = require("../runtimeMode");
 const { track } = require("../../services/analytics");
 const { getSessionStats } = require("../services/session");
@@ -160,7 +159,22 @@ function registerAnnounce(bot) {
 }
 
 // ── /topupoff / /topupon / /topupstatus ───────────────────────────────────────
-function registerTopupToggle(bot) {
+const fallbackState = {
+  topupDisabled: process.env.TOPUP_DISABLED === "true",
+  runtimeMode: null,
+  startedAt: null,
+};
+
+function runtimeParts(runtime = {}) {
+  return {
+    state: runtime.state || fallbackState,
+    pendingReplies: runtime.pendingReplies || new Map(),
+  };
+}
+
+function registerTopupToggle(bot, runtime) {
+  const { state } = runtimeParts(runtime);
+
   bot.command("topupoff", async (ctx) => {
     if (!isOwner(ctx)) return;
     state.topupDisabled = true;
@@ -194,7 +208,9 @@ function registerTopupToggle(bot) {
   });
 }
 
-function registerStats(bot) {
+function registerStats(bot, runtime) {
+  const { state, pendingReplies } = runtimeParts(runtime);
+
   bot.command("stats", async (ctx) => {
     if (!isOwner(ctx)) return;
 
@@ -219,11 +235,11 @@ function registerStats(bot) {
   });
 }
 
-function registerOwnerCommands(bot) {
+function registerOwnerCommands(bot, runtime) {
   registerBroadcast(bot);
   registerAnnounce(bot);
-  registerTopupToggle(bot);
-  registerStats(bot);
+  registerTopupToggle(bot, runtime);
+  registerStats(bot, runtime);
 }
 
 module.exports = {

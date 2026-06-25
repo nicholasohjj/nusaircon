@@ -18,25 +18,75 @@ const STAGES = {
 const HOSTELS = {
   CP2: "cp2",
   CP2NUS: "cp2nus",
+  SUTD: "sutd",
 };
 
 const HOSTEL_LABELS = {
   [HOSTELS.CP2]:
     "PGPR / Houses @ PGP / Residential Colleges / NUS College (cp2)",
   [HOSTELS.CP2NUS]: "UTown Residence / RVRC (cp2nus)",
+  [HOSTELS.SUTD]: "SUTD",
 };
+
+const TOPUP_SUPPORTED_HOSTELS = new Set([
+  HOSTELS.CP2,
+  HOSTELS.CP2NUS,
+  HOSTELS.SUTD,
+]);
+
+function normalizeBotAudience(value) {
+  const normalized = String(value || "nus")
+    .trim()
+    .toLowerCase();
+  return normalized === "sutd" ? "sutd" : "nus";
+}
+
+function createMainKeyboard(audience) {
+  return audience === "sutd"
+    ? Markup.keyboard([
+        ["⚡ Top Up"],
+        ["💰 Balance", "🧾 Top-ups"],
+        ["ℹ️ Help"],
+      ]).resize()
+    : Markup.keyboard([
+        ["⚡ Top Up"],
+        ["💰 Balance", "📊 Usage"],
+        ["🧾 Top-ups"],
+        ["ℹ️ Help"],
+      ]).resize();
+}
+
+function createBotConfig(audienceValue = process.env.TELEGRAM_BOT_AUDIENCE) {
+  const audience = normalizeBotAudience(audienceValue);
+  const allowedHostels =
+    audience === "sutd" ? [HOSTELS.SUTD] : [HOSTELS.CP2, HOSTELS.CP2NUS];
+
+  return {
+    audience,
+    sessionKey: audience,
+    displayName: audience === "sutd" ? "SUTD Aircon Bot" : "NUS Aircon Bot",
+    supportsTopup: true,
+    supportsUsage: audience === "nus",
+    allowedHostels,
+    defaultLookupHostel: audience === "sutd" ? HOSTELS.SUTD : null,
+    mainKeyboard: createMainKeyboard(audience),
+  };
+}
+
+const DEFAULT_BOT_CONFIG = createBotConfig();
+const BOT_AUDIENCE = DEFAULT_BOT_CONFIG.audience;
+const BOT_DISPLAY_NAME = DEFAULT_BOT_CONFIG.displayName;
+const BOT_SUPPORTS_TOPUP = DEFAULT_BOT_CONFIG.supportsTopup;
+const BOT_SUPPORTS_USAGE = DEFAULT_BOT_CONFIG.supportsUsage;
+const BOT_ALLOWED_HOSTELS = DEFAULT_BOT_CONFIG.allowedHostels;
+const BOT_DEFAULT_LOOKUP_HOSTEL = DEFAULT_BOT_CONFIG.defaultLookupHostel;
 
 // ── TTLs ──────────────────────────────────────────────────────────────────────
 const SESSION_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const PENDING_REPLY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // ── Keyboards ─────────────────────────────────────────────────────────────────
-const mainKeyboard = Markup.keyboard([
-  ["⚡ Top Up"],
-  ["💰 Balance", "📊 Usage"],
-  ["🧾 Top-ups"],
-  ["ℹ️ Help"],
-]).resize();
+const mainKeyboard = DEFAULT_BOT_CONFIG.mainKeyboard;
 
 const cancelKeyboard = Markup.keyboard([["❌ Cancel"]]).resize();
 
@@ -73,6 +123,16 @@ module.exports = {
   STAGES,
   HOSTELS,
   HOSTEL_LABELS,
+  TOPUP_SUPPORTED_HOSTELS,
+  normalizeBotAudience,
+  createBotConfig,
+  DEFAULT_BOT_CONFIG,
+  BOT_AUDIENCE,
+  BOT_DISPLAY_NAME,
+  BOT_SUPPORTS_TOPUP,
+  BOT_SUPPORTS_USAGE,
+  BOT_ALLOWED_HOSTELS,
+  BOT_DEFAULT_LOOKUP_HOSTEL,
   SESSION_TTL_MS,
   PENDING_REPLY_TTL_MS,
   mainKeyboard,

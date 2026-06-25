@@ -49,23 +49,23 @@ export default function TermsPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Terms of Use</h1>
         <p className={styles.meta}>
-          EVS Electricity Top-Up Bot · Last updated: June 2026
+          EVS Meter Tools · Last updated: June 2026
         </p>
         <Para>
-          Please read these Terms carefully before using the EVS Electricity
-          Top-Up Bot and web app ("the Service"). By using the Service, you
-          agree to be bound by these Terms. If you do not agree, do not use the
-          Service.
+          Please read these Terms carefully before using EVS Meter Tools ("the
+          Service"). By using the Service, you agree to be bound by these Terms.
+          If you do not agree, do not use the Service.
         </Para>
       </div>
 
       <Section id="s1" title="1. Service overview">
         <Para>
           The Service is an unofficial, independently developed tool that
-          enables NUS hostel residents to check their EVS electricity meter
-          balance and top up their meters via credit card through Telegram or the
-          standalone web app. It is not affiliated with, endorsed by, or
-          operated by NUS, EVS, eNETS, or any payment network.
+          enables users of supported EVS electricity meters to check meter
+          balance, view supported top-up history, and, where enabled, top up
+          meters via credit card through Telegram or the standalone web app. It
+          is not affiliated with, endorsed by, or operated by NUS, SUTD, EVS,
+          eNETS, or any payment network.
         </Para>
       </Section>
 
@@ -73,8 +73,8 @@ export default function TermsPage() {
         <Para>You may use the Service only if you:</Para>
         <Ul
           items={[
-            "Are a current resident of a supported NUS hostel (PGPR, Houses @ PGP, Residential Colleges, NUS College, UTown Residence, or RVRC);",
-            "Hold a valid EVS electricity meter registered to your hostel unit; and",
+            "Are a current resident or authorised user for a supported EVS meter system, including supported NUS hostel meters or supported SUTD meters;",
+            "Hold a valid EVS electricity meter registered to your unit; and",
             "Are authorised to make payments for that meter.",
           ]}
         />
@@ -82,8 +82,9 @@ export default function TermsPage() {
 
       <Section id="s3" title="3. Payment terms">
         <Para>
-          <strong>Top-up amounts</strong> are subject to a minimum of SGD $6.00
-          and a maximum of SGD $50.00 per transaction.
+          <strong>Where online top-up is enabled, top-up amounts</strong> are
+          subject to a minimum of SGD $6.00 and a maximum of SGD $50.00 per
+          transaction.
         </Para>
         <Para>
           <strong>Card payments</strong> are processed through eNETS. By
@@ -153,23 +154,23 @@ export default function TermsPage() {
           cross-system guard for cp2nus users that rejects meters belonging to
           the cp2 system before payment is initiated, but this check is not
           infallible. If you are unsure which system your meter belongs to,
-          verify with your hostel management.
+          verify with your institution, residence operator, or EVS.
         </Para>
         <SubHeading>Meter ID not found.</SubHeading>
         <Para>
           If your meter ID cannot be located in the EVS system, the Service will
           not be able to proceed with a top-up. This may occur for newly
           assigned units, recently transferred residents, or due to delays in
-          the EVS system. Verify your meter ID with your hostel management
-          office before retrying. The Service operator cannot manually look up,
-          register, or resolve meter ID issues on your behalf.
+          the EVS system. Verify your meter ID with your institution, residence
+          operator, or EVS before retrying. The Service operator cannot manually
+          look up, register, or resolve meter ID issues on your behalf.
         </Para>
       </Section>
 
       <Section id="s6" title="6. Session and data handling">
         <Ul
           items={[
-            "Your meter ID and hostel selection are saved to a local database so you do not need to re-enter them on future top-ups. You can delete this at any time with the /forget command.",
+            "Your meter ID and selected EVS system are saved to a local database so you do not need to re-enter them on future top-ups or lookups. You can delete this at any time with the /forget command.",
             "Bot sessions (conversation state, current top-up stage) are held in memory only and expire after 15 minutes of inactivity. They are not written to disk and are lost on service restart.",
             "Pending payment tokens are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, Telegram chat identifier if the flow was started from Telegram, and eNETS gateway fields required to complete the payment. They expire after approximately 10 minutes.",
             "Completed result tokens are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, transaction outcome, transaction reference, and Telegram chat identifier if available. They expire after approximately 24 hours.",
@@ -200,8 +201,10 @@ export default function TermsPage() {
           successful payment processing at any given time.
         </Para>
         <Para>
-          Balance and usage figures displayed are fetched from the ORE API and
-          may not reflect real-time meter readings.
+          NUS balance and usage figures are fetched from the ORE API. SUTD
+          balance, top-up history, and top-up setup are fetched from the SUTD
+          EVS WebPOS portal. These values may not reflect real-time meter
+          readings.
         </Para>
         <Para>
           The Service may apply rate limits to protect payment and lookup

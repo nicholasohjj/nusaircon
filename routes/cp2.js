@@ -6,7 +6,7 @@ const cheerio = require("cheerio");
 const { getMeterSummary } = require("../services/ore");
 const { track, captureException } = require("../services/analytics");
 const { validationError } = require("../services/validators");
-const { bot } = require("../bot");
+const { getPaymentBot } = require("../bot/bot");
 const {
   extractHiddenField,
   extractMerchantTxnRef,
@@ -39,7 +39,10 @@ async function createNotifiedResultToken(session, updates) {
   const resultSession = { ...session, ...updates };
 
   try {
-    const notifiedAt = await sendPaymentNotification(bot, resultSession);
+    const notifiedAt = await sendPaymentNotification(
+      getPaymentBot("nus"),
+      resultSession,
+    );
     if (notifiedAt) resultSession.notifiedAt = notifiedAt;
   } catch (err) {
     console.error("notify error", err);
@@ -69,7 +72,7 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     if (session.notifiedAt) return res.json({ ok: true });
     if (session.status === "pending") return res.json({ ok: true });
 
-    await sendPaymentNotification(bot, session);
+    await sendPaymentNotification(getPaymentBot("nus"), session);
   } catch (err) {
     console.error("notify error", err);
   }

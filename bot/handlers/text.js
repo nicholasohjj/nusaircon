@@ -5,6 +5,10 @@ const {
   getMeterUsage,
   formatUsageSummary,
 } = require("../../services/ore");
+const {
+  getSutdMeterSummary,
+  isValidSutdAmount,
+} = require("../../services/sutdService");
 const { saveUser } = require("../services/userStore");
 const { track } = require("../../services/analytics");
 const { isValidMeterId, isValidAmount } = require("../../services/validators");
@@ -17,14 +21,14 @@ const { handleMeterIdLookup } = require("../services/lookup");
 const {
   getHostelLabel,
   getWebAppPath,
+  getAmountPrompt,
   isHttpsUrl,
   SERVER_URL,
 } = require("../services/topup");
-const { bot, pendingReplies } = require("../bot");
-const { state } = require("../bot");
 const {
   STAGES,
-  mainKeyboard,
+  HOSTELS,
+  DEFAULT_BOT_CONFIG,
   cancelKeyboard,
   ratingKeyboard,
   TOPUP_DISABLED_MESSAGE,
@@ -32,6 +36,31 @@ const {
 } = require("../constants");
 
 const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
+
+const fallbackState = {
+  topupDisabled: process.env.TOPUP_DISABLED === "true",
+};
+
+function runtimeParts(runtime = {}) {
+  return {
+    bot: runtime.bot || null,
+    pendingReplies: runtime.pendingReplies || new Map(),
+    state: runtime.state || fallbackState,
+    config: runtime.config || DEFAULT_BOT_CONFIG,
+  };
+}
+
+function restartHint(config) {
+  return config.supportsTopup
+    ? "Use /topup to start a new top-up, or /help for available commands."
+    : "Use /balance or /topups to check your SUTD meter, or /help for available commands.";
+}
+
+function unknownInputHint(config) {
+  return config.supportsTopup
+    ? "I didn't understand that. Use /topup to top up, /balance to check balance, /topups to view recent top-ups, or /help for instructions."
+    : "I didn't understand that. Use /balance to check your SUTD balance, /topups to view SUTD top-ups, or /help for instructions.";
+}
 
 // ── Feedback helpers ──────────────────────────────────────────────────────────
 function parseStar(text) {
@@ -69,7 +98,8 @@ async function handleFeedbackRating(ctx, chatId, text, session) {
   );
 }
 
-async function handleFeedbackText(ctx, chatId, text, session) {
+async function handleFeedbackText(ctx, chatId, text, session, runtime) {
+  const { bot, pendingReplies, config } = runtime;
   const feedbackText = text === "⏭ Skip" ? null : text;
   const { feedbackRating } = session;
 
@@ -83,7 +113,7 @@ async function handleFeedbackText(ctx, chatId, text, session) {
     feedbackText ? `| message="${feedbackText}"` : "(no message)",
   );
 
-  resetSession(chatId);
+  resetSession(chatId, config.sessionKey);
 
   const stars = "⭐".repeat(feedbackRating ?? 0);
   const notifyLines = [
@@ -96,7 +126,7 @@ async function handleFeedbackText(ctx, chatId, text, session) {
 
   // INVARIANT: sendMessage and pendingReplies.set must both stay inside this
   // guard — registering a reply thread for an undefined target is a bug.
-  if (OWNER_CHAT_ID) {
+  if (OWNER_CHAT_ID && bot) {
     const notifyMsg = await bot.telegram
       .sendMessage(OWNER_CHAT_ID, notifyLines.join("\n"), {
         parse_mode: "HTML",
@@ -119,11 +149,11 @@ async function handleFeedbackText(ctx, chatId, text, session) {
     `✅ <b>Thanks for your feedback!</b>\n\n${stars}\n\n` +
       (feedbackText ? `<i>"${escHtml(feedbackText)}"</i>\n\n` : "") +
       `Your input helps us improve the bot.`,
-    { parse_mode: "HTML", ...mainKeyboard },
+    { parse_mode: "HTML", ...config.mainKeyboard },
   );
 }
 
-async function handleAwaitingMeterId(ctx, chatId, text, session) {
+async function handleAwaitingMeterId(ctx, chatId, text, session, config) {
   if (!isValidMeterId(text)) {
     return ctx.reply("⚠️ Invalid Meter ID. Please try again.", cancelKeyboard);
   }
@@ -136,10 +166,11 @@ async function handleAwaitingMeterId(ctx, chatId, text, session) {
   if (!loadingMsg) return;
 
   try {
-    const [summary, usage] = await Promise.all([
-      getMeterSummary(text),
-      getMeterUsage(text, 7),
-    ]);
+    const isSutd = session.hostel === HOSTELS.SUTD || config.audience === "sutd";
+    if (isSutd) session.hostel = HOSTELS.SUTD;
+    const [summary, usage] = isSutd
+      ? [await getSutdMeterSummary(text), null]
+      : await Promise.all([getMeterSummary(text), getMeterUsage(text, 7)]);
 
     session.stage = STAGES.AWAITING_AMOUNT;
 
@@ -159,19 +190,16 @@ async function handleAwaitingMeterId(ctx, chatId, text, session) {
       lines.push(`💰 <b>Balance:</b> SGD ${bal.toFixed(2)}`);
     }
 
-    const usageText = await formatUsageSummary(
-      usage.history,
-      summary.credit_bal,
-      7,
-      text,
-    );
+    const usageText = usage
+      ? await formatUsageSummary(usage.history, summary.credit_bal, 7, text)
+      : "";
     if (usageText) {
       lines.push("", "<b>Daily consumption</b>", usageText);
     }
 
     lines.push(
       "",
-      "Now enter the <b>amount in SGD</b> (e.g. <code>20</code> for $20.00, min $6, max $50):",
+      `Now enter the <b>amount in SGD</b> (e.g. <code>20</code> for $20.00, ${getAmountPrompt(session.hostel)}):`,
     );
 
     await ctx.telegram
@@ -213,13 +241,13 @@ async function handleAwaitingMeterId(ctx, chatId, text, session) {
   }
 }
 
-async function handleAwaitingAmount(ctx, chatId, text, session) {
+async function handleAwaitingAmount(ctx, chatId, text, session, config) {
   if (
     !session.txtMtrId ||
     !isValidMeterId(session.txtMtrId) ||
     !session.hostel
   ) {
-    resetSession(chatId);
+    resetSession(chatId, config.sessionKey);
     return ctx.reply(
       "⚠️ No valid Meter ID on record. Please enter your 8-digit Meter ID:",
       {
@@ -232,9 +260,15 @@ async function handleAwaitingAmount(ctx, chatId, text, session) {
     );
   }
 
-  const amt = Number(text);
-  if (!isValidAmount(amt)) {
-    return ctx.reply("⚠️ Please enter a valid amount between $6 and $50.");
+  const amt = Number(String(text).replace(/[^0-9.]/g, ""));
+  const isSutd = session.hostel === HOSTELS.SUTD;
+  const validAmount = isSutd ? isValidSutdAmount(amt) : isValidAmount(amt);
+  if (!validAmount) {
+    return ctx.reply(
+      isSutd
+        ? "⚠️ Please enter a valid amount between $10 and $50."
+        : "⚠️ Please enter a valid amount between $6 and $50.",
+    );
   }
 
   const amountDollars = Number(amt.toFixed(2));
@@ -247,9 +281,17 @@ async function handleAwaitingAmount(ctx, chatId, text, session) {
     amount: amountDollars,
   });
 
+  const webAppPath = getWebAppPath(session.hostel);
+  if (!webAppPath) {
+    resetSession(chatId, config.sessionKey);
+    return ctx.reply(
+      "⚠️ Online top-up is not available for this meter system yet.",
+      config.mainKeyboard,
+    );
+  }
+
   saveUser(chatId, session.txtMtrId, session.hostel);
 
-  const webAppPath = getWebAppPath(session.hostel);
   const webAppUrl =
     `${SERVER_URL}${webAppPath}?txtMtrId=${encodeURIComponent(session.txtMtrId)}` +
     `&txtAmount=${encodeURIComponent(amountDollars)}` +
@@ -325,7 +367,8 @@ async function handleAwaitingPayment(ctx, session) {
   );
 }
 
-async function handleIdleUserReply(ctx, chatId, text) {
+async function handleIdleUserReply(ctx, chatId, text, runtime) {
+  const { bot, pendingReplies } = runtime;
   const replyToId = ctx.message?.reply_to_message?.message_id;
   if (!replyToId || !pendingReplies.has(replyToId)) return false;
 
@@ -334,6 +377,8 @@ async function handleIdleUserReply(ctx, chatId, text) {
 
   if (!pending || String(pending.chatId) !== String(chatId) || !rootOwnerMsgId)
     return false;
+
+  if (!bot) return false;
 
   const sentOwnerMsg = await bot.telegram
     .sendMessage(OWNER_CHAT_ID, `↩️ <b>User reply:</b>\n\n${escHtml(text)}`, {
@@ -358,7 +403,10 @@ async function handleIdleUserReply(ctx, chatId, text) {
 }
 
 // ── Main on("text") registration ──────────────────────────────────────────────
-function registerTextHandler(telegramBot) {
+function registerTextHandler(telegramBot, runtime) {
+  const parts = runtimeParts({ ...runtime, bot: telegramBot });
+  const { state, config } = parts;
+
   telegramBot.on("text", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
@@ -367,7 +415,7 @@ function registerTextHandler(telegramBot) {
       const text = String(ctx.message?.text || "").trim();
       if (!text || text.startsWith("/")) return;
 
-      const session = getSession(chatId);
+      const session = getSession(chatId, config.sessionKey);
 
       // Kill any in-progress top-up flow if top-ups were disabled mid-session
       if (state.topupDisabled && TOPUP_IN_PROGRESS_STAGES.has(session.stage)) {
@@ -375,8 +423,8 @@ function registerTextHandler(telegramBot) {
           chatId,
           stage: session.stage,
         });
-        resetSession(chatId);
-        return ctx.reply(TOPUP_DISABLED_MESSAGE, mainKeyboard);
+        resetSession(chatId, config.sessionKey);
+        return ctx.reply(TOPUP_DISABLED_MESSAGE, config.mainKeyboard);
       }
 
       switch (session.stage) {
@@ -384,10 +432,10 @@ function registerTextHandler(telegramBot) {
           return handleFeedbackRating(ctx, chatId, text, session);
 
         case STAGES.AWAITING_FEEDBACK_TEXT:
-          return handleFeedbackText(ctx, chatId, text, session);
+          return handleFeedbackText(ctx, chatId, text, session, parts);
 
         case STAGES.AWAITING_METER_ID:
-          return handleAwaitingMeterId(ctx, chatId, text, session);
+          return handleAwaitingMeterId(ctx, chatId, text, session, config);
 
         case STAGES.AWAITING_METER_ID_USAGE:
           if (!isValidMeterId(text))
@@ -395,7 +443,10 @@ function registerTextHandler(telegramBot) {
               "⚠️ Invalid Meter ID. Please try again.",
               cancelKeyboard,
             );
-          return handleMeterIdLookup(ctx, chatId, text, "usage");
+          return handleMeterIdLookup(ctx, chatId, text, "usage", {
+            hostel: session.lookupHostel,
+            config,
+          });
 
         case STAGES.AWAITING_METER_ID_BALANCE:
           if (!isValidMeterId(text))
@@ -403,7 +454,10 @@ function registerTextHandler(telegramBot) {
               "⚠️ Invalid Meter ID. Please try again.",
               cancelKeyboard,
             );
-          return handleMeterIdLookup(ctx, chatId, text, "balance");
+          return handleMeterIdLookup(ctx, chatId, text, "balance", {
+            hostel: session.lookupHostel,
+            config,
+          });
 
         case STAGES.AWAITING_METER_ID_TOPUPS:
           if (!isValidMeterId(text))
@@ -411,17 +465,20 @@ function registerTextHandler(telegramBot) {
               "⚠️ Invalid Meter ID. Please try again.",
               cancelKeyboard,
             );
-          return handleMeterIdLookup(ctx, chatId, text, "topups");
+          return handleMeterIdLookup(ctx, chatId, text, "topups", {
+            hostel: session.lookupHostel,
+            config,
+          });
 
         case STAGES.AWAITING_AMOUNT:
-          return handleAwaitingAmount(ctx, chatId, text, session);
+          return handleAwaitingAmount(ctx, chatId, text, session, config);
 
         case STAGES.AWAITING_PAYMENT:
           return handleAwaitingPayment(ctx, session);
 
         case STAGES.IDLE: {
           // Let users reply to developer messages even when idle
-          const handled = await handleIdleUserReply(ctx, chatId, text);
+          const handled = await handleIdleUserReply(ctx, chatId, text, parts);
           if (handled) return;
 
           // Friendly hint for likely-stale meter ID / amount inputs
@@ -433,24 +490,18 @@ function registerTextHandler(telegramBot) {
 
           if (looksLikeMeterId || looksLikeAmount) {
             return ctx.reply(
-              "⚠️ It looks like your previous session may have expired.\n\nUse /topup to start a new top-up, or /help for available commands.",
-              mainKeyboard,
+              `⚠️ It looks like your previous session may have expired.\n\n${restartHint(config)}`,
+              config.mainKeyboard,
             );
           }
 
-          return ctx.reply(
-            "I didn't understand that. Use /topup to top up, /balance to check balance, /topups to view recent top-ups, or /help for instructions.",
-            mainKeyboard,
-          );
+          return ctx.reply(unknownInputHint(config), config.mainKeyboard);
         }
 
         default:
-          return ctx.reply(
-            "I didn't understand that. Use /topup to top up, /balance to check balance, /topups to view recent top-ups, or /help for instructions.",
-            mainKeyboard,
-          );
+          return ctx.reply(unknownInputHint(config), config.mainKeyboard);
       }
-    });
+    }, config.sessionKey);
   });
 }
 

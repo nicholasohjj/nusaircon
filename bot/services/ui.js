@@ -1,12 +1,37 @@
-const { mainKeyboard } = require("../constants");
+const { DEFAULT_BOT_CONFIG } = require("../constants");
 
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
 const GITHUB_URL = process.env.GITHUB_URL;
 
-function helpText() {
+function helpText(config = DEFAULT_BOT_CONFIG) {
+  if (config.audience === "sutd") {
+    return (
+      `ℹ️ *${config.displayName} Help*\n\n` +
+      `*Supported SUTD tools*\n` +
+      `• Online top-up\n` +
+      `• Balance\n` +
+      `• Top-up history\n\n` +
+      `*Accepted SUTD top-up amount*\n` +
+      `• Minimum: $10.00 SGD\n` +
+      `• Maximum: $50.00 SGD\n\n` +
+      `Usage history is not available for SUTD yet.\n\n` +
+      `*Useful commands*\n` +
+      `• /topup — start a new SUTD top-up\n` +
+      `• /balance — check SUTD meter balance\n` +
+      `• /topups — show SUTD top-up history\n` +
+      `• /feedback — share feedback or report an issue\n` +
+      `• /forget — clear your saved meters\n` +
+      `• /cancel — cancel the current flow\n` +
+      `• /help — show this message\n\n` +
+      `*Terms of Use*\n` +
+      `${SERVER_URL}/app/terms\n\n` +
+      `Open source · ${GITHUB_URL}`
+    );
+  }
+
   return (
-    `ℹ️ *EVS Top-Up Help*\n\n` +
-    `*Supported hostels*\n` +
+    `ℹ️ *${config.displayName} Help*\n\n` +
+    `*Supported NUS systems*\n` +
     `• PGPR\n` +
     `• Houses @ PGP\n` +
     `• Residential Colleges\n` +
@@ -15,7 +40,7 @@ function helpText() {
     `• UTown Residence\n` +
     `• RVRC\n` +
     `  → uses cp2nus.evs.com.sg\n\n` +
-    `*Accepted amount*\n` +
+    `*Accepted NUS top-up amount*\n` +
     `• Minimum: $6.00 SGD\n` +
     `• Maximum: $50.00 SGD\n\n` +
     `*Useful commands*\n` +
@@ -34,16 +59,32 @@ function helpText() {
   );
 }
 
-async function sendHelp(ctx) {
-  return ctx.replyWithMarkdown(helpText(), mainKeyboard);
+async function sendHelp(ctx, config = DEFAULT_BOT_CONFIG) {
+  return ctx.replyWithMarkdown(helpText(config), config.mainKeyboard);
 }
 
-async function setupTelegramUi(bot) {
+async function sendHelpForConfig(ctx, config = DEFAULT_BOT_CONFIG) {
+  return ctx.replyWithMarkdown(helpText(config), config.mainKeyboard);
+}
+
+async function setupTelegramUi(bot, config = DEFAULT_BOT_CONFIG) {
+  const lookupCommands =
+    config.audience === "sutd"
+      ? [
+          { command: "balance", description: "Check SUTD meter balance" },
+          { command: "topups", description: "Show SUTD top-ups" },
+        ]
+      : [
+          { command: "balance", description: "Check meter balance" },
+          { command: "usage", description: "Show recent daily usage" },
+          { command: "topups", description: "Show recent top-ups" },
+        ];
+
   await bot.telegram.setMyCommands([
-    { command: "topup", description: "Start electricity top-up" },
-    { command: "balance", description: "Check meter balance" },
-    { command: "usage", description: "Show recent daily usage" },
-    { command: "topups", description: "Show recent top-ups" },
+    ...(config.supportsTopup
+      ? [{ command: "topup", description: "Start electricity top-up" }]
+      : []),
+    ...lookupCommands,
     { command: "forget", description: "Clear saved meters" },
     { command: "feedback", description: "Share feedback or report an issue" },
     { command: "help", description: "Show help and usage" },
@@ -51,4 +92,10 @@ async function setupTelegramUi(bot) {
   ]);
 }
 
-module.exports = { helpText, sendHelp, setupTelegramUi, SERVER_URL };
+module.exports = {
+  helpText,
+  sendHelp,
+  sendHelpForConfig,
+  setupTelegramUi,
+  SERVER_URL,
+};

@@ -11,7 +11,9 @@ const MODE_LABELS = {
 };
 
 function shortHostelLabel(hostel) {
-  return hostel === HOSTELS.CP2NUS ? "UTown/RVRC" : "PGPR/PGP/RC/NUSC";
+  if (hostel === HOSTELS.CP2NUS) return "UTown/RVRC";
+  if (hostel === HOSTELS.SUTD) return "SUTD";
+  return "PGPR/PGP/RC/NUSC";
 }
 
 function savedMeterButtonText(meter) {
@@ -55,7 +57,7 @@ function parseSavedMeterCallback(data) {
 
   const hostel = parts[2];
   const meterId = parts[3];
-  if (![HOSTELS.CP2, HOSTELS.CP2NUS].includes(hostel)) return null;
+  if (!Object.values(HOSTELS).includes(hostel)) return null;
   if (!/^\d{8}$/.test(meterId)) return null;
 
   return { mode, hostel, meterId };

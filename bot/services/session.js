@@ -1,9 +1,13 @@
 const { SESSION_TTL_MS } = require("../constants");
 
 // ── In-memory session store ───────────────────────────────────────────────────
-// chatId (string|number) → { stage, hostel?, txtMtrId?, amountDollars?, amountCents?,
+// sessionKey:chatId → { stage, hostel?, txtMtrId?, amountDollars?, amountCents?,
 //                             webAppUrl?, feedbackRating?, updatedAt }
 const sessions = {};
+
+function sessionId(chatId, namespace = "default") {
+  return `${namespace}:${chatId}`;
+}
 
 function pruneExpiredSessions(now = Date.now()) {
   for (const chatId of Object.keys(sessions)) {
@@ -23,22 +27,23 @@ setInterval(() => {
  * Returns the live session object for chatId, creating/resetting it if
  * it doesn't exist or has expired. Always touches updatedAt.
  */
-function getSession(chatId) {
+function getSession(chatId, namespace = "default") {
   const now = Date.now();
-  const s = sessions[chatId];
+  const key = sessionId(chatId, namespace);
+  const s = sessions[key];
 
   if (!s || now - (s.updatedAt ?? 0) > SESSION_TTL_MS) {
-    sessions[chatId] = { stage: "idle", updatedAt: now };
+    sessions[key] = { stage: "idle", updatedAt: now };
   } else {
-    sessions[chatId].updatedAt = now;
+    sessions[key].updatedAt = now;
   }
 
-  return sessions[chatId];
+  return sessions[key];
 }
 
 /** Hard-reset a session to idle, discarding all pending state. */
-function resetSession(chatId) {
-  sessions[chatId] = { stage: "idle", updatedAt: Date.now() };
+function resetSession(chatId, namespace = "default") {
+  sessions[sessionId(chatId, namespace)] = { stage: "idle", updatedAt: Date.now() };
 }
 
 function getSessionStats() {
@@ -66,14 +71,15 @@ function getSessionStats() {
 const chatLocks = new Map();
 const chatWaiters = new Map(); // chatId → number of active + queued handlers
 
-async function withChatLock(chatId, fn) {
-  chatWaiters.set(chatId, (chatWaiters.get(chatId) ?? 0) + 1);
+async function withChatLock(chatId, fn, namespace = "default") {
+  const key = sessionId(chatId, namespace);
+  chatWaiters.set(key, (chatWaiters.get(key) ?? 0) + 1);
 
-  const prev = chatLocks.get(chatId) ?? Promise.resolve();
+  const prev = chatLocks.get(key) ?? Promise.resolve();
   let release;
   const next = new Promise((res) => (release = res));
   chatLocks.set(
-    chatId,
+    key,
     prev.then(() => next),
   );
 
@@ -83,12 +89,12 @@ async function withChatLock(chatId, fn) {
   } finally {
     release();
 
-    const remaining = (chatWaiters.get(chatId) ?? 1) - 1;
+    const remaining = (chatWaiters.get(key) ?? 1) - 1;
     if (remaining <= 0) {
-      chatWaiters.delete(chatId);
-      chatLocks.delete(chatId);
+      chatWaiters.delete(key);
+      chatLocks.delete(key);
     } else {
-      chatWaiters.set(chatId, remaining);
+      chatWaiters.set(key, remaining);
     }
   }
 }

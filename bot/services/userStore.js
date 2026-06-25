@@ -129,7 +129,7 @@ function syncPrimaryUserRow(chatId) {
  * Save or overwrite a user's meter ID and hostel.
  * @param {string|number} chatId
  * @param {string} meterId   — 8-digit string
- * @param {string} hostel    — "cp2" | "cp2nus"
+ * @param {string} hostel    — "cp2" | "cp2nus" | "sutd"
  * @param {string} label
  */
 function saveUser(chatId, meterId, hostel, label = "") {
@@ -289,11 +289,26 @@ function forgetSavedMeter(chatId, meterId, hostel) {
  * @param {string|number} chatId
  * @returns {boolean} true if a row was deleted
  */
-function forgetUser(chatId) {
-  db.prepare("DELETE FROM user_meters WHERE chat_id = ?").run(String(chatId));
-  const result = db
-    .prepare("DELETE FROM users WHERE chat_id = ?")
-    .run(String(chatId));
+function forgetUser(chatId, hostels = null) {
+  const chatIdText = String(chatId);
+  const allowedHostels = Array.isArray(hostels)
+    ? hostels.filter(Boolean)
+    : null;
+
+  if (allowedHostels?.length) {
+    const placeholders = allowedHostels.map(() => "?").join(", ");
+    const result = db
+      .prepare(
+        `DELETE FROM user_meters WHERE chat_id = ? AND hostel IN (${placeholders})`,
+      )
+      .run(chatIdText, ...allowedHostels);
+
+    if (result.changes > 0) syncPrimaryUserRow(chatIdText);
+    return result.changes > 0;
+  }
+
+  db.prepare("DELETE FROM user_meters WHERE chat_id = ?").run(chatIdText);
+  const result = db.prepare("DELETE FROM users WHERE chat_id = ?").run(chatIdText);
   return result.changes > 0;
 }
 

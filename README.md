@@ -1,21 +1,24 @@
-# EVS Electricity Top-Up
+# EVS Meter Tools
 
-A Telegram bot and web app that lets NUS hostel residents top up their EVS electricity meters via credit card, without needing to visit a physical terminal.
+A Telegram bot and web app for supported EVS electricity meters. Supported NUS and SUTD meters can be topped up by credit card, and supported lookup flows show balance, usage, and top-up history where available.
 
-## Supported hostels
+## Supported systems
 
 | Hostel group                                          | EVS system          |
 | ----------------------------------------------------- | ------------------- |
 | PGPR, Houses @ PGP, Residential Colleges, NUS College | `cp2.evs.com.sg`    |
 | UTown Residence, RVRC                                 | `cp2nus.evs.com.sg` |
+| SUTD                                                  | `SUTDMain` / `EVSSUTDWebPOS` |
 
 ## Features
 
 - Check meter balance, 7-day usage history, and recent top-ups from within Telegram
-- Top up electricity via credit card (SGD $6–$50)
+- Top up supported NUS electricity meters via credit card (SGD $6-$50)
+- Top up supported SUTD electricity meters via credit card (SGD $10-$50)
 - RSA-encrypted card entry — card details never leave the browser in plaintext
 - Works as a Telegram Mini App and as a standalone website
 - Cross-system guard: cp2nus bootstrap rejects meters that belong to the cp2 system before initiating payment
+- SUTD balance, top-up history, and top-up support
 - Analytics tracking and error capture throughout the flow
 
 ## Architecture
@@ -32,7 +35,7 @@ Telegram Bot (telegraf)          Website (React, /app/)
           ▼                                       ▼
     Express (server.js)  ←────────────────────────────
           │
-          ├── POST /telegram/webhook/* — Telegram webhook receiver
+          ├── POST /telegram/webhook/* — Telegram webhook receivers
           ├── GET  /webapp              — fetches meter summary, redirects to React
           ├── GET  /webapp/bootstrap    — runs full payment init, returns token
           ├── GET  /webapp/session      — returns session data as JSON for React
@@ -48,7 +51,10 @@ Telegram Bot (telegraf)          Website (React, /app/)
           ├── /result           — ResultPage (outcome from server session)
           ├── /cp2nus/loading   — cp2nus variant
           ├── /cp2nus/pay       — cp2nus variant
-          └── /cp2nus/result    — cp2nus variant
+          ├── /cp2nus/result    — cp2nus variant
+          ├── /sutd/loading     — SUTD variant
+          ├── /sutd/pay         — SUTD variant
+          └── /sutd/result      — SUTD variant
 ```
 
 ## Payment flows
@@ -93,6 +99,21 @@ Uses the EVS JSON API and the eNETS Payment Page (enetspp) host directly.
    - **Fallback:** `POST /enets/b2s` → 303 redirect → `parsePayResult` base64-decodes params
 5. **Result page** (`/app/cp2nus/result`) — reads outcome from server session
 
+### SUTD
+
+Uses the SUTD EVS WebPOS pages and the SUTD credit payment bridge.
+
+1. **`/sutd/webapp`** — fetches SUTD meter credit, redirects to `/app/sutd/loading`
+2. **Bootstrap** (`/sutd/webapp/bootstrap`) — runs the SUTD WebPOS flow:
+   - `POST /EVSSUTDWebPOS/loginServlet` with the meter ID
+   - `POST /EVSSUTDWebPOS/selectOfferServlet` with the selected amount
+   - `GET /EVSSUTDWebPOS/paymentServlet` → extract `merchant_txn_ref`
+   - `POST http://120.50.44.233/payment_sutd_credit/creditpayment.jsp`
+   - `POST /enets2/PaymentListener.do` → extract RSA public key, `netsMid`, `netsTxnRef`
+3. **Card page** (`/app/sutd/pay`) — same RSA-encrypted card entry as NUS flows
+4. **Payment proxy** (`/sutd/webapp/enets_pay`) — posts encrypted card data to eNETS, then posts the callback to `/EVSSUTDWebPOS/transSumServlet`
+5. **Result page** (`/app/sutd/result`) — reads outcome from server session
+
 ## Setup
 
 ### Prerequisites
@@ -116,24 +137,29 @@ npm run build:frontend
 Create a `.env` file:
 
 ```env
-TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_BOT_TOKEN=your_bot_token_here      # legacy single-bot token
+NUS_TELEGRAM_BOT_TOKEN=your_nus_bot_token   # optional, for concurrent nusairconbot
+SUTD_TELEGRAM_BOT_TOKEN=your_sutd_bot_token # optional, for concurrent sutdairconbot
 PAYMENT_SESSION_SECRET=replace_with_openssl_rand_hex_32 # stable secret for signed payment/result tokens
 SERVER_URL=https://your-public-server.example.com
 OWNER_CHAT_ID=your_telegram_chat_id   # receives feedback notifications
 TOPUP_DISABLED=false                  # set to "true" to show maintenance message
 DB_DIR=.                              # local SQLite dir; use /data on Railway with a mounted volume
 TELEGRAM_BOT_MODE=                    # production/Railway defaults to webhook; dev defaults to polling
+TELEGRAM_BOT_AUDIENCE=nus             # legacy single-bot mode: "nus" or "sutd"
 GOOGLE_SITE_VERIFICATION_FILE=        # optional Search Console HTML file name, e.g. googleabc123.html
 GOOGLE_SITE_VERIFICATION_CONTENT=     # optional exact file body if Google provides non-default content
 ```
 
 `SERVER_URL` must be HTTPS for the Telegram WebApp payment button to work. If it is HTTP, the bot falls back to a plain browser link instead. On Railway, set it to `https://${{RAILWAY_PUBLIC_DOMAIN}}` or leave it unset and the app will derive it from `RAILWAY_PUBLIC_DOMAIN`.
 
-`PAYMENT_SESSION_SECRET` should be a stable random value, for example from `openssl rand -hex 32`. If it is omitted, the app falls back to `TELEGRAM_BOT_TOKEN`, which still survives Railway sleeps as long as the bot token does not change.
+`PAYMENT_SESSION_SECRET` should be a stable random value, for example from `openssl rand -hex 32`. If it is omitted, the app falls back to the configured bot token, which still survives Railway sleeps as long as the bot token does not change.
 
 For Google Search Console URL-prefix verification, use the HTML file method and set `GOOGLE_SITE_VERIFICATION_FILE` to the downloaded file name. The default response body is `google-site-verification: <file name>`. If Google's downloaded file contains different text, set `GOOGLE_SITE_VERIFICATION_CONTENT` to the exact file body.
 
-In production, or when `RAILWAY_PUBLIC_DOMAIN` is present, the bot uses a Telegram webhook by default so Railway Serverless can sleep and wake from inbound Telegram requests. Set `TELEGRAM_BOT_MODE=polling` only for an always-on deployment. Optional webhook variables are `TELEGRAM_WEBHOOK_PATH`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_DROP_PENDING_UPDATES`.
+In production, or when `RAILWAY_PUBLIC_DOMAIN` is present, each configured bot uses a Telegram webhook by default so Railway Serverless can sleep and wake from inbound Telegram requests. Set `TELEGRAM_BOT_MODE=polling` only for an always-on deployment. Optional webhook variables are `TELEGRAM_WEBHOOK_PATH`, `TELEGRAM_WEBHOOK_SECRET`, and `TELEGRAM_DROP_PENDING_UPDATES` for single-bot mode. For concurrent bots, use `NUS_TELEGRAM_WEBHOOK_PATH`, `NUS_TELEGRAM_WEBHOOK_SECRET`, `SUTD_TELEGRAM_WEBHOOK_PATH`, and `SUTD_TELEGRAM_WEBHOOK_SECRET` only if you need custom paths; otherwise unique paths are generated automatically.
+
+For concurrent Telegram bots in one deployment, set both `NUS_TELEGRAM_BOT_TOKEN` and `SUTD_TELEGRAM_BOT_TOKEN`. The same service starts both `nusairconbot` and `sutdairconbot`, with separate command menus, webhook paths, in-memory sessions, and payment notifications. Single-bot deployments can still use `TELEGRAM_BOT_TOKEN` plus `TELEGRAM_BOT_AUDIENCE`.
 
 ### Running
 
@@ -147,7 +173,7 @@ npm run build:frontend
 npm start
 ```
 
-The frontend is served at `/app/` by Express in production. In development, Vite proxies `/webapp` and `/cp2nus` to the backend.
+The frontend is served at `/app/` by Express in production. In development, Vite proxies `/webapp`, `/cp2nus`, and `/sutd` to the backend.
 
 For local development, keep `DB_DIR=.` or omit it. On Railway, set `DB_DIR=/data` only after attaching a volume mounted at `/data`.
 
@@ -156,7 +182,7 @@ For local development, keep `DB_DIR=.` or omit it. On Railway, set `DB_DIR=/data
 The repo includes `railway.json` with the production build, start command, and `/health` check. Railway Serverless itself is enabled in the dashboard:
 
 1. Add a public domain for the service.
-2. Set `TELEGRAM_BOT_TOKEN`, `PAYMENT_SESSION_SECRET`, `SERVER_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}`, and any optional variables such as `OWNER_CHAT_ID`.
+2. Set either `TELEGRAM_BOT_TOKEN` for one bot, or `NUS_TELEGRAM_BOT_TOKEN` and `SUTD_TELEGRAM_BOT_TOKEN` for concurrent bots. Also set `PAYMENT_SESSION_SECRET`, `SERVER_URL=https://${{RAILWAY_PUBLIC_DOMAIN}}`, and any optional variables such as `OWNER_CHAT_ID`.
 3. Attach a volume mounted at `/data` and set `DB_DIR=/data` so saved users survive restarts.
 4. Go to service settings > Deploy > Serverless and enable Serverless.
 5. Deploy. Startup will register the Telegram webhook automatically.

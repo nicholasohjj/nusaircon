@@ -25,6 +25,7 @@ function safeRestartUrl(value) {
     const allowedPaths = new Set([
       "/webapp",
       "/cp2nus/webapp",
+      "/sutd/webapp",
       "/app",
       "/app/",
     ]);

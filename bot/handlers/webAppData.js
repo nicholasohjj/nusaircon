@@ -1,10 +1,12 @@
 const { saveUser, touchUser } = require("../services/userStore");
 const { track, identify } = require("../../services/analytics");
 const { resetSession, getSession } = require("../services/session");
-const { mainKeyboard } = require("../constants");
+const { DEFAULT_BOT_CONFIG } = require("../constants");
 const { lowBalanceWarning } = require("../services/lookup");
 
-function registerWebAppDataHandler(bot) {
+function registerWebAppDataHandler(bot, runtime = {}) {
+  const config = runtime.config || DEFAULT_BOT_CONFIG;
+
   bot.on("web_app_data", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
@@ -58,7 +60,7 @@ function registerWebAppDataHandler(bot) {
         status,
       });
 
-      const session = getSession(chatId);
+      const session = getSession(chatId, config.sessionKey);
       const hostel =
         session?.hostel ??
         require("../services/userStore").getUser(chatId)?.hostel ??
@@ -74,13 +76,13 @@ function registerWebAppDataHandler(bot) {
         });
       }
 
-      resetSession(chatId);
-      await ctx.replyWithMarkdown(lines.join("\n"), mainKeyboard);
+      resetSession(chatId, config.sessionKey);
+      await ctx.replyWithMarkdown(lines.join("\n"), config.mainKeyboard);
     } catch (err) {
       console.error("web_app_data parse error", err);
       await ctx.reply(
         "Payment completed. Check your meter balance to confirm.",
-        mainKeyboard,
+        config.mainKeyboard,
       );
     }
   });

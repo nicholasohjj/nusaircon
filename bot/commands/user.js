@@ -3,156 +3,238 @@ const { forgetUser } = require("../services/userStore");
 const { isValidMeterId } = require("../../services/validators");
 const { resetSession, getSession } = require("../services/session");
 const { handleMeterLookupStart } = require("../services/lookup");
-const { handleTopUpStart, getHostelLabel } = require("../services/topup");
+const {
+  getAmountPrompt,
+  handleTopUpStart,
+  getHostelLabel,
+} = require("../services/topup");
 const { sendHelp, SERVER_URL } = require("../services/ui");
-const { state } = require("../bot");
 const {
   STAGES,
   HOSTELS,
-  mainKeyboard,
+  DEFAULT_BOT_CONFIG,
   cancelKeyboard,
   ratingKeyboard,
   TOPUP_DISABLED_MESSAGE,
 } = require("../constants");
 
+const fallbackState = {
+  topupDisabled: process.env.TOPUP_DISABLED === "true",
+};
+
+function runtimeParts(runtime = {}) {
+  return {
+    state: runtime.state || fallbackState,
+    config: runtime.config || DEFAULT_BOT_CONFIG,
+  };
+}
+
 // ── /start ────────────────────────────────────────────────────────────────────
-function registerStart(bot) {
+function registerStart(bot, runtime) {
+  const { state, config } = runtimeParts(runtime);
+
   bot.start(async (ctx) => {
     const chatId = ctx.chat?.id;
     track("bot_start", { chatId });
-    if (chatId) resetSession(chatId);
+    if (chatId) resetSession(chatId, config.sessionKey);
 
     const payload = ctx.startPayload?.trim() ?? "";
 
     // Deep link while top-ups are disabled
     if (
+      config.supportsTopup &&
       state.topupDisabled &&
-      (isValidMeterId(payload) || /^nus_\d{8}$/.test(payload))
+      (isValidMeterId(payload) || /^(?:nus|sutd)_\d{8}$/.test(payload))
     ) {
       track("topup_disabled_deeplink", { chatId, payload });
       return ctx.reply(
-        `⚡ EVS Electricity Bot\n\n${TOPUP_DISABLED_MESSAGE}`,
-        mainKeyboard,
+        `⚡ ${config.displayName}\n\n${TOPUP_DISABLED_MESSAGE}`,
+        config.mainKeyboard,
       );
     }
 
-    // cp2nus deep link: /start nus_12345678
-    const cp2nusMatch = payload.match(/^nus_(\d{8})$/);
-    if (cp2nusMatch) {
-      const meterId = cp2nusMatch[1];
-      track("bot_start_deeplink", { chatId, meterId, hostel: "cp2nus" });
+    if (config.audience === "sutd") {
+      const sutdMatch = payload.match(/^(?:sutd_)?(\d{8})$/);
+      if (sutdMatch) {
+        const meterId = sutdMatch[1];
+        track("bot_start_deeplink", {
+          chatId,
+          meterId,
+          hostel: HOSTELS.SUTD,
+        });
 
-      const session = getSession(chatId);
-      session.stage = STAGES.AWAITING_AMOUNT;
-      session.hostel = HOSTELS.CP2NUS;
-      session.txtMtrId = meterId;
+        const session = getSession(chatId, config.sessionKey);
+        session.stage = STAGES.AWAITING_AMOUNT;
+        session.hostel = HOSTELS.SUTD;
+        session.txtMtrId = meterId;
 
-      return ctx.reply(
-        `⚡ EVS Electricity Top-Up\n\n` +
-          `🏠 Hostel: <b>${getHostelLabel(HOSTELS.CP2NUS)}</b>\n` +
-          `🔌 Meter ID: <code>${meterId}</code>\n\n` +
-          `Enter the amount in SGD (e.g. <code>20</code>, min $6, max $50):\n\n` +
-          `📄 By using this bot, you agree to our <a href="${SERVER_URL}/app/terms">Terms of Use</a>.`,
-        { parse_mode: "HTML", reply_markup: cancelKeyboard.reply_markup },
-      );
-    }
+        return ctx.reply(
+          `⚡ ${config.displayName}\n\n` +
+            `🏠 System: <b>${getHostelLabel(HOSTELS.SUTD)}</b>\n` +
+            `🔌 Meter ID: <code>${meterId}</code>\n\n` +
+            `Enter the amount in SGD (e.g. <code>20</code>, ${getAmountPrompt(HOSTELS.SUTD)}):\n\n` +
+            `📄 By using this bot, you agree to our <a href="${SERVER_URL}/app/terms">Terms of Use</a>.`,
+          { parse_mode: "HTML", reply_markup: cancelKeyboard.reply_markup },
+        );
+      }
+    } else {
+      // cp2nus deep link: /start nus_12345678
+      const cp2nusMatch = payload.match(/^nus_(\d{8})$/);
+      if (cp2nusMatch) {
+        const meterId = cp2nusMatch[1];
+        track("bot_start_deeplink", { chatId, meterId, hostel: "cp2nus" });
 
-    // cp2 deep link: /start 12345678
-    if (isValidMeterId(payload)) {
-      track("bot_start_deeplink", { chatId, meterId: payload });
-      // Stash the meter ID so startTopUp can pick it up
-      const session = getSession(chatId);
-      session.txtMtrId = payload;
-      return handleTopUpStart(ctx, chatId, payload);
+        const session = getSession(chatId, config.sessionKey);
+        session.stage = STAGES.AWAITING_AMOUNT;
+        session.hostel = HOSTELS.CP2NUS;
+        session.txtMtrId = meterId;
+
+        return ctx.reply(
+          `⚡ ${config.displayName}\n\n` +
+            `🏠 Hostel: <b>${getHostelLabel(HOSTELS.CP2NUS)}</b>\n` +
+            `🔌 Meter ID: <code>${meterId}</code>\n\n` +
+            `Enter the amount in SGD (e.g. <code>20</code>, ${getAmountPrompt(HOSTELS.CP2NUS)}):\n\n` +
+            `📄 By using this bot, you agree to our <a href="${SERVER_URL}/app/terms">Terms of Use</a>.`,
+          { parse_mode: "HTML", reply_markup: cancelKeyboard.reply_markup },
+        );
+      }
+
+      // cp2 deep link: /start 12345678
+      if (isValidMeterId(payload)) {
+        track("bot_start_deeplink", { chatId, meterId: payload });
+        // Stash the meter ID so startTopUp can pick it up
+        const session = getSession(chatId, config.sessionKey);
+        session.txtMtrId = payload;
+        return handleTopUpStart(ctx, chatId, payload, config);
+      }
     }
 
     return ctx.reply(
-      `⚡ EVS Electricity Top-Up\n\nChoose an option below:\n\n` +
+      `⚡ ${config.displayName}\n\nChoose an option below:\n\n` +
         `📄 By using this bot, you agree to our <a href="${SERVER_URL}/app/terms">Terms of Use</a>.`,
-      { parse_mode: "HTML", reply_markup: mainKeyboard.reply_markup },
+      { parse_mode: "HTML", reply_markup: config.mainKeyboard.reply_markup },
     );
   });
 }
 
 // ── /topup ────────────────────────────────────────────────────────────────────
-function registerTopup(bot) {
+function registerTopup(bot, runtime) {
+  const { state, config } = runtimeParts(runtime);
+
   bot.command("topup", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
 
+    if (!config.supportsTopup) {
+      resetSession(chatId, config.sessionKey);
+      return ctx.reply(
+        "⚠️ Online top-up is not available in this bot yet. Use /balance or /topups.",
+        config.mainKeyboard,
+      );
+    }
+
     if (state.topupDisabled) {
       track("topup_disabled_command", { chatId });
-      resetSession(chatId);
-      return ctx.reply(TOPUP_DISABLED_MESSAGE, mainKeyboard);
+      resetSession(chatId, config.sessionKey);
+      return ctx.reply(TOPUP_DISABLED_MESSAGE, config.mainKeyboard);
     }
 
     track("topup_command", { chatId });
-    return handleTopUpStart(ctx, chatId);
+    return handleTopUpStart(ctx, chatId, null, config);
   });
 }
 
 // ── /balance ──────────────────────────────────────────────────────────────────
-function registerBalance(bot) {
+function registerBalance(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("balance", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
 
     track("balance_command", { chatId });
-    return handleMeterLookupStart(ctx, chatId, "balance");
+    return handleMeterLookupStart(ctx, chatId, "balance", {
+      hostel: config.defaultLookupHostel,
+      allowedHostels: config.allowedHostels,
+      config,
+    });
   });
 }
 
 // ── /usage ────────────────────────────────────────────────────────────────────
-function registerUsage(bot) {
+function registerUsage(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("usage", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
 
+    if (!config.supportsUsage) {
+      resetSession(chatId, config.sessionKey);
+      return ctx.reply(
+        "⚠️ Usage history is not available for SUTD yet. Use /balance or /topups.",
+        config.mainKeyboard,
+      );
+    }
+
     track("usage_command", { chatId });
-    return handleMeterLookupStart(ctx, chatId, "usage");
+    return handleMeterLookupStart(ctx, chatId, "usage", {
+      allowedHostels: config.allowedHostels,
+      config,
+    });
   });
 }
 
 // ── /topups ──────────────────────────────────────────────────────────────────
-function registerTopups(bot) {
+function registerTopups(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("topups", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
 
     track("topups_command", { chatId });
-    return handleMeterLookupStart(ctx, chatId, "topups");
+    return handleMeterLookupStart(ctx, chatId, "topups", {
+      hostel: config.defaultLookupHostel,
+      allowedHostels: config.allowedHostels,
+      config,
+    });
   });
 }
 
 // ── /forget ───────────────────────────────────────────────────────────────────
-function registerForget(bot) {
+function registerForget(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("forget", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
 
     track("forget_command", { chatId });
-    const deleted = forgetUser(chatId);
-    resetSession(chatId);
+    const deleted = forgetUser(chatId, config.allowedHostels);
+    resetSession(chatId, config.sessionKey);
 
     return ctx.reply(
       deleted
         ? "🗑️ Your saved meters have been removed.\n\nUse /topup to start a fresh top-up."
         : "ℹ️ You don't have any saved meters.",
-      mainKeyboard,
+      config.mainKeyboard,
     );
   });
 }
 
 // ── /feedback ─────────────────────────────────────────────────────────────────
-function registerFeedback(bot) {
+function registerFeedback(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("feedback", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (!chatId) return;
 
     track("feedback_command", { chatId });
-    resetSession(chatId);
+    resetSession(chatId, config.sessionKey);
 
-    const session = getSession(chatId);
+    const session = getSession(chatId, config.sessionKey);
     session.stage = STAGES.AWAITING_FEEDBACK_RATING;
 
     return ctx.reply(
@@ -166,37 +248,43 @@ function registerFeedback(bot) {
 }
 
 // ── /help ─────────────────────────────────────────────────────────────────────
-function registerHelp(bot) {
+function registerHelp(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("help", async (ctx) => {
     const chatId = ctx.chat?.id;
     if (chatId) track("help_command", { chatId });
-    return sendHelp(ctx);
+    return sendHelp(ctx, config);
   });
 }
 
 // ── /cancel ───────────────────────────────────────────────────────────────────
-function registerCancel(bot) {
+function registerCancel(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("cancel", async (ctx) => {
     const chatId = ctx.chat?.id;
-    if (chatId) resetSession(chatId);
+    if (chatId) resetSession(chatId, config.sessionKey);
     return ctx.reply(
-      "❌ Top-up cancelled. Use /topup to start again.",
-      mainKeyboard,
+      config.supportsTopup
+        ? "❌ Top-up cancelled. Use /topup to start again."
+        : "❌ Cancelled. Use /balance or /topups when you're ready.",
+      config.mainKeyboard,
     );
   });
 }
 
 // ── Register all user commands ────────────────────────────────────────────────
-function registerUserCommands(bot) {
-  registerStart(bot);
-  registerTopup(bot);
-  registerBalance(bot);
-  registerUsage(bot);
-  registerTopups(bot);
-  registerForget(bot);
-  registerFeedback(bot);
-  registerHelp(bot);
-  registerCancel(bot);
+function registerUserCommands(bot, runtime) {
+  registerStart(bot, runtime);
+  registerTopup(bot, runtime);
+  registerBalance(bot, runtime);
+  registerUsage(bot, runtime);
+  registerTopups(bot, runtime);
+  registerForget(bot, runtime);
+  registerFeedback(bot, runtime);
+  registerHelp(bot, runtime);
+  registerCancel(bot, runtime);
 }
 
 module.exports = { registerUserCommands };

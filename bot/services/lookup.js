@@ -6,6 +6,10 @@ const {
   formatUsageSummary,
   formatTopupHistory,
 } = require("../../services/ore");
+const {
+  getSutdMeterSummary,
+  getSutdRecentTopups,
+} = require("../../services/sutdService");
 const { track } = require("../../services/analytics");
 const { getSession } = require("./session");
 const { getSavedMeters } = require("./userStore");
@@ -13,8 +17,12 @@ const {
   savedMeterPickerKeyboard,
   savedMeterPickerText,
 } = require("./savedMeterPicker");
-const { mainKeyboard } = require("../constants");
-const { STAGES, cancelKeyboard } = require("../constants");
+const {
+  HOSTELS,
+  STAGES,
+  cancelKeyboard,
+  DEFAULT_BOT_CONFIG,
+} = require("../constants");
 
 function lowBalanceWarning(bal) {
   const n = Number(bal);
@@ -28,11 +36,15 @@ const LOOKUP_STAGES = {
   topups: STAGES.AWAITING_METER_ID_TOPUPS,
 };
 
-const LOOKUP_PROMPTS = {
-  balance: "🔌 Please enter your 8-digit Meter ID to check your balance:",
-  usage: "🔌 Please enter your 8-digit Meter ID to view the last 7 days of usage:",
-  topups: "🔌 Please enter your 8-digit Meter ID to view recent top-ups:",
-};
+function lookupPrompt(mode, hostel = null) {
+  const prefix = hostel === HOSTELS.SUTD ? "SUTD " : "";
+  const prompts = {
+    balance: `🔌 Please enter your 8-digit ${prefix}Meter ID to check your balance:`,
+    usage: "🔌 Please enter your 8-digit Meter ID to view the last 7 days of usage:",
+    topups: `🔌 Please enter your 8-digit ${prefix}Meter ID to view recent top-ups:`,
+  };
+  return prompts[mode] || "🔌 Please enter your 8-digit Meter ID:";
+}
 
 function meterIdReplyOptions() {
   return {
@@ -44,20 +56,38 @@ function meterIdReplyOptions() {
   };
 }
 
-function promptForLookupMeterId(ctx, chatId, mode) {
-  const session = getSession(chatId);
+function promptForLookupMeterId(
+  ctx,
+  chatId,
+  mode,
+  { hostel = null, config = DEFAULT_BOT_CONFIG } = {},
+) {
+  const session = getSession(chatId, config.sessionKey);
   session.stage = LOOKUP_STAGES[mode];
+  session.lookupHostel = hostel;
 
-  return ctx.reply(
-    LOOKUP_PROMPTS[mode] || "🔌 Please enter your 8-digit Meter ID:",
-    meterIdReplyOptions(),
-  );
+  return ctx.reply(lookupPrompt(mode, hostel), meterIdReplyOptions());
 }
 
-function handleMeterLookupStart(ctx, chatId, mode) {
-  const savedMeters = getSavedMeters(chatId);
+function handleMeterLookupStart(
+  ctx,
+  chatId,
+  mode,
+  {
+    hostel = null,
+    allowedHostels = null,
+    config = DEFAULT_BOT_CONFIG,
+  } = {},
+) {
+  const allowed = Array.isArray(allowedHostels)
+    ? new Set(allowedHostels)
+    : null;
+  const savedMeters = getSavedMeters(chatId).filter(
+    (meter) => !allowed || allowed.has(meter.hostel),
+  );
+
   if (savedMeters.length > 1) {
-    getSession(chatId).stage = STAGES.IDLE;
+    getSession(chatId, config.sessionKey).stage = STAGES.IDLE;
     return ctx.reply(
       savedMeterPickerText(mode),
       savedMeterPickerKeyboard(mode, savedMeters),
@@ -65,13 +95,15 @@ function handleMeterLookupStart(ctx, chatId, mode) {
   }
 
   if (savedMeters.length === 1) {
-    getSession(chatId).stage = STAGES.IDLE;
+    getSession(chatId, config.sessionKey).stage = STAGES.IDLE;
     return handleMeterIdLookup(ctx, chatId, savedMeters[0].meterId, mode, {
       fromSaved: true,
+      hostel: savedMeters[0].hostel,
+      config,
     });
   }
 
-  return promptForLookupMeterId(ctx, chatId, mode);
+  return promptForLookupMeterId(ctx, chatId, mode, { hostel, config });
 }
 
 /**
@@ -79,17 +111,24 @@ function handleMeterLookupStart(ctx, chatId, mode) {
  * message in-place, then prompts the user to choose their next action.
  *
  * @param {"balance"|"usage"|"topups"} mode
- * @param {{ fromSaved?: boolean }} opts
+ * @param {{ fromSaved?: boolean, hostel?: string }} opts
  */
 async function handleMeterIdLookup(
   ctx,
   chatId,
   meterId,
   mode,
-  { fromSaved = false } = {},
+  {
+    fromSaved = false,
+    hostel = null,
+    config = DEFAULT_BOT_CONFIG,
+  } = {},
 ) {
-  const session = getSession(chatId);
+  const session = getSession(chatId, config.sessionKey);
   session.stage = "idle";
+  const lookupHostel = hostel || session.lookupHostel || null;
+  delete session.lookupHostel;
+  const isSutd = lookupHostel === HOSTELS.SUTD;
   const modeLabels = {
     balance: "balance",
     usage: "usage history",
@@ -108,6 +147,10 @@ async function handleMeterIdLookup(
   if (!loadingMsg) return;
 
   try {
+    if (isSutd && mode === "usage") {
+      throw new Error("Usage history is not available for SUTD yet.");
+    }
+
     let summary;
     let usage;
     let topups;
@@ -119,11 +162,15 @@ async function handleMeterIdLookup(
       ]);
     } else if (mode === "topups") {
       [summary, topups] = await Promise.all([
-        getMeterSummary(meterId),
-        getRecentTopups(meterId, { numberOfTopups: 10, lookbackDays: 90 }),
+        isSutd ? getSutdMeterSummary(meterId) : getMeterSummary(meterId),
+        isSutd
+          ? getSutdRecentTopups(meterId, { numberOfTopups: 10 })
+          : getRecentTopups(meterId, { numberOfTopups: 10, lookbackDays: 90 }),
       ]);
     } else {
-      summary = await getMeterSummary(meterId);
+      summary = isSutd
+        ? await getSutdMeterSummary(meterId)
+        : await getMeterSummary(meterId);
     }
 
     const lines = [`⚡ <b>Meter ID:</b> <code>${meterId}</code>`];
@@ -154,7 +201,12 @@ async function handleMeterIdLookup(
     }
 
     if (mode === "topups") {
-      lines.push("", "<b>Recent top-ups (last 90 days)</b>");
+      lines.push(
+        "",
+        isSutd
+          ? "<b>Recent SUTD top-ups</b>"
+          : "<b>Recent top-ups (last 90 days)</b>",
+      );
       lines.push(formatTopupHistory(topups.history));
     }
 
@@ -178,24 +230,32 @@ async function handleMeterIdLookup(
       .catch(async () => {
         await ctx.reply(lines.join("\n"), {
           parse_mode: "HTML",
-          ...mainKeyboard,
+          ...config.mainKeyboard,
         });
         return null;
       });
 
-    if (edited) return ctx.reply("Choose an option:", mainKeyboard);
+    if (edited) return ctx.reply("Choose an option:", config.mainKeyboard);
   } catch (err) {
-    track(`${mode}_error`, { chatId, meterId, error: err.message });
+    track(`${mode}_error`, {
+      chatId,
+      meterId,
+      hostel: lookupHostel || "",
+      error: err.message,
+    });
 
-    const errorText = `⚠️ Failed to fetch ${modeLabels[mode] || "meter details"}. Please try again.`;
+    const errorText =
+      err.message === "Usage history is not available for SUTD yet."
+        ? `⚠️ ${err.message}`
+        : `⚠️ Failed to fetch ${modeLabels[mode] || "meter details"}. Please try again.`;
     const edited = await ctx.telegram
       .editMessageText(chatId, loadingMsg.message_id, undefined, errorText)
       .catch(async () => {
-        await ctx.reply(errorText, mainKeyboard);
+        await ctx.reply(errorText, config.mainKeyboard);
         return null;
       });
 
-    if (edited) return ctx.reply("Choose an option:", mainKeyboard);
+    if (edited) return ctx.reply("Choose an option:", config.mainKeyboard);
   }
 }
 

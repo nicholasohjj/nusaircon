@@ -27,7 +27,7 @@ const {
   submitPanForm,
   postToB2s,
 } = require("../services/cp2nusService");
-const { bot } = require("../bot");
+const { getPaymentBot } = require("../bot/bot");
 
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
@@ -36,7 +36,10 @@ async function createNotifiedResultToken(session, updates) {
   const resultSession = { ...session, ...updates };
 
   try {
-    const notifiedAt = await sendPaymentNotification(bot, resultSession);
+    const notifiedAt = await sendPaymentNotification(
+      getPaymentBot("nus"),
+      resultSession,
+    );
     if (notifiedAt) resultSession.notifiedAt = notifiedAt;
   } catch (err) {
     console.error("notify error", err);
@@ -252,7 +255,7 @@ router.post("/webapp/notify", express.json(), async (req, res) => {
     if (session.notifiedAt) return res.json({ ok: true });
     if (session.status === "pending") return res.json({ ok: true });
 
-    await sendPaymentNotification(bot, session);
+    await sendPaymentNotification(getPaymentBot("nus"), session);
   } catch (err) {
     console.error("notify error", err);
   }

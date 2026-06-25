@@ -8,10 +8,14 @@ const {
   getRecentTopups,
   getRecentUsageStat,
 } = require("../services/ore");
+const {
+  getSutdMeterSummary,
+  getSutdRecentTopups,
+} = require("../services/sutdService");
 const { track, captureException } = require("../services/analytics");
 const { isValidMeterId } = require("../services/validators");
 const { createJsonRateLimiter } = require("../services/httpMiddleware");
-const { bot } = require("../bot");
+const { getPaymentBot } = require("../bot/bot");
 
 const router = express.Router();
 const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
@@ -29,6 +33,16 @@ const feedbackLimiter = createJsonRateLimiter({
   limit: 5,
   message: "Too many feedback submissions. Please wait before trying again.",
 });
+
+const LOOKUP_HOSTELS = new Set(["cp2", "cp2nus", "sutd"]);
+
+function normalizeLookupHostel(value) {
+  const clean = String(value || "")
+    .trim()
+    .toLowerCase();
+  if (!clean) return "";
+  return LOOKUP_HOSTELS.has(clean) ? clean : null;
+}
 
 function pickFirst(obj, keys) {
   for (const key of keys) {
@@ -120,9 +134,14 @@ function normalizeTopupRecord(record = {}) {
 router.get("/lookup", lookupLimiter, async (req, res) => {
   const mode = String(req.query.mode || "balance").toLowerCase();
   const meterId = String(req.query.meterId || "").trim();
+  const hostel = normalizeLookupHostel(req.query.hostel);
 
   if (!["balance", "usage", "topups"].includes(mode)) {
     return res.status(400).json({ ok: false, error: "Invalid lookup mode." });
+  }
+
+  if (hostel === null) {
+    return res.status(400).json({ ok: false, error: "Invalid hostel." });
   }
 
   if (!isValidMeterId(meterId)) {
@@ -133,11 +152,22 @@ router.get("/lookup", lookupLimiter, async (req, res) => {
   }
 
   try {
-    const summary = await getMeterSummary(meterId);
+    const isSutd = hostel === "sutd";
+    if (isSutd && mode === "usage") {
+      return res.status(400).json({
+        ok: false,
+        error: "Usage history is not available for SUTD yet.",
+      });
+    }
+
+    const summary = isSutd
+      ? await getSutdMeterSummary(meterId)
+      : await getMeterSummary(meterId);
     const response = {
       ok: true,
       mode,
       meterId,
+      hostel: hostel || "",
       address: summary.address || "",
       balance: summary.credit_bal ?? "",
       checkedAt: new Date().toISOString(),
@@ -159,23 +189,28 @@ router.get("/lookup", lookupLimiter, async (req, res) => {
     }
 
     if (mode === "topups") {
-      const topups = await getRecentTopups(meterId, {
-        numberOfTopups: 10,
-        lookbackDays: 90,
-      });
+      const topups =
+        isSutd
+          ? await getSutdRecentTopups(meterId, { numberOfTopups: 10 })
+          : await getRecentTopups(meterId, {
+              numberOfTopups: 10,
+              lookbackDays: 90,
+            });
       response.topups = {
-        lookbackDays: 90,
+        lookbackDays: topups.lookbackDays ?? null,
+        source: topups.meta?.source || "ore",
         history: topups.history.slice(0, 10).map(normalizeTopupRecord),
       };
     }
 
-    track("website_lookup", { meterId, mode });
+    track("website_lookup", { meterId, mode, hostel: hostel || "auto" });
     return res.json(response);
   } catch (err) {
     captureException(err, meterId || "anonymous", {
       route: "website",
       endpoint: "/website/lookup",
       mode,
+      hostel: hostel || "auto",
     });
     return res.status(502).json({
       ok: false,
@@ -216,7 +251,8 @@ router.post("/feedback", feedbackLimiter, async (req, res) => {
       message ? `Message: <i>${escHtml(message)}</i>` : "",
     ].filter(Boolean);
 
-    await bot.telegram
+    await getPaymentBot("nus")
+      .telegram
       .sendMessage(OWNER_CHAT_ID, lines.join("\n"), { parse_mode: "HTML" })
       .catch((err) => {
         console.error("Failed to notify owner about website feedback:", err);

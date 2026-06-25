@@ -31,6 +31,14 @@ export default function App() {
           path="/cp2nus/result"
           element={<ResultPage basePath="/cp2nus" />}
         />
+
+        {/* SUTD flow */}
+        <Route
+          path="/sutd/loading"
+          element={<LoadingPage basePath="/sutd" />}
+        />
+        <Route path="/sutd/pay" element={<CardPaymentPage basePath="/sutd" />} />
+        <Route path="/sutd/result" element={<ResultPage basePath="/sutd" />} />
       </Routes>
     </BrowserRouter>
   );

@@ -38,6 +38,8 @@ export default function LoadingPage({ basePath = "" }) {
   const amtDisplay = Number(amount).toFixed(2);
   const balDisplay =
     balance !== null && balance !== "" ? Number(balance).toFixed(2) : null;
+  const systemLabel =
+    basePath === "/cp2nus" ? "cp2nus" : basePath === "/sutd" ? "SUTD" : "cp2";
 
   const [statusText, setStatusText] = useState("Initialising…");
   const [error, setError] = useState(null);
@@ -92,9 +94,9 @@ export default function LoadingPage({ basePath = "" }) {
   return (
     <Card align="center">
       <Logo>⚡</Logo>
-      <h1 className={styles.title}>Electricity Top-Up</h1>
+      <h1 className={styles.title}>EVS Payment</h1>
       <p className={styles.subtitle}>
-        Connecting to EVS{basePath ? " (cp2nus)" : " (cp2)"} payment gateway…
+        Connecting to EVS ({systemLabel}) payment gateway…
       </p>
 
       <DetailRow label="Meter ID" value={meterId} />

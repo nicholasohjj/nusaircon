@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Card, DetailRow, Logo } from "../components/Card";
 import styles from "./HomePage.module.css";
 
-const STORAGE_KEY = "nusaircon:webProfile";
+const STORAGE_KEY = "evs:webProfile";
+const LEGACY_STORAGE_KEYS = ["nusaircon:webProfile"];
 const MAX_SAVED_METERS = 6;
 const RECOMMENDATION_DAYS = 10;
 const MIN_TOPUP_AMOUNT = 6;
@@ -11,13 +12,33 @@ const MAX_TOPUP_AMOUNT = 50;
 const HOSTEL_GROUPS = [
   {
     label: "PGPR, Houses @ PGP, Residential Colleges, NUS College",
+    id: "cp2",
     basePath: "",
     loadingPath: "/loading",
+    topupSupported: true,
+    usageSupported: true,
+    minAmount: 6,
+    maxAmount: 50,
   },
   {
     label: "UTown Residence, RVRC",
+    id: "cp2nus",
     basePath: "/cp2nus",
     loadingPath: "/cp2nus/loading",
+    topupSupported: true,
+    usageSupported: true,
+    minAmount: 6,
+    maxAmount: 50,
+  },
+  {
+    label: "SUTD",
+    id: "sutd",
+    basePath: "/sutd",
+    loadingPath: "/sutd/loading",
+    topupSupported: true,
+    usageSupported: false,
+    minAmount: 10,
+    maxAmount: 50,
   },
 ];
 
@@ -33,9 +54,22 @@ function isValidMeterId(v) {
   return /^\d{8}$/.test(String(v || "").trim());
 }
 
-function isValidAmount(v) {
+function parseAmount(v) {
   const n = Number(String(v || "").replace(/[^0-9.]/g, ""));
-  return Number.isFinite(n) && n >= 6 && n <= 50;
+  return Number.isFinite(n) ? n : null;
+}
+
+function isValidAmount(v, group = null) {
+  const n = parseAmount(v);
+  const min = group?.minAmount ?? MIN_TOPUP_AMOUNT;
+  const max = group?.maxAmount ?? MAX_TOPUP_AMOUNT;
+  return n !== null && n >= min && n <= max;
+}
+
+function amountRangeLabel(group = null) {
+  const min = group?.minAmount ?? MIN_TOPUP_AMOUNT;
+  const max = group?.maxAmount ?? MAX_TOPUP_AMOUNT;
+  return `$${min.toFixed(2)} and $${max.toFixed(2)}`;
 }
 
 function getProfileId(groupIndex, meterId) {
@@ -79,7 +113,11 @@ function dedupeProfiles(profiles) {
 
 function readSavedState() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(STORAGE_KEY) ||
+      LEGACY_STORAGE_KEYS.map((key) => window.localStorage.getItem(key)).find(
+        Boolean,
+      );
     const parsed = raw ? JSON.parse(raw) : null;
     if (!parsed) return { profiles: [], activeId: null };
 
@@ -112,6 +150,7 @@ function persistSavedState(profiles, activeId) {
         profiles,
       }),
     );
+    for (const key of LEGACY_STORAGE_KEYS) window.localStorage.removeItem(key);
   } catch {
     // Storage can be unavailable in private browsing; continue without saving.
   }
@@ -175,9 +214,14 @@ function buildTopupRecommendation(result) {
 function formatDate(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
-  const normalized = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(raw)
-    ? raw.replace(" ", "T") + (raw.endsWith("Z") ? "" : "+08:00")
-    : raw;
+  const dayFirst = raw.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}:\d{2}))?$/,
+  );
+  const normalized = dayFirst
+    ? `${dayFirst[3]}-${dayFirst[2]}-${dayFirst[1]}T${dayFirst[4] || "00:00"}+08:00`
+    : /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/.test(raw)
+      ? raw.replace(" ", "T") + (raw.endsWith("Z") ? "" : "+08:00")
+      : raw;
   const parsed = new Date(normalized);
   if (Number.isNaN(parsed.getTime())) return raw;
   return new Intl.DateTimeFormat("en-SG", {
@@ -279,6 +323,9 @@ function UsageResult({ result, onUseRecommendation }) {
 
 function TopupsResult({ result }) {
   const rows = result?.topups?.history || [];
+  const emptyText = result?.topups?.lookbackDays
+    ? `No top-ups found in the last ${result.topups.lookbackDays} days.`
+    : "No top-ups found.";
 
   return (
     <div className={styles.historyList}>
@@ -295,9 +342,7 @@ function TopupsResult({ result }) {
           </div>
         ))
       ) : (
-        <div className={styles.emptyState}>
-          No top-ups found in the last 90 days.
-        </div>
+        <div className={styles.emptyState}>{emptyText}</div>
       )}
     </div>
   );
@@ -338,9 +383,13 @@ export default function HomePage() {
 
   function validateTopUp() {
     const e = {};
-    if (groupIndex === null) e.group = "Please select your hostel";
+    const group = HOSTEL_GROUPS[groupIndex];
+    if (!group) e.group = "Please select your hostel";
+    else if (!group.topupSupported) e.group = "Online top-up is not available.";
     if (!isValidMeterId(meterId)) e.meterId = "Must be exactly 8 digits";
-    if (!isValidAmount(amount)) e.amount = "Between $6.00 and $50.00";
+    if (!isValidAmount(amount, group)) {
+      e.amount = `Between ${amountRangeLabel(group)}`;
+    }
     return e;
   }
 
@@ -377,8 +426,8 @@ export default function HomePage() {
     activateSavedMeter(profile);
     setActiveMode(mode);
 
-    if (mode === "balance" || mode === "usage") {
-      runLookup(mode, profile.meterId);
+    if (mode === "balance" || mode === "usage" || mode === "topups") {
+      runLookup(mode, profile.meterId, profile.groupIndex);
     }
   }
 
@@ -435,8 +484,20 @@ export default function HomePage() {
     window.location.href = `${group.basePath}/webapp?${qs}`;
   }
 
-  async function runLookup(mode, lookupMeterId = meterId) {
+  async function runLookup(
+    mode,
+    lookupMeterId = meterId,
+    lookupGroupIndex = groupIndex,
+  ) {
     if (!validateLookup(lookupMeterId)) return;
+
+    const group = HOSTEL_GROUPS[lookupGroupIndex];
+    if (mode === "usage" && group?.usageSupported === false) {
+      setErrors({});
+      setLookupResult(null);
+      setLookupError("Usage history is not available for SUTD yet.");
+      return;
+    }
 
     setLookupLoading(true);
     setLookupError("");
@@ -446,7 +507,8 @@ export default function HomePage() {
       const qs = new URLSearchParams({
         meterId: lookupMeterId.trim(),
         mode,
-      }).toString();
+      });
+      if (group?.id === "sutd") qs.set("hostel", group.id);
       const resp = await fetch(`/website/lookup?${qs}`);
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) {
@@ -516,9 +578,10 @@ export default function HomePage() {
   return (
     <Card align="left" className={styles.homeCard}>
       <Logo>⚡</Logo>
-      <h1 className={styles.title}>Electricity Top-Up</h1>
+      <h1 className={styles.title}>EVS Meter Tools</h1>
       <p className={styles.sub}>
-        Top up, check your meter, or send feedback from one place.
+        Check supported EVS meters, top up NUS or SUTD meters, or send feedback
+        from one place.
       </p>
 
       <div className={styles.modeTabs} role="tablist" aria-label="Website tools">
@@ -569,6 +632,7 @@ export default function HomePage() {
                   type="button"
                   aria-label={`Top up ${profile.label}`}
                   onClick={() => handleSavedMeterQuickAction(profile, "topup")}
+                  disabled={!HOSTEL_GROUPS[profile.groupIndex]?.topupSupported}
                 >
                   Top up
                 </button>
@@ -585,8 +649,16 @@ export default function HomePage() {
                   type="button"
                   aria-label={`Usage ${profile.label}`}
                   onClick={() => handleSavedMeterQuickAction(profile, "usage")}
+                  disabled={!HOSTEL_GROUPS[profile.groupIndex]?.usageSupported}
                 >
                   Usage
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Top-ups ${profile.label}`}
+                  onClick={() => handleSavedMeterQuickAction(profile, "topups")}
+                >
+                  Top-ups
                 </button>
               </div>
               <button
@@ -606,10 +678,14 @@ export default function HomePage() {
         <summary>Help</summary>
         <div className={styles.helpContent}>
           <p>
-            Supported hostels: PGPR, Houses at PGP, Residential Colleges, NUS
-            College, UTown Residence, and RVRC.
+            Supported NUS hostels: PGPR, Houses at PGP, Residential Colleges,
+            NUS College, UTown Residence, and RVRC. SUTD meter balance, top-up
+            history, and online top-up are also supported.
           </p>
-          <p>Accepted top-up amount: SGD 6.00 to SGD 50.00.</p>
+          <p>
+            Accepted NUS top-up amount: SGD 6.00 to SGD 50.00. Accepted SUTD
+            top-up amount: SGD 10.00 to SGD 50.00.
+          </p>
         </div>
       </details>
 
@@ -677,10 +753,14 @@ export default function HomePage() {
                 ].join(" ")}
                 type="number"
                 inputMode="decimal"
-                min="6"
-                max="50"
+                min={HOSTEL_GROUPS[groupIndex]?.minAmount ?? MIN_TOPUP_AMOUNT}
+                max={HOSTEL_GROUPS[groupIndex]?.maxAmount ?? MAX_TOPUP_AMOUNT}
                 step="0.01"
-                placeholder="6.00 - 50.00"
+                placeholder={
+                  HOSTEL_GROUPS[groupIndex]
+                    ? `${HOSTEL_GROUPS[groupIndex].minAmount.toFixed(2)} - ${HOSTEL_GROUPS[groupIndex].maxAmount.toFixed(2)}`
+                    : "6.00 - 50.00"
+                }
                 value={amount}
                 onChange={(e) => {
                   setAmount(e.target.value);
@@ -736,6 +816,28 @@ export default function HomePage() {
 
       {isLookupMode && (
         <form onSubmit={handleLookupSubmit} autoComplete="off" noValidate>
+          <div className={styles.field}>
+            <label className={styles.label}>Hostel / system</label>
+            <div className={styles.groupList}>
+              {HOSTEL_GROUPS.map((g, i) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={[
+                    styles.groupBtn,
+                    groupIndex === i ? styles.groupBtnActive : "",
+                  ].join(" ")}
+                  onClick={() => {
+                    setGroupIndex(i);
+                    setActiveSavedId(null);
+                  }}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <MeterField
             meterId={meterId}
             error={errors.meterId}

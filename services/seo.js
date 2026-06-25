@@ -5,22 +5,22 @@ function normalizeBaseUrl(baseUrl = "") {
 const SEO_HEAD_START = "<!-- seo:head:start -->";
 const SEO_HEAD_END = "<!-- seo:head:end -->";
 
-const SITE_NAME = "NUS EVS Electricity Top-Up";
+const SITE_NAME = "EVS Meter Tools";
 const HOME_DESCRIPTION =
-  "Top up supported NUS hostel EVS electricity meters online for PGPR, Houses at PGP, Residential Colleges, NUS College, UTown Residence, and RVRC.";
+  "Check supported EVS meter balances and top-up history, and top up supported NUS EVS meters online.";
 const TERMS_DESCRIPTION =
-  "Terms of Use for the unofficial EVS Electricity Top-Up Bot and web app for supported NUS hostel electricity meters.";
+  "Terms of Use for the unofficial EVS Meter Tools bot and web app for supported EVS electricity meters.";
 
 const PUBLIC_PAGE_SEO = {
   "/app/": {
-    title: "NUS EVS Electricity Top-Up | Hostel Meter Payments",
+    title: "EVS Meter Tools | Payments and Lookup",
     description: HOME_DESCRIPTION,
     canonicalPath: "/app/",
     ogType: "website",
     schemaType: "WebApplication",
   },
   "/app/terms": {
-    title: "Terms of Use | NUS EVS Electricity Top-Up",
+    title: "Terms of Use | EVS Meter Tools",
     description: TERMS_DESCRIPTION,
     canonicalPath: "/app/terms",
     ogType: "article",
@@ -86,12 +86,16 @@ function buildRobotsTxt(baseUrl = "") {
     "Disallow: /telegram/",
     "Disallow: /webapp",
     "Disallow: /cp2nus/webapp",
+    "Disallow: /sutd/webapp",
     "Disallow: /app/loading",
     "Disallow: /app/pay",
     "Disallow: /app/result",
     "Disallow: /app/cp2nus/loading",
     "Disallow: /app/cp2nus/pay",
     "Disallow: /app/cp2nus/result",
+    "Disallow: /app/sutd/loading",
+    "Disallow: /app/sutd/pay",
+    "Disallow: /app/sutd/result",
   ];
 
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
@@ -139,7 +143,7 @@ function buildStructuredData(metadata, baseUrl = "") {
       isAccessibleForFree: true,
       audience: {
         "@type": "Audience",
-        audienceType: "NUS hostel residents",
+        audienceType: "Supported EVS meter users",
       },
       termsOfService: absoluteUrl(baseUrl, "/app/terms"),
     };
@@ -185,6 +189,8 @@ function shouldSendNoindexHeader(pathname = "") {
     normalizedPathname.startsWith("/webapp/") ||
     normalizedPathname === "/cp2nus/webapp" ||
     normalizedPathname.startsWith("/cp2nus/webapp/") ||
+    normalizedPathname === "/sutd/webapp" ||
+    normalizedPathname.startsWith("/sutd/webapp/") ||
     (normalizedPathname.startsWith("/app/") &&
       !normalizedPathname.startsWith("/app/assets/") &&
       !PUBLIC_PAGE_SEO[normalizedPathname])

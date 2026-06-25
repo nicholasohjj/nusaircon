@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: NUSAirCon API
+  title: EVS Meter Tools API
   version: 1.0.0
   description: API documentation for EVS top-up WebApp routes.
 

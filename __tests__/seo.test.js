@@ -39,12 +39,10 @@ describe("SEO metadata", () => {
     const home = getSeoMetadata("/app/", "https://example.com/");
     const terms = getSeoMetadata("/app/terms", "https://example.com/");
 
-    expect(home.title).toBe(
-      "NUS EVS Electricity Top-Up | Hostel Meter Payments",
-    );
+    expect(home.title).toBe("EVS Meter Tools | Payments and Lookup");
     expect(home.canonicalUrl).toBe("https://example.com/app/");
     expect(home.robots).toBe("index, follow");
-    expect(terms.title).toBe("Terms of Use | NUS EVS Electricity Top-Up");
+    expect(terms.title).toBe("Terms of Use | EVS Meter Tools");
     expect(terms.canonicalUrl).toBe("https://example.com/app/terms");
   });
 
@@ -80,7 +78,7 @@ describe("SEO metadata", () => {
     const injected = injectSeoHead(html, "/app/terms", "https://example.com/");
 
     expect(injected).toContain(
-      "<title>Terms of Use | NUS EVS Electricity Top-Up</title>",
+      "<title>Terms of Use | EVS Meter Tools</title>",
     );
     expect(injected).toContain(
       '<link rel="canonical" href="https://example.com/app/terms" />',

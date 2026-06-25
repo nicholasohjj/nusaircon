@@ -23,7 +23,12 @@ function fromBase64url(value) {
 
 function getSecret() {
   const secret =
-    process.env.PAYMENT_SESSION_SECRET || process.env.TELEGRAM_BOT_TOKEN;
+    process.env.PAYMENT_SESSION_SECRET ||
+    process.env.TELEGRAM_BOT_TOKEN ||
+    process.env.NUS_TELEGRAM_BOT_TOKEN ||
+    process.env.SUTD_TELEGRAM_BOT_TOKEN ||
+    process.env.TELEGRAM_BOT_TOKEN_NUS ||
+    process.env.TELEGRAM_BOT_TOKEN_SUTD;
 
   if (secret) return String(secret);
 

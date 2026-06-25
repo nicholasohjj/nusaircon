@@ -1,5 +1,4 @@
 const { escHtml } = require("../../services/utils");
-const { bot, pendingReplies } = require("../bot");
 
 const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
 
@@ -10,7 +9,9 @@ const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
  * Must be registered BEFORE the generic on("text") handler so it can
  * short-circuit via next() when the message isn't an owner reply.
  */
-function registerOwnerReplyHandler(telegramBot) {
+function registerOwnerReplyHandler(telegramBot, runtime = {}) {
+  const pendingReplies = runtime.pendingReplies || new Map();
+
   telegramBot.on("message", async (ctx, next) => {
     const chatId = ctx.chat?.id;
     if (!chatId || String(chatId) !== String(OWNER_CHAT_ID)) return next();
@@ -27,7 +28,7 @@ function registerOwnerReplyHandler(telegramBot) {
     const targetChatId = pending.chatId;
     const rootOwnerMsgId = pending.ownerMsgId ?? replyToId;
 
-    const sentMsg = await bot.telegram
+    const sentMsg = await telegramBot.telegram
       .sendMessage(
         targetChatId,
         `💬 <b>Message from the developer:</b>\n\n${escHtml(replyText)}`,

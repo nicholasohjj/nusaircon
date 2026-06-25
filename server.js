@@ -7,6 +7,7 @@ const fs = require("fs");
 const express = require("express");
 const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
+const sutd = require("./routes/sutd");
 const { router: websiteRoutes } = require("./routes/website");
 const { captureException } = require("./services/analytics");
 const {
@@ -125,10 +126,13 @@ app.use("/api", swaggerUi.serve, swaggerUi.setup(openapiSpec));
 
 app.use("/webapp/bootstrap", paymentBootstrapLimiter);
 app.use("/cp2nus/webapp/bootstrap", paymentBootstrapLimiter);
+app.use("/sutd/webapp/bootstrap", paymentBootstrapLimiter);
 app.use("/webapp/enets_pay", paymentSubmitLimiter);
 app.use("/cp2nus/webapp/enets_pay", paymentSubmitLimiter);
+app.use("/sutd/webapp/enets_pay", paymentSubmitLimiter);
 
 app.use("/cp2nus", cp2nus);
+app.use("/sutd", sutd);
 app.use("/", cp2);
 
 // eslint-disable-next-line no-unused-vars

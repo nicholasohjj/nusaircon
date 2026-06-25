@@ -6,7 +6,8 @@ import CardPaymentPage from "../pages/CardPaymentPage";
 import ResultPage from "../pages/ResultPage";
 import HomePage from "../pages/HomePage";
 
-const WEB_PROFILE_STORAGE_KEY = "nusaircon:webProfile";
+const WEB_PROFILE_STORAGE_KEY = "evs:webProfile";
+const LEGACY_WEB_PROFILE_STORAGE_KEY = "nusaircon:webProfile";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,12 @@ function getUtownHostelButton() {
   });
 }
 
+function getSutdHostelButton() {
+  return screen.getByRole("button", {
+    name: /^SUTD$/i,
+  });
+}
+
 // ── LoadingPage ───────────────────────────────────────────────────────────────
 
 describe("LoadingPage", () => {
@@ -72,7 +79,7 @@ describe("LoadingPage", () => {
 
   test("renders page title", () => {
     renderWithRouter(<LoadingPage basePath="" />, BASE_PARAMS);
-    expect(screen.getByText("Electricity Top-Up")).toBeInTheDocument();
+    expect(screen.getByText("EVS Payment")).toBeInTheDocument();
   });
 
   test("shows spinner on mount", () => {
@@ -577,7 +584,7 @@ describe("HomePage › static rendering", () => {
   test("renders page title", () => {
     renderHomePage();
     expect(
-      screen.getByRole("heading", { name: /Electricity Top-Up/i }),
+      screen.getByRole("heading", { name: /EVS Meter Tools/i }),
     ).toBeInTheDocument();
   });
 
@@ -698,6 +705,29 @@ describe("HomePage › saved meters", () => {
     expect(screen.getByPlaceholderText(/8-digit meter ID/i).value).toBe(
       "12345678",
     );
+  });
+
+  test("migrates saved meters from the old nusaircon storage key", () => {
+    window.localStorage.setItem(
+      LEGACY_WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "0:12345678",
+        profiles: [
+          {
+            id: "0:12345678",
+            label: "Legacy",
+            meterId: "12345678",
+            groupIndex: 0,
+            savedAt: 1,
+          },
+        ],
+      }),
+    );
+
+    renderHomePage();
+
+    expect(screen.getByRole("button", { name: /^Legacy/i })).toBeInTheDocument();
   });
 
   test("forgets one saved meter without clearing the others", () => {
@@ -989,6 +1019,50 @@ describe("HomePage › lookup", () => {
 
     expect(screen.getByPlaceholderText(/6\.00/i).value).toBe("18");
   });
+
+  test("routes SUTD top-up history lookup through the SUTD system", async () => {
+    window.localStorage.clear();
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        mode: "topups",
+        meterId: "20000596",
+        hostel: "sutd",
+        address: "",
+        balance: "5.40",
+        checkedAt: "2026-06-25T11:19:37.000Z",
+        topups: {
+          source: "sutd",
+          lookbackDays: null,
+          history: [
+            {
+              date: "08/05/2026 09:50",
+              amount: 10,
+              reference: "RP26050800000002",
+              status: "Yes",
+            },
+          ],
+        },
+      }),
+    });
+
+    renderHomePage();
+    fireEvent.click(screen.getByRole("button", { name: /^Top-ups$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^SUTD$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+      target: { value: "20000596" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Check Meter/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        "/website/lookup?meterId=20000596&mode=topups&hostel=sutd",
+      );
+      expect(screen.getByText("SGD 10.00")).toBeInTheDocument();
+    });
+  });
 });
 
 describe("HomePage › submission", () => {
@@ -1053,6 +1127,61 @@ describe("HomePage › submission", () => {
     expect(assignSpy).toHaveBeenCalledWith(
       expect.stringContaining("txtMtrId=87654321"),
     );
+  });
+
+  test("navigates to SUTD webapp URL on valid SUTD submission", () => {
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { ...window.location, href: "" },
+    });
+    Object.defineProperty(window.location, "href", {
+      set: assignSpy,
+      get: () => "",
+    });
+
+    renderHomePage();
+    fireEvent.click(getSutdHostelButton());
+    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+      target: { value: "20000596" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "$10" }));
+    fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
+
+    expect(assignSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/sutd/webapp?"),
+    );
+    expect(assignSpy).toHaveBeenCalledWith(
+      expect.stringContaining("txtMtrId=20000596"),
+    );
+    expect(assignSpy).toHaveBeenCalledWith(
+      expect.stringContaining("txtAmount=10"),
+    );
+  });
+
+  test("does not navigate for SUTD amount below the minimum", () => {
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { ...window.location, href: "" },
+    });
+    Object.defineProperty(window.location, "href", {
+      set: assignSpy,
+      get: () => "",
+    });
+
+    renderHomePage();
+    fireEvent.click(getSutdHostelButton());
+    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+      target: { value: "20000596" },
+    });
+    fireEvent.change(screen.getByLabelText(/Amount/i), {
+      target: { value: "9" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
+
+    expect(screen.getByText(/Between \$10\.00 and \$50\.00/i)).toBeInTheDocument();
+    expect(assignSpy).not.toHaveBeenCalled();
   });
 
   test("does not navigate when form is invalid", () => {

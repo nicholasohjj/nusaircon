@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       "/webapp": "http://localhost:3000",
       "/cp2nus": "http://localhost:3000",
+      "/sutd": "http://localhost:3000",
       "/website": "http://localhost:3000",
       "/assets": "http://localhost:3000",
     },

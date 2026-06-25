@@ -295,6 +295,14 @@ function parseOreDate(value) {
     return new Date(`${sgDateTime[1]}T${sgDateTime[2]}+08:00`);
   }
 
+  const sgDayFirstDateTime = raw.match(
+    /^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}:\d{2}(?::\d{2})?))?$/,
+  );
+  if (sgDayFirstDateTime) {
+    const [, day, month, year, time = "00:00"] = sgDayFirstDateTime;
+    return new Date(`${year}-${month}-${day}T${time}+08:00`);
+  }
+
   const parsed = new Date(raw);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

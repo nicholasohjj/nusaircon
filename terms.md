@@ -1,15 +1,15 @@
 # Terms of Use
 
-**EVS Electricity Top-Up Bot**
+**EVS Meter Tools**
 Last updated: June 2026
 
-Please read these Terms of Use ("Terms") carefully before using the EVS Electricity Top-Up Bot and web app ("the Service"). By using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.
+Please read these Terms of Use ("Terms") carefully before using EVS Meter Tools ("the Service"). By using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.
 
 ---
 
 ## 1. Service Overview
 
-The Service is an unofficial, independently developed tool that enables NUS hostel residents to check their EVS electricity meter balance and top up their meters via credit card through Telegram or the standalone web app. It is not affiliated with, endorsed by, or operated by NUS, EVS, eNETS, or any payment network.
+The Service is an unofficial, independently developed tool that enables users of supported EVS electricity meters to check meter balance, view supported top-up history, and, where enabled, top up meters via credit card through Telegram or the standalone web app. It is not affiliated with, endorsed by, or operated by NUS, SUTD, EVS, eNETS, or any payment network.
 
 ---
 
@@ -17,15 +17,15 @@ The Service is an unofficial, independently developed tool that enables NUS host
 
 You may use the Service only if you:
 
-- Are a current resident of a supported NUS hostel (PGPR, Houses @ PGP, Residential Colleges, NUS College, UTown Residence, or RVRC);
-- Hold a valid EVS electricity meter registered to your hostel unit; and
+- Are a current resident or authorised user for a supported EVS meter system, including supported NUS hostel meters or supported SUTD meters;
+- Hold a valid EVS electricity meter registered to your unit; and
 - Are authorised to make payments for that meter.
 
 ---
 
 ## 3. Payment Terms
 
-**Top-up amounts** are subject to a minimum of SGD $6.00 and a maximum of SGD $50.00 per transaction.
+**Where online top-up is enabled, top-up amounts** are subject to a minimum of SGD $6.00 and a maximum of SGD $50.00 per transaction.
 
 **Card payments** are processed through eNETS. By initiating a payment, you authorise the charge to your credit card and agree to eNETS' payment terms and conditions.
 
@@ -49,15 +49,15 @@ Your card details are **RSA-encrypted in your browser** before transmission. The
 
 ## 5. Meter Identity and System Routing
 
-You are responsible for entering the correct 8-digit meter ID. Topping up the wrong meter is your sole responsibility. The Service includes a cross-system guard for cp2nus users that rejects meters belonging to the cp2 system before payment is initiated, but this check is not infallible. If you are unsure which system your meter belongs to, verify with your hostel management.
+You are responsible for entering the correct 8-digit meter ID. Topping up the wrong meter is your sole responsibility. The Service includes a cross-system guard for cp2nus users that rejects meters belonging to the cp2 system before payment is initiated, but this check is not infallible. If you are unsure which system your meter belongs to, verify with your institution, residence operator, or EVS.
 
-**Meter ID not found.** If your meter ID cannot be located in the EVS system, the Service will not be able to proceed with a top-up. This may occur for newly assigned units, recently transferred residents, or due to delays in the EVS system. Verify your meter ID with your hostel management office before retrying. The Service operator cannot manually look up, register, or resolve meter ID issues on your behalf.
+**Meter ID not found.** If your meter ID cannot be located in the EVS system, the Service will not be able to proceed with a top-up. This may occur for newly assigned units, recently transferred residents, or due to delays in the EVS system. Verify your meter ID with your institution, residence operator, or EVS before retrying. The Service operator cannot manually look up, register, or resolve meter ID issues on your behalf.
 
 ---
 
 ## 6. Session and Data Handling
 
-- Your **meter ID and hostel selection** are saved to a local database so you do not need to re-enter them on future top-ups. You can delete this at any time with the `/forget` command.
+- Your **meter ID and selected EVS system** are saved to a local database so you do not need to re-enter them on future top-ups or lookups. You can delete this at any time with the `/forget` command.
 - **Bot sessions** (conversation state, current top-up stage) are held in memory only and expire after 15 minutes of inactivity. They are not written to disk and are lost on service restart.
 - **Pending payment tokens** are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, Telegram chat identifier if the flow was started from Telegram, and eNETS gateway fields required to complete the payment. They expire after approximately 10 minutes.
 - **Completed result tokens** are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, transaction outcome, transaction reference, and Telegram chat identifier if available. They expire after approximately 24 hours.
@@ -80,7 +80,7 @@ The Service depends on third-party systems (EVS WebPOS, EVS JSON API, eNETS) tha
 
 The Service may apply rate limits to protect payment and lookup endpoints. If you exceed those limits, you may need to wait before retrying.
 
-Balance and usage figures displayed are fetched from the ORE API and may not reflect real-time meter readings.
+NUS balance and usage figures are fetched from the ORE API. SUTD balance, top-up history, and top-up setup are fetched from the SUTD EVS WebPOS portal. These values may not reflect real-time meter readings.
 
 ---
 
