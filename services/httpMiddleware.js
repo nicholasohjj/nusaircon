@@ -43,7 +43,7 @@ const appSecurityHeaders = helmet({
       ],
       imgSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", "https://telegram.org", "https://www.enets.sg"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       upgradeInsecureRequests: isProductionLike() ? [] : null,
     },

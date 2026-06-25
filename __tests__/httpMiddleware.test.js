@@ -23,6 +23,9 @@ describe("http middleware", () => {
     expect(res.headers["content-security-policy"]).toContain(
       "frame-ancestors 'self' https://web.telegram.org https://*.telegram.org",
     );
+    expect(res.headers["content-security-policy"]).toContain(
+      "script-src 'self' https://telegram.org https://www.enets.sg",
+    );
   });
 
   test("keeps CSP disabled for Swagger routes", async () => {
