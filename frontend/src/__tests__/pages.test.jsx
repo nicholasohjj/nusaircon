@@ -744,7 +744,7 @@ describe("HomePage › saved meters", () => {
     expect(screen.getByRole("button", { name: /^Legacy/i })).toBeInTheDocument();
   });
 
-  test("forgets one saved meter without clearing the others", () => {
+  test("renders saved meter cards without inline action buttons", () => {
     window.localStorage.setItem(
       WEB_PROFILE_STORAGE_KEY,
       JSON.stringify({
@@ -770,54 +770,27 @@ describe("HomePage › saved meters", () => {
     );
 
     renderHomePage();
-    fireEvent.click(screen.getByRole("button", { name: /Forget Room/i }));
 
-    expect(screen.queryByRole("button", { name: /Room/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /^Room/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Friend/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Top up Room/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Balance Room/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Usage Room/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Top-ups Room/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Forget Room/i }),
+    ).not.toBeInTheDocument();
   });
 
-  test("saved meter balance action checks the selected meter", async () => {
-    window.localStorage.setItem(
-      WEB_PROFILE_STORAGE_KEY,
-      JSON.stringify({
-        version: 2,
-        activeId: "0:12345678",
-        profiles: [
-          {
-            id: "0:12345678",
-            label: "Room",
-            meterId: "12345678",
-            groupIndex: 0,
-            savedAt: 1,
-          },
-        ],
-      }),
-    );
-    vi.spyOn(global, "fetch").mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        ok: true,
-        mode: "balance",
-        meterId: "12345678",
-        address: "",
-        balance: "12.5",
-        checkedAt: "2026-06-24T12:00:00.000Z",
-      }),
-    });
-
-    renderHomePage();
-    fireEvent.click(screen.getByRole("button", { name: /Balance Room/i }));
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        "/website/lookup?meterId=12345678&mode=balance",
-      );
-      expect(screen.getByText("SGD 12.50")).toBeInTheDocument();
-    });
-  });
-
-  test("saved meter top-up action opens the top-up form for that meter", () => {
+  test("selecting a saved meter fills the top-up form", () => {
     window.localStorage.setItem(
       WEB_PROFILE_STORAGE_KEY,
       JSON.stringify({
@@ -836,8 +809,7 @@ describe("HomePage › saved meters", () => {
     );
 
     renderHomePage();
-    fireEvent.click(screen.getByRole("button", { name: /^Usage$/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Top up Friend/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Friend/i }));
 
     expect(screen.getByPlaceholderText(/8-digit meter ID/i).value).toBe(
       "87654321",

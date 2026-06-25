@@ -422,38 +422,6 @@ export default function HomePage() {
     activateSavedMeter(profile);
   }
 
-  function handleSavedMeterQuickAction(profile, mode) {
-    activateSavedMeter(profile);
-    setActiveMode(mode);
-
-    if (mode === "balance" || mode === "usage" || mode === "topups") {
-      runLookup(mode, profile.meterId, profile.groupIndex);
-    }
-  }
-
-  function handleSavedMeterForget(profileId) {
-    const next = savedMeters.filter((profile) => profile.id !== profileId);
-    const nextActiveId =
-      activeSavedId === profileId ? next[0]?.id || null : activeSavedId;
-
-    setSavedMeters(next);
-    setActiveSavedId(nextActiveId);
-    persistSavedState(next, nextActiveId);
-
-    if (activeSavedId !== profileId) return;
-    const nextActive = next.find((profile) => profile.id === nextActiveId);
-    if (nextActive) {
-      setGroupIndex(nextActive.groupIndex);
-      setMeterId(nextActive.meterId);
-      setMeterLabel(nextActive.label);
-      return;
-    }
-
-    setGroupIndex(null);
-    setMeterId("");
-    setMeterLabel("");
-  }
-
   function handleSubmit(e) {
     e.preventDefault();
     const errs = validateTopUp();
@@ -626,48 +594,6 @@ export default function HomePage() {
                 <span>
                   {profile.meterId} · {HOSTEL_GROUPS[profile.groupIndex].label}
                 </span>
-              </button>
-              <div className={styles.savedMeterActions}>
-                <button
-                  type="button"
-                  aria-label={`Top up ${profile.label}`}
-                  onClick={() => handleSavedMeterQuickAction(profile, "topup")}
-                  disabled={!HOSTEL_GROUPS[profile.groupIndex]?.topupSupported}
-                >
-                  Top up
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Balance ${profile.label}`}
-                  onClick={() =>
-                    handleSavedMeterQuickAction(profile, "balance")
-                  }
-                >
-                  Balance
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Usage ${profile.label}`}
-                  onClick={() => handleSavedMeterQuickAction(profile, "usage")}
-                  disabled={!HOSTEL_GROUPS[profile.groupIndex]?.usageSupported}
-                >
-                  Usage
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Top-ups ${profile.label}`}
-                  onClick={() => handleSavedMeterQuickAction(profile, "topups")}
-                >
-                  Top-ups
-                </button>
-              </div>
-              <button
-                type="button"
-                className={styles.savedMeterForget}
-                aria-label={`Forget ${profile.label}`}
-                onClick={() => handleSavedMeterForget(profile.id)}
-              >
-                Forget
               </button>
             </div>
           ))}
