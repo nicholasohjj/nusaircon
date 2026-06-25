@@ -10,6 +10,7 @@ const {
   classifyLoginResponse,
   classifySelectOfferResponse,
   parseEvsTransactionSummary,
+  parseEnetsResult,
   normalizeFinalOutcome,
   isRedirectStatus,
   resolveUpstreamLocation,
@@ -464,6 +465,53 @@ describe("parseEvsTransactionSummary", () => {
     const result = parseEvsTransactionSummary(null);
     expect(result.status).toBe("success");
     expect(result.meterId).toBeNull();
+  });
+});
+
+// ── parseEnetsResult ─────────────────────────────────────────────────────────
+
+describe("parseEnetsResult", () => {
+  test("classifies returned eNETS card form as failure", () => {
+    const result = parseEnetsResult(`
+      <html>
+        <head><title>eNETS Internet Payment Services</title></head>
+        <body>
+          <form id="payEn" name="paymentForm" action="/GW2/uCredit/pay">
+            <input type="hidden" name="merchantTxnRef" value="RP26062500000031">
+            <input name="netsTxnRef" type="hidden" value="20260625235819190">
+          </form>
+        </body>
+      </html>
+    `);
+
+    expect(result).toMatchObject({
+      status: "failure",
+      merchantTxnRef: "RP26062500000031",
+      netsTxnRef: "20260625235819190",
+      source: "payment_form",
+    });
+    expect(result.error).toContain("without a merchant callback");
+  });
+
+  test("classifies eNETS authentication page as failure", () => {
+    const result = parseEnetsResult(`
+      <html>
+        <body>
+          <form action="https://bank.example/acs">
+            <input type="hidden" name="creq" value="challenge">
+            <input type="hidden" name="threeDSSessionData" value="session">
+            <input type="hidden" name="merchantTxnRef" value="RP26062500000031">
+          </form>
+        </body>
+      </html>
+    `);
+
+    expect(result).toMatchObject({
+      status: "failure",
+      merchantTxnRef: "RP26062500000031",
+      source: "authentication_page",
+    });
+    expect(result.error).toContain("authentication page");
   });
 });
 

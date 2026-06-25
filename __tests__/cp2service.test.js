@@ -35,6 +35,15 @@ const CALLBACK_HTML_FAILURE = `
 </body></html>
 `;
 
+const SUTD_CALLBACK_HTML = `
+<html><body>
+  <form method="post"
+    action="https://nus-utown.evs.com.sg/EVSSUTDWebPOS/transSumServlet?status=0&amp;id=RP26062500000031">
+    <input type="hidden" name="message" value="sutd-callback-payload">
+  </form>
+</body></html>
+`;
+
 // No transSumServlet form — eNETS receipt page instead
 const ENETS_RECEIPT_HTML = `
 <html><body>
@@ -113,6 +122,15 @@ describe("extractEvsCallbackFromHtml", () => {
     expect(result.status).toBe("0");
     expect(result.id).toBe("TXN-REF-FAIL");
     expect(result.message).toBe("failure-payload");
+  });
+
+  test("extracts SUTD callback form", () => {
+    const result = extractEvsCallbackFromHtml(SUTD_CALLBACK_HTML);
+    expect(result).not.toBeNull();
+    expect(result.status).toBe("0");
+    expect(result.id).toBe("RP26062500000031");
+    expect(result.message).toBe("sutd-callback-payload");
+    expect(result.action).toContain("/EVSSUTDWebPOS/transSumServlet");
   });
 
   test("action field contains the transSumServlet URL", () => {

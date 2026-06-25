@@ -193,6 +193,43 @@ function parseEnetsResult(html) {
     }
   }
 
+  const isPaymentForm =
+    /<form[^>]*(?:id|name)=["']payEn["'][^>]*>/i.test(body) ||
+    /<form[^>]*name=["']paymentForm["'][^>]*>/i.test(body) ||
+    /action=["'][^"']*\/GW2\/uCredit\/pay["']/i.test(body);
+
+  if (isPaymentForm) {
+    return {
+      status: "failure",
+      bankAuthId: null,
+      merchantTxnRef: extractHiddenField(body, "merchantTxnRef"),
+      netsTxnRef: extractHiddenField(body, "netsTxnRef"),
+      txnDateTime: null,
+      error:
+        "eNETS returned the card payment page without a merchant callback. Please check the card details or try again.",
+      deductedAmount: null,
+      source: "payment_form",
+    };
+  }
+
+  const isAuthenticationPage =
+    /\b(?:PaReq|TermUrl|creq|threeDSSessionData)\b/i.test(body) ||
+    /3-?D\s*Secure|ACS|authentication\s+page/i.test(body);
+
+  if (isAuthenticationPage) {
+    return {
+      status: "failure",
+      bankAuthId: null,
+      merchantTxnRef: extractHiddenField(body, "merchantTxnRef"),
+      netsTxnRef: extractHiddenField(body, "netsTxnRef"),
+      txnDateTime: null,
+      error:
+        "eNETS returned an authentication page without a merchant callback. Please try another card or use the official EVS portal.",
+      deductedAmount: null,
+      source: "authentication_page",
+    };
+  }
+
   const isReceiptPage =
     /<title>\s*Receipt\s*<\/title>/i.test(body) || /u_receipt_/i.test(body);
 
