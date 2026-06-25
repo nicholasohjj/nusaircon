@@ -142,6 +142,7 @@ describe("CardPaymentPage", () => {
   const TOKEN_PARAMS = { token: "test-token-abc" };
 
   afterEach(() => {
+    delete window.RSAKey;
     vi.restoreAllMocks();
   });
 
@@ -254,6 +255,72 @@ describe("CardPaymentPage", () => {
         screen.getByRole("button", { name: /Pay SGD 20\.00/i }),
       ).toBeInTheDocument();
     });
+  });
+
+  test("submits SUTD eNETS browser form fields", async () => {
+    window.RSAKey = class {
+      setPublic() {}
+      encrypt() {
+        return "encrypted-card";
+      }
+    };
+
+    vi.spyOn(global, "fetch")
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => SESSION,
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 502,
+        json: async () => ({ ok: false, error: "Controlled failure" }),
+      });
+
+    renderWithRouter(<CardPaymentPage basePath="/sutd" />, TOKEN_PARAMS);
+
+    await screen.findByRole("button", { name: /Pay SGD 20\.00/i });
+    fireEvent.change(document.querySelector('input[name="name"]'), {
+      target: { value: "TEST" },
+    });
+    fireEvent.change(document.querySelector('input[name="email"]'), {
+      target: { value: "TEST@TEST.COM" },
+    });
+    fireEvent.change(document.querySelector('input[name="cardNo"]'), {
+      target: { value: "4111111111111111" },
+    });
+    fireEvent.change(document.querySelector('input[name="expMth"]'), {
+      target: { value: "01" },
+    });
+    fireEvent.change(document.querySelector('input[name="expYr"]'), {
+      target: { value: "28" },
+    });
+    fireEvent.change(document.querySelector('input[name="cvv"]'), {
+      target: { value: "123" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Pay SGD 20\.00/i }));
+
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    const [, submitOptions] = global.fetch.mock.calls[1];
+    const body = new URLSearchParams(submitOptions.body);
+
+    expect(global.fetch.mock.calls[1][0]).toBe("/sutd/webapp/enets_pay");
+    expect(body.get("pageId")).toBe("payment_page");
+    expect(body.get("button")).toBe("submit");
+    expect(body.get("e")).toBe("exponent");
+    expect(body.get("n")).toBe("modulus");
+    expect(body.get("enc")).toBe("RSAencrypted-card");
+    expect(body.get("cardNo")).toBe("****************");
+    expect(body.get("cvv")).toBe("***");
+    expect(body.get("agree")).toBe("Y");
+    expect(body.get("netsMid")).toBe("807574000");
+    expect(body.get("merchantTxnRef")).toBe("MTR001");
+    expect(body.get("netsTxnRef")).toBe("TXN001");
+    expect(body.get("txnAmount")).toBe("2000");
   });
 });
 

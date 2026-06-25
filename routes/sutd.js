@@ -388,6 +388,8 @@ router.post(
       }
 
       const paymentBody = new URLSearchParams(req.body);
+      if (nets.e) paymentBody.set("e", String(nets.e));
+      if (nets.n) paymentBody.set("n", String(nets.n));
       if (nets.netsMid) paymentBody.set("netsMid", String(nets.netsMid));
       if (nets.netsTxnRef) {
         paymentBody.set("netsTxnRef", String(nets.netsTxnRef));
