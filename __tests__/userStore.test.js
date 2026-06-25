@@ -67,11 +67,10 @@ describe("userStore saved meters", () => {
         chat_id   TEXT PRIMARY KEY,
         meter_id  TEXT NOT NULL,
         hostel    TEXT NOT NULL,
-        saved_at  INTEGER NOT NULL,
-        last_seen INTEGER NOT NULL DEFAULT 0
+        saved_at  INTEGER NOT NULL
       );
-      INSERT INTO users (chat_id, meter_id, hostel, saved_at, last_seen)
-      VALUES ('legacy-chat', '11223344', '${HOSTELS.CP2}', 1000, 2000);
+      INSERT INTO users (chat_id, meter_id, hostel, saved_at)
+      VALUES ('legacy-chat', '11223344', '${HOSTELS.CP2}', 1000);
     `);
     db.close();
 
@@ -87,6 +86,7 @@ describe("userStore saved meters", () => {
         meterId: "11223344",
         hostel: HOSTELS.CP2,
         label: "Meter 3344",
+        lastUsed: 1000,
       }),
     ]);
   });

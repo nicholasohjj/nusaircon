@@ -30,6 +30,20 @@ db.exec(`
   )
 `);
 
+function ensureColumn(tableName, columnName, definition) {
+  const columns = db
+    .prepare(`PRAGMA table_info(${tableName})`)
+    .all()
+    .map((column) => column.name);
+
+  if (!columns.includes(columnName)) {
+    db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  }
+}
+
+ensureColumn("users", "saved_at", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("users", "last_seen", "INTEGER NOT NULL DEFAULT 0");
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS user_meters (
     chat_id   TEXT NOT NULL,
