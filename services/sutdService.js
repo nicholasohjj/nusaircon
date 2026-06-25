@@ -112,6 +112,49 @@ function parseSutdMeterCredit(html) {
   };
 }
 
+function normalizeSutdAddress(value) {
+  const clean = stripHtml(value)
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean || null;
+}
+
+function parseSutdWebposMeterDetails(html) {
+  const body = String(html || "");
+  const details = {
+    meter_displayname: null,
+    address: null,
+    source: "sutd",
+  };
+
+  const rowMatches = body.matchAll(/<tr\b[^>]*>([\s\S]*?)<\/tr>/gi);
+  for (const rowMatch of rowMatches) {
+    const cells = [...rowMatch[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi)]
+      .map((cell) => stripHtml(cell[1]))
+      .filter(Boolean);
+
+    if (cells.length < 2) continue;
+
+    const label = cells[0].replace(/:$/, "").trim().toLowerCase();
+    const value =
+      cells
+        .slice(1)
+        .reverse()
+        .find((cell) => cell && cell !== ":") || "";
+
+    if (label === "meter id") {
+      details.meter_displayname = value.match(/\b(\d{8})\b/)?.[1] || null;
+    }
+
+    if (label === "address") {
+      details.address = normalizeSutdAddress(value);
+    }
+  }
+
+  return details;
+}
+
 function hasNextTransactionPage(html) {
   return /class=["']pagingLink["'][^>]*href=["'][^"']*listTransactionServlet[^"']*page=\d+[^"']*["'][^>]*>\s*next\s*<\/a>/i.test(
     String(html || ""),
@@ -253,6 +296,8 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
     };
   }
 
+  const webposMeterDetails = parseSutdWebposMeterDetails(step2.data);
+
   result.stage = "select_offer";
   const selectForm = new URLSearchParams({
     isDedicated: "0",
@@ -289,6 +334,7 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
       step3Status: step3.status,
       loginResult,
       selectResult,
+      address: webposMeterDetails.address,
       cookieHeader: cookies.map((c) => `${c.key}=${c.value}`).join("; "),
       preview: {
         loginTitle:
@@ -398,6 +444,8 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
     step5Status: step5.status,
     step6Status: step6.status,
     merchant_txn_ref,
+    address: webposMeterDetails.address,
+    meterInfo: webposMeterDetails,
     enetsBody: step6.data,
     enets: {
       netsMid: extractHiddenField(enetsHtml, "netsMid"),
@@ -581,6 +629,7 @@ module.exports = {
   isValidSutdAmount,
   parseSutdMeterCredit,
   parseSutdTransactionRows,
+  parseSutdWebposMeterDetails,
   postSutdResultToEvs,
   runSutdPurchaseFlow,
 };

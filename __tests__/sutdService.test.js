@@ -8,6 +8,7 @@ const {
   isValidSutdAmount,
   parseSutdMeterCredit,
   parseSutdTransactionRows,
+  parseSutdWebposMeterDetails,
 } = require("../services/sutdService");
 
 describe("sutdService", () => {
@@ -111,6 +112,34 @@ describe("sutdService", () => {
       package_id: "RP230500",
       last_recorded_credit: "5.40",
       last_recorded_timestamp: "25/06/2026 00:48:53",
+      source: "sutd",
+    });
+  });
+
+  test("parses SUTD WebPOS meter address from login response", () => {
+    const details = parseSutdWebposMeterDetails(`
+      <table>
+        <tr>
+          <td class="pnlHeader" width="100px">Meter ID</td>
+          <td class="pnlHeader" width="10px">:</td>
+          <td class="pnlHeader"><u><b>20000596<b></u></td>
+        </tr>
+        <tr>
+          <td class="pnlHeader" width="100px">Address</td>
+          <td class="pnlHeader" width="10px">:</td>
+          <td class="pnlHeader">
+            <u><b>59 , 8 , 115 , NA</b></u>
+          </td>
+        </tr>
+      </table>
+      <td colspan="2" class="lblMessage">
+        You have 2 POS request in processing. Please try again 10 minutes later.
+      </td>
+    `);
+
+    expect(details).toEqual({
+      meter_displayname: "20000596",
+      address: "59, 8, 115, NA",
       source: "sutd",
     });
   });

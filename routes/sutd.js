@@ -199,7 +199,7 @@ router.get("/webapp/bootstrap", async (req, res) => {
       txtMtrId,
       txtAmount,
       chatId: chatId || null,
-      address: meterSummary.address || "",
+      address: out.address || meterSummary.address || "",
       balance: String(meterSummary.credit_bal ?? ""),
       nets: { n, e, netsMid, netsTxnRef, merchantTxnRef, actionUrl },
       status: "pending",
