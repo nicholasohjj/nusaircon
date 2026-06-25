@@ -10,6 +10,7 @@ const {
 } = require("../services/ore");
 const {
   getSutdMeterSummary,
+  getSutdMeterSummaryAndRecentTopups,
   getSutdRecentTopups,
 } = require("../services/sutdService");
 const { track, captureException } = require("../services/analytics");
@@ -160,9 +161,20 @@ router.get("/lookup", lookupLimiter, async (req, res) => {
       });
     }
 
-    const summary = isSutd
-      ? await getSutdMeterSummary(meterId)
-      : await getMeterSummary(meterId);
+    let topups = null;
+    let summary;
+    if (isSutd && mode === "topups") {
+      const sutdLookup = await getSutdMeterSummaryAndRecentTopups(meterId, {
+        numberOfTopups: 10,
+      });
+      summary = sutdLookup.summary;
+      topups = sutdLookup.topups;
+    } else {
+      summary = isSutd
+        ? await getSutdMeterSummary(meterId)
+        : await getMeterSummary(meterId);
+    }
+
     const response = {
       ok: true,
       mode,
@@ -189,13 +201,14 @@ router.get("/lookup", lookupLimiter, async (req, res) => {
     }
 
     if (mode === "topups") {
-      const topups =
-        isSutd
+      topups =
+        topups ||
+        (isSutd
           ? await getSutdRecentTopups(meterId, { numberOfTopups: 10 })
           : await getRecentTopups(meterId, {
               numberOfTopups: 10,
               lookbackDays: 90,
-            });
+            }));
       response.topups = {
         lookbackDays: topups.lookbackDays ?? null,
         source: topups.meta?.source || "ore",

@@ -8,6 +8,7 @@ const {
   isValidSutdAmount,
   parseSutdMeterCredit,
   parseSutdTransactionRows,
+  parseSutdWebposPageMessage,
   parseSutdWebposMeterDetails,
 } = require("../services/sutdService");
 
@@ -142,5 +143,18 @@ describe("sutdService", () => {
       address: "59, 8, 115, NA",
       source: "sutd",
     });
+  });
+
+  test("parses SUTD WebPOS blocking messages", () => {
+    const message = parseSutdWebposPageMessage(`
+      <td colspan="2" class="lblMessage" height="320px">
+        You have 2 POS request in processing. Please try again 10 minutes later.<br/>
+        You are not allowed to buy another package(Maximum TWO packages per household).
+      </td>
+    `);
+
+    expect(message).toBe(
+      "You have 2 POS request in processing. Please try again 10 minutes later. You are not allowed to buy another package(Maximum TWO packages per household).",
+    );
   });
 });

@@ -8,7 +8,7 @@ const {
 } = require("../../services/ore");
 const {
   getSutdMeterSummary,
-  getSutdRecentTopups,
+  getSutdMeterSummaryAndRecentTopups,
 } = require("../../services/sutdService");
 const { track } = require("../../services/analytics");
 const { getSession } = require("./session");
@@ -161,12 +161,18 @@ async function handleMeterIdLookup(
         getMeterUsage(meterId, 7),
       ]);
     } else if (mode === "topups") {
-      [summary, topups] = await Promise.all([
-        isSutd ? getSutdMeterSummary(meterId) : getMeterSummary(meterId),
-        isSutd
-          ? getSutdRecentTopups(meterId, { numberOfTopups: 10 })
-          : getRecentTopups(meterId, { numberOfTopups: 10, lookbackDays: 90 }),
-      ]);
+      if (isSutd) {
+        const sutdLookup = await getSutdMeterSummaryAndRecentTopups(meterId, {
+          numberOfTopups: 10,
+        });
+        summary = sutdLookup.summary;
+        topups = sutdLookup.topups;
+      } else {
+        [summary, topups] = await Promise.all([
+          getMeterSummary(meterId),
+          getRecentTopups(meterId, { numberOfTopups: 10, lookbackDays: 90 }),
+        ]);
+      }
     } else {
       summary = isSutd
         ? await getSutdMeterSummary(meterId)

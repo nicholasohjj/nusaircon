@@ -156,12 +156,12 @@ router.get("/webapp/bootstrap", async (req, res) => {
 
     if (!out?.ok) {
       const error =
-        out.loginResult === "invalid"
+        out.error ||
+        (out.loginResult === "invalid"
           ? "Meter ID not found. Please check that you entered the 8-digit SUTD meter ID correctly."
           : out.stage === "select_offer"
             ? "Invalid amount. Please enter an amount between $10.00 and $50.00."
-            : out.error ||
-              "Failed to initialise SUTD payment flow. Please try again.";
+            : "Failed to initialise SUTD payment flow. Please try again.");
 
       track("bootstrap_failed", {
         route: "sutd",

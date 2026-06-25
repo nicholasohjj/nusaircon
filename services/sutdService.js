@@ -16,6 +16,8 @@ const SUTD_WEBPOS_BASE_URL = `${CP2_WEBPOS_BASE}${SUTD_WEBPOS_PATH}`;
 const SUTD_CREDITPAYMENT_URL =
   "http://120.50.44.233/payment_sutd_credit/creditpayment.jsp";
 const AXIOS_TIMEOUT_MS = 15_000;
+const SUTD_TRANSIENT_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+const SUTD_RETRY_DELAY_MS = 350;
 
 function buildSutdPassword(meterId) {
   const clean = String(meterId || "").trim();
@@ -26,6 +28,44 @@ function buildSutdPassword(meterId) {
 function isValidSutdAmount(txtAmount) {
   const amount = Number(String(txtAmount || "").replace(/[^0-9.]/g, ""));
   return Number.isFinite(amount) && amount >= 10 && amount <= 50;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isTransientSutdError(err) {
+  return [
+    "ECONNABORTED",
+    "ECONNRESET",
+    "ETIMEDOUT",
+    "EAI_AGAIN",
+    "ENOTFOUND",
+  ].includes(err?.code);
+}
+
+async function withSutdRetry(fn, { retries = 1 } = {}) {
+  let lastErr;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const resp = await fn();
+      if (
+        attempt < retries &&
+        SUTD_TRANSIENT_HTTP_STATUSES.has(Number(resp?.status))
+      ) {
+        await sleep(SUTD_RETRY_DELAY_MS);
+        continue;
+      }
+      return resp;
+    } catch (err) {
+      lastErr = err;
+      if (attempt >= retries || !isTransientSutdError(err)) throw err;
+      await sleep(SUTD_RETRY_DELAY_MS);
+    }
+  }
+
+  throw lastErr;
 }
 
 function stripHtml(value) {
@@ -155,6 +195,26 @@ function parseSutdWebposMeterDetails(html) {
   return details;
 }
 
+function parseSutdWebposPageMessage(html) {
+  const body = String(html || "");
+  const messages = [
+    ...body.matchAll(
+      /<[^>]+\bclass=["'][^"']*\blblMessage\b[^"']*["'][^>]*>([\s\S]*?)<\/[^>]+>/gi,
+    ),
+  ]
+    .map((match) => stripHtml(match[1]))
+    .filter(Boolean);
+
+  const message = messages.join(" ").replace(/\s+/g, " ").trim();
+  return message || null;
+}
+
+function isSutdWebposBlockingMessage(message) {
+  return /POS request in processing|Maximum\s+TWO\s+packages/i.test(
+    String(message || ""),
+  );
+}
+
 function hasNextTransactionPage(html) {
   return /class=["']pagingLink["'][^>]*href=["'][^"']*listTransactionServlet[^"']*page=\d+[^"']*["'][^>]*>\s*next\s*<\/a>/i.test(
     String(html || ""),
@@ -209,7 +269,7 @@ async function loginSutd(client, meterId) {
   const password = buildSutdPassword(cleanMeterId);
   if (!password) throw new Error("Meter ID must be exactly 8 digits.");
 
-  await client.get(`${SUTD_BASE_URL}/`).catch(() => null);
+  await withSutdRetry(() => client.get(`${SUTD_BASE_URL}/`)).catch(() => null);
 
   const body = new URLSearchParams({
     txtLoginId: cleanMeterId,
@@ -217,16 +277,18 @@ async function loginSutd(client, meterId) {
     btnLogin: "Login",
   }).toString();
 
-  const resp = await client.post(`${SUTD_BASE_URL}/loginServlet`, body, {
-    headers: {
-      ...DEFAULT_HEADERS,
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Origin: CP2_WEBPOS_BASE,
-      Referer: `${SUTD_BASE_URL}/common/common_leftMenu.jsp`,
-    },
-  });
+  const resp = await withSutdRetry(() =>
+    client.post(`${SUTD_BASE_URL}/loginServlet`, body, {
+      headers: {
+        ...DEFAULT_HEADERS,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        "Content-Type": "application/x-www-form-urlencoded",
+        Origin: CP2_WEBPOS_BASE,
+        Referer: `${SUTD_BASE_URL}/common/common_leftMenu.jsp`,
+      },
+    }),
+  );
 
   if (resp.status !== 200) {
     throw new Error(`SUTD login returned HTTP ${resp.status}`);
@@ -297,6 +359,18 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
   }
 
   const webposMeterDetails = parseSutdWebposMeterDetails(step2.data);
+  const loginPageMessage = parseSutdWebposPageMessage(step2.data);
+  if (isSutdWebposBlockingMessage(loginPageMessage)) {
+    return {
+      ok: false,
+      stage: "login",
+      step1Status: step1.status,
+      step2Status: step2.status,
+      loginResult: "blocked",
+      address: webposMeterDetails.address,
+      error: loginPageMessage,
+    };
+  }
 
   result.stage = "select_offer";
   const selectForm = new URLSearchParams({
@@ -323,6 +397,7 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
   );
 
   const selectResult = classifySutdWebposSelectOfferResponse(step3.data);
+  const selectPageMessage = parseSutdWebposPageMessage(step3.data);
   const cookies = await jar.getCookies(`${SUTD_WEBPOS_BASE_URL}/`);
 
   if (selectResult !== "success") {
@@ -335,6 +410,7 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
       loginResult,
       selectResult,
       address: webposMeterDetails.address,
+      error: selectPageMessage,
       cookieHeader: cookies.map((c) => `${c.key}=${c.value}`).join("; "),
       preview: {
         loginTitle:
@@ -518,19 +594,21 @@ async function postSutdResultToEvs({ status, id, message, jsessionid }) {
 }
 
 async function fetchSutdTransactionPage(client, meterId, page = 1) {
-  const resp = await client.get(`${SUTD_BASE_URL}/listTransactionServlet`, {
-    params: {
-      selMeters: String(meterId).trim(),
-      sta: "3",
-      page: String(page),
-    },
-    headers: {
-      ...DEFAULT_HEADERS,
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-      Referer: `${SUTD_BASE_URL}/listTransactionServlet`,
-    },
-  });
+  const resp = await withSutdRetry(() =>
+    client.get(`${SUTD_BASE_URL}/listTransactionServlet`, {
+      params: {
+        selMeters: String(meterId).trim(),
+        sta: "3",
+        page: String(page),
+      },
+      headers: {
+        ...DEFAULT_HEADERS,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        Referer: `${SUTD_BASE_URL}/listTransactionServlet`,
+      },
+    }),
+  );
 
   if (resp.status !== 200) {
     throw new Error(`SUTD transaction history returned HTTP ${resp.status}`);
@@ -540,14 +618,16 @@ async function fetchSutdTransactionPage(client, meterId, page = 1) {
 }
 
 async function fetchSutdMeterCreditPage(client) {
-  const resp = await client.get(`${SUTD_BASE_URL}/viewMeterCreditServlet`, {
-    headers: {
-      ...DEFAULT_HEADERS,
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-      Referer: `${SUTD_BASE_URL}/common/common_leftMenu.jsp`,
-    },
-  });
+  const resp = await withSutdRetry(() =>
+    client.get(`${SUTD_BASE_URL}/viewMeterCreditServlet`, {
+      headers: {
+        ...DEFAULT_HEADERS,
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+        Referer: `${SUTD_BASE_URL}/common/common_leftMenu.jsp`,
+      },
+    }),
+  );
 
   if (resp.status !== 200) {
     throw new Error(`SUTD meter credit returned HTTP ${resp.status}`);
@@ -568,23 +648,11 @@ async function getSutdMeterSummary(meterDisplayName) {
   return parseSutdMeterCredit(html);
 }
 
-async function getSutdRecentTopups(
-  meterDisplayName,
+async function fetchSutdRecentTopupsWithClient(
+  client,
+  meterId,
   { numberOfTopups = 10, maxPages = 3 } = {},
 ) {
-  const meterId = String(meterDisplayName || "").trim();
-  if (!isValidMeterId(meterId)) {
-    return {
-      numberOfTopups,
-      lookbackDays: null,
-      history: [],
-      meta: { source: "sutd" },
-    };
-  }
-
-  const { client } = createSutdClient();
-  await loginSutd(client, meterId);
-
   const history = [];
   const seen = new Set();
 
@@ -619,16 +687,74 @@ async function getSutdRecentTopups(
   };
 }
 
+async function getSutdRecentTopups(
+  meterDisplayName,
+  { numberOfTopups = 10, maxPages = 3 } = {},
+) {
+  const meterId = String(meterDisplayName || "").trim();
+  if (!isValidMeterId(meterId)) {
+    return {
+      numberOfTopups,
+      lookbackDays: null,
+      history: [],
+      meta: { source: "sutd" },
+    };
+  }
+
+  const { client } = createSutdClient();
+  await loginSutd(client, meterId);
+  return fetchSutdRecentTopupsWithClient(client, meterId, {
+    numberOfTopups,
+    maxPages,
+  });
+}
+
+async function getSutdMeterSummaryAndRecentTopups(
+  meterDisplayName,
+  { numberOfTopups = 10, maxPages = 3 } = {},
+) {
+  const meterId = String(meterDisplayName || "").trim();
+  if (!isValidMeterId(meterId)) {
+    return {
+      summary: { address: null, credit_bal: null, meter_info: null },
+      topups: {
+        numberOfTopups,
+        lookbackDays: null,
+        history: [],
+        meta: { source: "sutd" },
+      },
+    };
+  }
+
+  const { client } = createSutdClient();
+  await loginSutd(client, meterId);
+
+  const [summaryHtml, topups] = await Promise.all([
+    fetchSutdMeterCreditPage(client),
+    fetchSutdRecentTopupsWithClient(client, meterId, {
+      numberOfTopups,
+      maxPages,
+    }),
+  ]);
+
+  return {
+    summary: parseSutdMeterCredit(summaryHtml),
+    topups,
+  };
+}
+
 module.exports = {
   buildSutdPassword,
   classifySutdLoginResponse,
   classifySutdWebposLoginResponse,
   classifySutdWebposSelectOfferResponse,
   getSutdMeterSummary,
+  getSutdMeterSummaryAndRecentTopups,
   getSutdRecentTopups,
   isValidSutdAmount,
   parseSutdMeterCredit,
   parseSutdTransactionRows,
+  parseSutdWebposPageMessage,
   parseSutdWebposMeterDetails,
   postSutdResultToEvs,
   runSutdPurchaseFlow,
