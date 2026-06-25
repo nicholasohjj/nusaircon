@@ -499,82 +499,29 @@ describe("ResultPage", () => {
     });
   });
 
-  test("verifies the latest balance on demand", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce({
+  test("does not render the verify balance action", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
         ok: true,
-        status: 200,
-        json: async () => ({
-          ok: true,
-          status: "success",
-          txtMtrId: "12345678",
-          txtAmount: "20",
-          merchantTxnRef: "MTR-001",
-          reason: "Payment completed.",
-          address: "",
-          balance: "18.50",
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          ok: true,
-          txtMtrId: "12345678",
-          balance: "24.50",
-        }),
-      });
+        status: "success",
+        txtMtrId: "12345678",
+        txtAmount: "20",
+        merchantTxnRef: "MTR-001",
+        reason: "Payment completed.",
+        address: "",
+        balance: "18.50",
+      }),
+    });
 
     renderWithRouter(<ResultPage basePath="" />, { token: "test-token" });
 
-    const verifyButton = await screen.findByRole("button", {
-      name: /Verify Balance/i,
-    });
-    fireEvent.click(verifyButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("Verified balance")).toBeInTheDocument();
-      expect(screen.getByText("SGD 24.50")).toBeInTheDocument();
-    });
-  });
-
-  test("renders negative verified balance with its sign", async () => {
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          ok: true,
-          status: "success",
-          txtMtrId: "12345678",
-          txtAmount: "20",
-          merchantTxnRef: "MTR-001",
-          reason: "Payment completed.",
-          address: "",
-          balance: "1.50",
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          ok: true,
-          txtMtrId: "12345678",
-          balance: "-0.75",
-        }),
-      });
-
-    renderWithRouter(<ResultPage basePath="" />, { token: "test-token" });
-
-    const verifyButton = await screen.findByRole("button", {
-      name: /Verify Balance/i,
-    });
-    fireEvent.click(verifyButton);
-
-    await waitFor(() => {
-      expect(screen.getByText("Verified balance")).toBeInTheDocument();
-      expect(screen.getByText("SGD -0.75")).toBeInTheDocument();
-    });
+    await screen.findByText("Top-Up Successful");
+    expect(
+      screen.queryByRole("button", { name: /Verify Balance/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Verified balance")).not.toBeInTheDocument();
   });
 });
 

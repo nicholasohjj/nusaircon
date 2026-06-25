@@ -49,9 +49,6 @@ export default function ResultPage({ basePath = "" }) {
 
   const [session, setSession] = useState(null);
   const [loadErr, setLoadErr] = useState(initialErr);
-  const [verifiedBalance, setVerifiedBalance] = useState(null);
-  const [verifyErr, setVerifyErr] = useState("");
-  const [verifying, setVerifying] = useState(false);
   const telegramWebApp = isTelegramWebApp();
 
   // ── Fetch session ───────────────────────────────────────────────────────────
@@ -98,26 +95,6 @@ export default function ResultPage({ basePath = "" }) {
     window.location.href = buildTopUpAgainUrl(basePath, session);
   }
 
-  async function handleVerifyBalance() {
-    setVerifyErr("");
-    setVerifying(true);
-
-    try {
-      const resp = await fetch(
-        `${basePath}/webapp/balance?token=${encodeURIComponent(token)}`,
-      );
-      const data = await resp.json().catch(() => ({}));
-      if (!resp.ok || !data.ok) {
-        throw new Error(data.error || "Unable to fetch the latest balance.");
-      }
-      setVerifiedBalance(data);
-    } catch (err) {
-      setVerifyErr(err.message || "Unable to fetch the latest balance.");
-    } finally {
-      setVerifying(false);
-    }
-  }
-
   // ── Loading ─────────────────────────────────────────────────────────────────
   if (!session && !loadErr) {
     return (
@@ -162,12 +139,6 @@ export default function ResultPage({ basePath = "" }) {
     session.txtAmount !== ""
       ? `SGD ${Number(String(session.txtAmount).replace(/[^0-9.]/g, "")).toFixed(2)}`
       : null;
-  const verifiedBalanceDisplay =
-    verifiedBalance?.balance !== undefined &&
-    verifiedBalance?.balance !== null &&
-    verifiedBalance?.balance !== ""
-      ? `SGD ${Number(verifiedBalance.balance).toFixed(2)}`
-      : null;
 
   return (
     <div className={styles.card}>
@@ -191,9 +162,6 @@ export default function ResultPage({ basePath = "" }) {
         {balanceDisplay && (
           <DetailRow label="Balance before top-up" value={balanceDisplay} />
         )}
-        {verifiedBalanceDisplay && (
-          <DetailRow label="Verified balance" value={verifiedBalanceDisplay} />
-        )}
         {amountDisplay && <DetailRow label="Amount" value={amountDisplay} />}
       </div>
 
@@ -205,11 +173,6 @@ export default function ResultPage({ basePath = "" }) {
       >
         {reason}
       </div>
-      {verifyErr && (
-        <div className={[styles.statusNote, styles.noteFail].join(" ")}>
-          {verifyErr}
-        </div>
-      )}
 
       <div className={styles.actions}>
         {ok && basePath === "/cp2nus" && session.receiptAvailable && (
@@ -223,13 +186,6 @@ export default function ResultPage({ basePath = "" }) {
             Download Receipt
           </a>
         )}
-        <button
-          className={[styles.btn, styles.btnSecondary].join(" ")}
-          onClick={handleVerifyBalance}
-          disabled={verifying}
-        >
-          {verifying ? "Checking..." : "Verify Balance"}
-        </button>
         <button
           className={[
             styles.btn,
