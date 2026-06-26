@@ -2,139 +2,760 @@ openapi: 3.0.3
 info:
   title: EVS Meter Tools API
   version: 1.0.0
-  description: API documentation for EVS top-up WebApp routes.
+  description: API documentation for EVS top-up WebApp, website lookup, and support routes.
 
 servers:
   - url: http://localhost:3000
     description: Local development
 
+tags:
+  - name: App
+    description: Static app and service metadata
+  - name: Website
+    description: Standalone website lookup and feedback API
+  - name: CP2
+    description: PGPR, PGP Houses, Residential Colleges, and NUS College payment flow
+  - name: CP2NUS
+    description: UTown Residence and RVRC payment flow
+  - name: SUTD
+    description: SUTD payment flow
+
 paths:
   /health:
     get:
+      tags: [App]
       summary: Health check
       responses:
         "200":
           description: App is running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
 
   /terms:
     get:
-      summary: Terms of Use page
+      tags: [App]
+      summary: Redirect to the Terms of Use page
+      responses:
+        "302":
+          description: Redirects to /app/terms
+
+  /robots.txt:
+    get:
+      tags: [App]
+      summary: Robots policy
       responses:
         "200":
-          description: Returns rendered Terms of Use HTML
-        "503":
-          description: Terms unavailable
+          description: Plain-text robots policy
 
-  /cp2nus/webapp/bootstrap:
+  /sitemap.xml:
     get:
-      summary: Start cp2nus payment bootstrap
+      tags: [App]
+      summary: XML sitemap
+      responses:
+        "200":
+          description: XML sitemap
+
+  /website/lookup:
+    get:
+      tags: [Website]
+      summary: Look up meter balance, usage, or recent top-ups
       parameters:
-        - name: txtMtrId
-          in: query
-          required: true
-          schema:
-            type: string
-            example: "10000000"
-        - name: txtAmount
-          in: query
-          required: true
-          schema:
-            type: string
-            example: "10.00"
-        - name: chatId
+        - name: mode
           in: query
           required: false
           schema:
             type: string
+            enum: [balance, usage, topups]
+            default: balance
+        - $ref: "#/components/parameters/MeterId"
+        - name: hostel
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [cp2, cp2nus, sutd]
+          description: Optional system hint. SUTD usage history is not currently available.
       responses:
         "200":
-          description: Bootstrap successful
+          description: Lookup result
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-                  redirectUrl:
-                    type: string
-                    example: /cp2nus/webapp/pay?token=abc123
+                $ref: "#/components/schemas/WebsiteLookupResponse"
         "400":
-          description: Invalid input
-        "500":
-          description: Bootstrap failed
+          description: Invalid lookup mode, hostel, or meter ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Rate limited
+        "502":
+          description: Upstream lookup failed
 
-  /cp2nus/webapp/session:
-    get:
-      summary: Get cp2nus payment session
-      parameters:
-        - name: token
-          in: query
-          required: true
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Session details
-        "400":
-          description: Session expired
-
-  /cp2nus/webapp/enets_pay:
+  /website/feedback:
     post:
-      summary: Submit cp2nus encrypted eNETS payment form
-      requestBody:
-        required: true
-        content:
-          application/x-www-form-urlencoded:
-            schema:
-              type: object
-              required:
-                - token
-                - enc
-                - netsMid
-                - merchantTxnRef
-              properties:
-                token:
-                  type: string
-                enc:
-                  type: string
-                netsMid:
-                  type: string
-                netsTxnRef:
-                  type: string
-                merchantTxnRef:
-                  type: string
-                txnRand:
-                  type: string
-                name:
-                  type: string
-                expiryMonth:
-                  type: string
-                expiryYear:
-                  type: string
-      responses:
-        "200":
-          description: Payment processed
-        "400":
-          description: Missing or invalid fields
-        "500":
-          description: Payment error
-
-  /cp2nus/webapp/notify:
-    post:
-      summary: Notify Telegram chat about transaction result
+      tags: [Website]
+      summary: Submit website feedback
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required:
-                - token
+              required: [rating]
               properties:
-                token:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                message:
                   type: string
+                  maxLength: 2000
+                contact:
+                  type: string
+                  maxLength: 160
+      responses:
+        "200":
+          description: Feedback accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OkResponse"
+        "400":
+          description: Invalid rating
+        "429":
+          description: Rate limited
+
+  /webapp:
+    get:
+      tags: [CP2]
+      summary: Start the CP2 browser/WebApp entry flow
+      parameters:
+        - $ref: "#/components/parameters/MeterId"
+        - $ref: "#/components/parameters/Amount"
+        - $ref: "#/components/parameters/ChatId"
+      responses:
+        "302":
+          description: Redirects to /app/loading with meter details when available
+        "400":
+          description: Missing or invalid input
+
+  /webapp/bootstrap:
+    get:
+      tags: [CP2]
+      summary: Create a CP2 payment session
+      parameters:
+        - $ref: "#/components/parameters/MeterId"
+        - $ref: "#/components/parameters/Amount"
+        - $ref: "#/components/parameters/ChatId"
+      responses:
+        "200":
+          description: Payment session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapResponse"
+        "400":
+          description: Invalid meter ID or amount
+        "429":
+          description: Rate limited
+        "500":
+          description: Bootstrap failed
+        "502":
+          description: EVS/eNETS upstream bootstrap failed
+
+  /webapp/session:
+    get:
+      tags: [CP2]
+      summary: Read a CP2 payment or result session
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "200":
+          description: Session details. Payment pages require tokenKind=payment; result pages require tokenKind=result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          description: Missing, invalid, or expired token
+
+  /webapp/pay:
+    get:
+      tags: [CP2]
+      summary: Redirect to the CP2 React card payment page
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "302":
+          description: Redirects to /app/pay
+        "400":
+          description: Missing, invalid, expired, or wrong-kind token
+
+  /webapp/enets_pay:
+    post:
+      tags: [CP2]
+      summary: Submit encrypted CP2 card details to eNETS
+      requestBody:
+        $ref: "#/components/requestBodies/EncryptedPaymentForm"
+      responses:
+        "200":
+          description: Payment processed and result token returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResultResponse"
+        "400":
+          description: Missing fields or invalid/expired/wrong-kind payment token
+        "409":
+          description: Duplicate payment submit is already processing
+        "500":
+          description: Payment error
+        "502":
+          description: eNETS or EVS callback parsing failed
+
+  /webapp/result:
+    get:
+      tags: [CP2]
+      summary: Redirect to the CP2 React result page
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "302":
+          description: Redirects to /app/result
+        "400":
+          description: Missing, invalid, expired, or wrong-kind token
+
+  /webapp/balance:
+    get:
+      tags: [CP2]
+      summary: Fetch the latest CP2 balance for a session meter
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "200":
+          description: Balance lookup result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceResponse"
+        "400":
+          description: Invalid or expired token
+        "502":
+          description: Upstream balance lookup failed
+
+  /webapp/notify:
+    post:
+      tags: [CP2]
+      summary: Best-effort Telegram notification fallback
+      requestBody:
+        $ref: "#/components/requestBodies/TokenJson"
       responses:
         "200":
           description: Notification accepted
+
+  /cp2nus/webapp:
+    get:
+      tags: [CP2NUS]
+      summary: Start the CP2NUS browser/WebApp entry flow
+      parameters:
+        - $ref: "#/components/parameters/MeterId"
+        - $ref: "#/components/parameters/Amount"
+        - $ref: "#/components/parameters/ChatId"
+      responses:
+        "302":
+          description: Redirects to /app/cp2nus/loading
+        "400":
+          description: Missing or invalid input
+
+  /cp2nus/webapp/bootstrap:
+    get:
+      tags: [CP2NUS]
+      summary: Create a CP2NUS payment session
+      parameters:
+        - $ref: "#/components/parameters/MeterId"
+        - $ref: "#/components/parameters/Amount"
+        - $ref: "#/components/parameters/ChatId"
+      responses:
+        "200":
+          description: Payment session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapResponse"
+        "400":
+          description: Invalid meter ID or amount
+        "429":
+          description: Rate limited
+        "500":
+          description: Bootstrap failed
+
+  /cp2nus/webapp/session:
+    get:
+      tags: [CP2NUS]
+      summary: Read a CP2NUS payment or result session
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          description: Missing, invalid, or expired token
+
+  /cp2nus/webapp/pay:
+    get:
+      tags: [CP2NUS]
+      summary: Redirect to the CP2NUS React card payment page
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "302":
+          description: Redirects to /app/cp2nus/pay
+        "400":
+          description: Missing, invalid, expired, or wrong-kind token
+
+  /cp2nus/webapp/enets_pay:
+    post:
+      tags: [CP2NUS]
+      summary: Submit encrypted CP2NUS card details to eNETS
+      requestBody:
+        $ref: "#/components/requestBodies/EncryptedPaymentForm"
+      responses:
+        "200":
+          description: Payment processed and result token returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResultResponse"
+        "400":
+          description: Missing fields or invalid/expired/wrong-kind payment token
+        "409":
+          description: Duplicate payment submit is already processing
+        "500":
+          description: Payment error
+
+  /cp2nus/webapp/result:
+    get:
+      tags: [CP2NUS]
+      summary: Redirect to the CP2NUS React result page
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "302":
+          description: Redirects to /app/cp2nus/result
+        "400":
+          description: Missing, invalid, expired, or wrong-kind token
+
+  /cp2nus/webapp/receipt:
+    get:
+      tags: [CP2NUS]
+      summary: Return a cached CP2NUS receipt PDF when available
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "200":
+          description: Receipt PDF
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Receipt is unavailable or token is not a result token
+
+  /cp2nus/webapp/balance:
+    get:
+      tags: [CP2NUS]
+      summary: Fetch the latest CP2NUS balance for a session meter
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "200":
+          description: Balance lookup result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceResponse"
+        "400":
+          description: Invalid or expired token
+        "502":
+          description: Upstream balance lookup failed
+
+  /cp2nus/webapp/notify:
+    post:
+      tags: [CP2NUS]
+      summary: Best-effort Telegram notification fallback
+      requestBody:
+        $ref: "#/components/requestBodies/TokenJson"
+      responses:
+        "200":
+          description: Notification accepted
+
+  /sutd/webapp:
+    get:
+      tags: [SUTD]
+      summary: Start the SUTD browser/WebApp entry flow
+      parameters:
+        - $ref: "#/components/parameters/MeterId"
+        - $ref: "#/components/parameters/Amount"
+        - $ref: "#/components/parameters/ChatId"
+      responses:
+        "302":
+          description: Redirects to /app/sutd/loading
+        "400":
+          description: Missing or invalid input
+
+  /sutd/webapp/bootstrap:
+    get:
+      tags: [SUTD]
+      summary: Create a SUTD payment session
+      parameters:
+        - $ref: "#/components/parameters/MeterId"
+        - $ref: "#/components/parameters/Amount"
+        - $ref: "#/components/parameters/ChatId"
+      responses:
+        "200":
+          description: Payment session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BootstrapResponse"
+        "400":
+          description: Invalid meter ID or amount
+        "429":
+          description: Rate limited
+        "500":
+          description: Bootstrap failed
+
+  /sutd/webapp/session:
+    get:
+      tags: [SUTD]
+      summary: Read a SUTD payment or result session
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "200":
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          description: Missing, invalid, or expired token
+
+  /sutd/webapp/pay:
+    get:
+      tags: [SUTD]
+      summary: Redirect to the SUTD React card payment page
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "302":
+          description: Redirects to /app/sutd/pay
+        "400":
+          description: Missing, invalid, expired, or wrong-kind token
+
+  /sutd/webapp/enets_pay:
+    post:
+      tags: [SUTD]
+      summary: Submit encrypted SUTD card details to eNETS
+      requestBody:
+        $ref: "#/components/requestBodies/EncryptedPaymentForm"
+      responses:
+        "200":
+          description: Payment processed and result token returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaymentResultResponse"
+        "400":
+          description: Missing fields or invalid/expired/wrong-kind payment token
+        "409":
+          description: Duplicate payment submit is already processing
+        "500":
+          description: Payment error
+        "502":
+          description: eNETS or SUTD callback parsing failed
+
+  /sutd/webapp/result:
+    get:
+      tags: [SUTD]
+      summary: Redirect to the SUTD React result page
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "302":
+          description: Redirects to /app/sutd/result
+        "400":
+          description: Missing, invalid, expired, or wrong-kind token
+
+  /sutd/webapp/balance:
+    get:
+      tags: [SUTD]
+      summary: Fetch the latest SUTD balance for a session meter
+      parameters:
+        - $ref: "#/components/parameters/Token"
+      responses:
+        "200":
+          description: Balance lookup result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BalanceResponse"
+        "400":
+          description: Invalid or expired token
+        "502":
+          description: Upstream balance lookup failed
+
+  /sutd/webapp/notify:
+    post:
+      tags: [SUTD]
+      summary: Best-effort Telegram notification fallback
+      requestBody:
+        $ref: "#/components/requestBodies/TokenJson"
+      responses:
+        "200":
+          description: Notification accepted
+
+components:
+  parameters:
+    MeterId:
+      name: txtMtrId
+      in: query
+      required: true
+      schema:
+        type: string
+        pattern: "^\\d{8}$"
+        example: "12345678"
+      description: Eight-digit EVS meter ID.
+    Amount:
+      name: txtAmount
+      in: query
+      required: true
+      schema:
+        type: string
+        example: "10.00"
+      description: Strict amount input. Plain numbers and `$`/`S$` prefixes are accepted; malformed mixed strings are rejected.
+    ChatId:
+      name: chatId
+      in: query
+      required: false
+      schema:
+        type: string
+      description: Telegram chat ID for bot-started flows.
+    Token:
+      name: token
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Sealed payment or result token.
+
+  requestBodies:
+    TokenJson:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [token]
+            properties:
+              token:
+                type: string
+    EncryptedPaymentForm:
+      required: true
+      content:
+        application/x-www-form-urlencoded:
+          schema:
+            type: object
+            required: [token, enc]
+            properties:
+              token:
+                type: string
+              enc:
+                type: string
+                description: RSA-encrypted card payload produced in the browser.
+              netsMid:
+                type: string
+              netsTxnRef:
+                type: string
+              merchantTxnRef:
+                type: string
+              txnRand:
+                type: string
+              keyId:
+                type: string
+              hmac:
+                type: string
+              name:
+                type: string
+              expiryMonth:
+                type: string
+                example: "12"
+              expiryYear:
+                type: string
+                example: "2028"
+              consumerEmail:
+                type: string
+                format: email
+              browserUserAgent:
+                type: string
+
+  schemas:
+    OkResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+
+    ErrorResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: false
+        code:
+          type: string
+          example: INVALID_AMOUNT
+        error:
+          type: string
+
+    BootstrapResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        stage:
+          type: string
+          example: enets_paymentlistener
+        redirectUrl:
+          type: string
+          example: /webapp/pay?token=abc123
+
+    SessionResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        tokenKind:
+          type: string
+          enum: [payment, result, ""]
+          description: Empty only for legacy tokens created before token kinds were added.
+        txtMtrId:
+          type: string
+          example: "12345678"
+        txtAmount:
+          type: string
+          example: "20"
+        address:
+          type: string
+        balance:
+          type: string
+        status:
+          type: string
+          example: pending
+        reason:
+          type: string
+        merchantTxnRef:
+          type: string
+        receiptAvailable:
+          type: boolean
+        chatId:
+          type: string
+        netsMid:
+          type: string
+        netsTxnRef:
+          type: string
+        n:
+          type: string
+          description: eNETS RSA modulus for CP2/SUTD.
+        e:
+          type: string
+          description: eNETS RSA exponent for CP2/SUTD.
+        rsaModulus:
+          type: string
+          description: eNETS RSA modulus for CP2NUS.
+        rsaExponent:
+          type: string
+          description: eNETS RSA exponent for CP2NUS.
+
+    PaymentResultResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        resultToken:
+          type: string
+          description: Sealed result token for the React result page.
+        source:
+          type: string
+          example: evs_transsum
+        status:
+          type: string
+          enum: [success, failure, unknown]
+        merchantTxnRef:
+          type: string
+        meterId:
+          type: string
+        address:
+          type: string
+        balance:
+          type: string
+        amount:
+          type: string
+        reason:
+          type: string
+
+    BalanceResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        txtMtrId:
+          type: string
+        address:
+          type: string
+        balance:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+
+    WebsiteLookupResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        mode:
+          type: string
+          enum: [balance, usage, topups]
+        meterId:
+          type: string
+        hostel:
+          type: string
+        address:
+          type: string
+        balance:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+        usage:
+          type: object
+          description: Present when mode=usage.
+        topups:
+          type: object
+          description: Present when mode=topups.

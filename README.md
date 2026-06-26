@@ -243,7 +243,7 @@ idle
 
 Payment sessions (created by `/webapp/bootstrap`) are sealed encrypted tokens with a **10-minute TTL**, separate from bot sessions. The token holds the meter ID, amount, address, balance, and eNETS gateway fields needed for payment. This avoids losing an active payment session when Railway Free wakes the service on a new process.
 
-Once `/webapp/enets_pay` has a final outcome, the server sends the Telegram payment notification immediately and returns a sealed result token with a **24-hour TTL**. The React result page reads outcome data from `GET /webapp/session?token=`; query params are never trusted for payment results. CP2NUS receipt PDFs are still held in a volatile in-memory cache, so the result page only shows the receipt link when that cache entry is available.
+Once `/webapp/enets_pay` has a final outcome, the server sends the Telegram payment notification immediately and returns a sealed result token with a **24-hour TTL**. Payment and result tokens carry an internal `tokenKind`; payment routes reject result tokens, and result routes reject payment tokens. The React result page reads outcome data from `GET /webapp/session?token=`; query params are never trusted for payment results. CP2NUS receipt PDFs are still held in a volatile in-memory cache, so the result page only shows the receipt link when that cache entry is available.
 
 ## User store
 
@@ -261,16 +261,19 @@ Note: threading only follows the original notification message. If the owner rep
 ├── server.js                        # Express entry point; serves React at /app/
 ├── routes/
 │   ├── cp2.js                    # WebApp + API routes for cp2
-│   └── cp2nus.js                 # WebApp + API routes for cp2nus
+│   ├── cp2nus.js                 # WebApp + API routes for cp2nus
+│   ├── sutd.js                   # WebApp + API routes for SUTD
+│   └── website.js                # Standalone website lookup + feedback API
 ├── services/
 │   ├── cp2Service.js             # Purchase flow: EVS WebPOS scraping + eNETS proxy
 │   ├── cp2nusService.js          # Purchase flow: EVS JSON API + eNETS PP + NETS API
+│   ├── sutdService.js            # SUTD balance, history, and WebPOS purchase flow
 │   ├── ore.js                    # ORE API: meter summary, usage history, top-up history
 │   ├── paymentSession.js         # Sealed payment/result tokens and receipt cache
 │   ├── paymentNotification.js    # Telegram payment result notification helper
 │   ├── paymentSubmitLock.js      # Short-lived duplicate payment submit guard
 │   ├── utils.js                  # HTML parsing, result normalisation, XSS escaping
-│   ├── validators.js             # Meter ID and amount validation
+│   ├── validators.js             # Meter ID validation and strict amount parsing
 │   ├── config.js                 # Base URLs and shared HTTP headers
 │   └── analytics.js              # Event tracking and exception capture
 ├── bot/
@@ -287,7 +290,8 @@ Note: threading only follows the original notification message. If the owner rep
     │   │   ├── HomePage.jsx      # Hostel selection + meter ID + amount entry
     │   │   ├── LoadingPage.jsx   # Spinner; calls /webapp/bootstrap
     │   │   ├── CardPaymentPage.jsx  # RSA card form; calls /webapp/enets_pay
-    │   │   └── ResultPage.jsx    # Payment outcome
+    │   │   ├── ResultPage.jsx    # Payment outcome
+    │   │   └── TermsPage.jsx     # Terms of Use
     │   ├── components/           # Card, DetailRow, Logo, ErrorCard
     │   └── lib/                  # rsa.js, cardBrand.js, validation.js
     └── __tests__/                # Vitest + Testing Library tests
@@ -299,6 +303,6 @@ Note: threading only follows the original notification message. If the owner rep
 - `/webapp/enets_pay` uses a process-local submit lock keyed by merchant transaction reference to reject duplicate in-flight payment submits with HTTP 409.
 - Card details are RSA-encrypted in the browser before being sent to the server. The server never sees plaintext card numbers or CVVs.
 - The cp2nus flow distinguishes between the top-level `netsMid` (`UMID_xxx`) and `paymtNetsMid` (acquiring MID from `paymtSvcInfoList[0]`). Using the wrong MID will cause the payment to fail silently.
-- Minimum top-up: **$6.00 SGD** · Maximum: **$50.00 SGD**
+- Accepted top-up amount input is strict: plain numbers plus common currency prefixes such as `$10` or `S$ 10.00`; malformed mixed strings are rejected. NUS minimum top-up is **$6.00 SGD**, SUTD minimum top-up is **$10.00 SGD**, and all systems currently cap top-ups at **$50.00 SGD**.
 - The website entry point (`/app/`) and the Telegram Mini App use the same Express routes and React pages — no separate codepaths.
 - Top-ups can be disabled at runtime with `/topupoff` (owner command) or at startup with `TOPUP_DISABLED=true`. Users in an active top-up session when the flag is set will have their session reset and see the maintenance message.
