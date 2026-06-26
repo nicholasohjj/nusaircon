@@ -392,10 +392,10 @@ describe("normalizeFinalOutcome", () => {
     expect(result.status).toBe("failure");
   });
 
-  test("defaults reason when missing", () => {
+  test("defaults to failure when outcome is missing", () => {
     const result = normalizeFinalOutcome({});
-    expect(result.reason).toBe("Payment completed.");
-    expect(result.status).toBe("success");
+    expect(result.reason).toBe("Unable to determine transaction outcome.");
+    expect(result.status).toBe("failure");
   });
 
   test("preserves other fields from parsed object", () => {
@@ -413,6 +413,14 @@ describe("normalizeFinalOutcome", () => {
     const result = normalizeFinalOutcome({
       status: "unknown",
       reason: "REJECTED BY FINANCIAL INSTITUTION",
+    });
+    expect(result.status).toBe("failure");
+  });
+
+  test("treats contact merchant reason as failure", () => {
+    const result = normalizeFinalOutcome({
+      status: "unknown",
+      reason: "Please contact Merchant",
     });
     expect(result.status).toBe("failure");
   });
@@ -459,11 +467,13 @@ describe("parseEvsTransactionSummary", () => {
     expect(result.meterId).toBeNull();
     expect(result.address).toBeNull();
     expect(result.amount).toBeNull();
+    expect(result.status).toBe("unknown");
   });
 
-  test("handles null input", () => {
+  test("returns unknown status for null input", () => {
     const result = parseEvsTransactionSummary(null);
-    expect(result.status).toBe("success");
+    expect(result.status).toBe("unknown");
+    expect(result.reason).toBe("Unable to determine transaction outcome.");
     expect(result.meterId).toBeNull();
   });
 });

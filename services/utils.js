@@ -146,6 +146,14 @@ function parseEvsTransactionSummary(html) {
     /Failed to purchase/i.test(body) ||
     /Transaction is rejected/i.test(body) ||
     (alertText != null && !/Thank You/i.test(alertText));
+  const hasTransactionSummary =
+    /Transaction Summary/i.test(title || body) &&
+    Boolean(merchantTxnRef || meterId || address || amount);
+  const status = isFailure
+    ? "failure"
+    : hasTransactionSummary
+      ? "success"
+      : "unknown";
 
   return {
     title,
@@ -153,10 +161,13 @@ function parseEvsTransactionSummary(html) {
     meterId,
     address,
     amount,
-    status: isFailure ? "failure" : "success",
-    reason: isFailure
-      ? alertText || "Transaction rejected."
-      : "Payment completed.",
+    status,
+    reason:
+      status === "failure"
+        ? alertText || "Transaction rejected."
+        : status === "success"
+          ? "Payment completed."
+          : "Unable to determine transaction outcome.",
   };
 }
 
@@ -273,11 +284,12 @@ function normalizeFinalOutcome(parsed = {}) {
     "Unable to determine transaction outcome.";
 
   const isFailure =
-    parsed.status === "failure" ||
+    parsed.status !== "success" ||
     /rejected by financial institution/i.test(reason) ||
+    /declin/i.test(reason) ||
     /failed to purchase/i.test(reason) ||
     /system error/i.test(reason) ||
-    /call merchant/i.test(reason);
+    /call merchant|contact merchant/i.test(reason);
 
   return {
     ...parsed,

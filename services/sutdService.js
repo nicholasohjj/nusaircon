@@ -753,6 +753,7 @@ module.exports = {
   getSutdRecentTopups,
   isValidSutdAmount,
   parseSutdMeterCredit,
+  parseSutdTransactionSummary,
   parseSutdTransactionRows,
   parseSutdWebposPageMessage,
   parseSutdWebposMeterDetails,
@@ -793,12 +794,25 @@ function parseSutdTransactionSummary(html) {
     /Failed to purchase/i.test(body) ||
     /Transaction is rejected/i.test(body) ||
     (alertText != null && !/Thank You/i.test(alertText));
+  const hasTransactionSummary =
+    /Transaction Summary/i.test(parsed.title || body) &&
+    Boolean(
+      parsed.merchantTxnRef || parsed.meterId || parsed.address || parsed.amount,
+    );
+  const status = isFailure
+    ? "failure"
+    : hasTransactionSummary
+      ? "success"
+      : "unknown";
 
   return {
     ...parsed,
-    status: isFailure ? "failure" : "success",
-    reason: isFailure
-      ? alertText || "Transaction rejected."
-      : "Payment completed.",
+    status,
+    reason:
+      status === "failure"
+        ? alertText || "Transaction rejected."
+        : status === "success"
+          ? "Payment completed."
+          : "Unable to determine transaction outcome.",
   };
 }

@@ -7,6 +7,7 @@ const {
   classifySutdWebposSelectOfferResponse,
   isValidSutdAmount,
   parseSutdMeterCredit,
+  parseSutdTransactionSummary,
   parseSutdTransactionRows,
   parseSutdWebposPageMessage,
   parseSutdWebposMeterDetails,
@@ -156,5 +157,11 @@ describe("sutdService", () => {
     expect(message).toBe(
       "You have 2 POS request in processing. Please try again 10 minutes later. You are not allowed to buy another package(Maximum TWO packages per household).",
     );
+  });
+
+  test("does not treat empty SUTD transaction summary as success", () => {
+    const summary = parseSutdTransactionSummary("");
+    expect(summary.status).toBe("unknown");
+    expect(summary.reason).toBe("Unable to determine transaction outcome.");
   });
 });
