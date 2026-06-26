@@ -137,6 +137,7 @@ describe("CardPaymentPage", () => {
     netsMid: "807574000",
     netsTxnRef: "TXN001",
     merchantTxnRef: "MTR001",
+    actionUrl: "https://www.enets.sg/GW2/uCredit/pay",
   };
 
   const TOKEN_PARAMS = { token: "test-token-abc" };
@@ -257,25 +258,22 @@ describe("CardPaymentPage", () => {
     });
   });
 
-  test("submits SUTD eNETS browser form fields", async () => {
+  test("hands SUTD eNETS fields to a browser-submitted form", async () => {
     window.RSAKey = class {
       setPublic() {}
       encrypt() {
         return "encrypted-card";
       }
     };
+    const submitSpy = vi
+      .spyOn(window.HTMLFormElement.prototype, "submit")
+      .mockImplementation(() => {});
 
-    vi.spyOn(global, "fetch")
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => SESSION,
-      })
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 502,
-        json: async () => ({ ok: false, error: "Controlled failure" }),
-      });
+    vi.spyOn(global, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => SESSION,
+    });
 
     renderWithRouter(<CardPaymentPage basePath="/sutd" />, TOKEN_PARAMS);
 
@@ -302,13 +300,17 @@ describe("CardPaymentPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Pay SGD 20\.00/i }));
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(2);
+      expect(submitSpy).toHaveBeenCalledTimes(1);
     });
 
-    const [, submitOptions] = global.fetch.mock.calls[1];
-    const body = new URLSearchParams(submitOptions.body);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
 
-    expect(global.fetch.mock.calls[1][0]).toBe("/sutd/webapp/enets_pay");
+    const form = document.querySelector(
+      'form[action="https://www.enets.sg/GW2/uCredit/pay"]',
+    );
+    const body = new URLSearchParams(new FormData(form));
+
+    expect(form).toBeTruthy();
     expect(body.get("pageId")).toBe("payment_page");
     expect(body.get("button")).toBe("submit");
     expect(body.get("e")).toBe("exponent");
@@ -321,6 +323,7 @@ describe("CardPaymentPage", () => {
     expect(body.get("merchantTxnRef")).toBe("MTR001");
     expect(body.get("netsTxnRef")).toBe("TXN001");
     expect(body.get("txnAmount")).toBe("2000");
+    expect(body.has("token")).toBe(false);
   });
 });
 

@@ -39,6 +39,41 @@ function safeRestartUrl(value) {
   }
 }
 
+function getExternalPaymentAction(session) {
+  const fallback = "https://www.enets.sg/GW2/uCredit/pay";
+
+  try {
+    const url = new URL(session?.actionUrl || fallback);
+    const allowedOrigins = new Set([
+      "https://www.enets.sg",
+      "https://www2.enets.sg",
+    ]);
+
+    return allowedOrigins.has(url.origin) ? url.toString() : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function submitExternalPostForm(action, fields) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  form.enctype = "application/x-www-form-urlencoded";
+  form.style.display = "none";
+
+  for (const [name, value] of fields.entries()) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+}
+
 // ── Field component ───────────────────────────────────────────────────────────
 
 function Field({ label, error, children }) {
@@ -249,8 +284,7 @@ export default function CardPaymentPage({ basePath = "" }) {
 
       const amtCents = String(Math.round(Number(txtAmount) * 100));
 
-      const payload = new URLSearchParams({
-        token,
+      const enetsFields = {
         browserJavaEnabled: "false",
         browserJavaScriptEnabled: "true",
         browserLanguage: navigator.language || "en-US",
@@ -267,9 +301,6 @@ export default function CardPaymentPage({ basePath = "" }) {
         netsMid: paymtNetsMid || netsMid,
         netsTxnRef: netsTxnRef || "",
         merchantTxnRef: merchantTxnRef || "",
-        txnRand,
-        keyId,
-        hmac,
         currencyCode: "SGD",
         txnAmount: amtCents,
         name,
@@ -281,6 +312,23 @@ export default function CardPaymentPage({ basePath = "" }) {
         agree: "Y",
         x: "0",
         y: "0",
+      };
+
+      if (basePath === "/sutd") {
+        setBtnLabel("Opening eNETS…");
+        submitExternalPostForm(
+          getExternalPaymentAction(session),
+          new URLSearchParams(enetsFields),
+        );
+        return;
+      }
+
+      const payload = new URLSearchParams({
+        token,
+        ...enetsFields,
+        txnRand,
+        keyId,
+        hmac,
         imgPayMode: "on",
         meterId,
         address,

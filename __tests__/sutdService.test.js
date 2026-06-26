@@ -164,4 +164,50 @@ describe("sutdService", () => {
     expect(summary.status).toBe("unknown");
     expect(summary.reason).toBe("Unable to determine transaction outcome.");
   });
+
+  test("parses SUTD financial institution rejection summary", () => {
+    const summary = parseSutdTransactionSummary(`
+      <html>
+        <head><title>EVS POS Transaction Summary Page</title></head>
+        <body>
+          <form method="post" action="https://nus-utown.evs.com.sg/EVSSUTDWebPOS/transSumServlet?status=0&amp;id=RP26062600000036"></form>
+          <table>
+            <tr>
+              <td><b>Meter ID</b></td>
+              <td><b>:</b></td>
+              <td><b><u>20000595</u></b></td>
+            </tr>
+            <tr>
+              <td><b>Address</b></td>
+              <td><b>:</b></td>
+              <td><b><u>59 , 9 , 91 , NA</u></b></td>
+            </tr>
+            <tr>
+              <td colspan="3"><b> Failed to purchase the following :</b></td>
+            </tr>
+            <tr>
+              <td><b>Total Amount (Inclusive of GST)</b></td>
+              <td><b>:</b></td>
+              <td><b>S$ 10.00</b></td>
+            </tr>
+            <tr>
+              <td colspan="3">
+                <span name="lblAlert" id="lblAlert">Transaction is rejected by financial institution.</span>
+              </td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `);
+
+    expect(summary).toMatchObject({
+      title: "EVS POS Transaction Summary Page",
+      merchantTxnRef: "RP26062600000036",
+      meterId: "20000595",
+      address: "59 , 9 , 91 , NA",
+      amount: "S$ 10.00",
+      status: "failure",
+      reason: "Transaction is rejected by financial institution.",
+    });
+  });
 });

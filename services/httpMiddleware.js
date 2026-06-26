@@ -35,7 +35,7 @@ const appSecurityHeaders = helmet({
       defaultSrc: ["'self'"],
       baseUri: ["'self'"],
       fontSrc: ["'self'", "data:"],
-      formAction: ["'self'"],
+      formAction: ["'self'", "https://www.enets.sg", "https://www2.enets.sg"],
       frameAncestors: [
         "'self'",
         "https://web.telegram.org",
