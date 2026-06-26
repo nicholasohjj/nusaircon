@@ -7,7 +7,7 @@ const {
   extractMerchantTxnRef,
   htmlDecode,
 } = require("./utils");
-const { isValidMeterId } = require("./validators");
+const { isValidMeterId, parsePaymentAmount } = require("./validators");
 
 const SUTD_MAIN_PATH = "/SUTDMain";
 const SUTD_BASE_URL = `${CP2_WEBPOS_BASE}${SUTD_MAIN_PATH}`;
@@ -26,8 +26,8 @@ function buildSutdPassword(meterId) {
 }
 
 function isValidSutdAmount(txtAmount) {
-  const amount = Number(String(txtAmount || "").replace(/[^0-9.]/g, ""));
-  return Number.isFinite(amount) && amount >= 10 && amount <= 50;
+  const amount = parsePaymentAmount(txtAmount);
+  return amount !== null && amount >= 10 && amount <= 50;
 }
 
 function sleep(ms) {
@@ -318,7 +318,7 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
     return { ...result, error: "Amount must be between $10.00 and $50.00." };
   }
 
-  const amountDollars = Number(String(txtAmount).replace(/[^0-9.]/g, ""));
+  const amountDollars = parsePaymentAmount(txtAmount);
   const amountCents = Math.round(amountDollars * 100);
   const { client, jar } = createSutdClient();
 

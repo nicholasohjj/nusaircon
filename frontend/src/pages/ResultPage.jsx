@@ -61,6 +61,9 @@ export default function ResultPage({ basePath = "" }) {
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
         if (!data.ok) throw new Error(data.error || "Session not found.");
+        if (data.tokenKind && data.tokenKind !== "result") {
+          throw new Error("Session not found.");
+        }
         return data;
       })
       .then(setSession)

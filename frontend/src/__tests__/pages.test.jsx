@@ -231,6 +231,23 @@ describe("CardPaymentPage", () => {
     });
   });
 
+  test("rejects a result token on the payment page", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...SESSION, tokenKind: "result" }),
+    });
+
+    renderWithRouter(<CardPaymentPage basePath="" />, TOKEN_PARAMS);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid payment session/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Start Again/i }),
+      ).toBeInTheDocument();
+    });
+  });
+
   test("renders meter ID and amount in summary after session loads", async () => {
     vi.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
@@ -391,6 +408,28 @@ describe("ResultPage", () => {
       expect(screen.getByText("Top-Up Successful")).toBeInTheDocument();
     });
     expect(screen.getByText("Balance before top-up")).toBeInTheDocument();
+  });
+
+  test("rejects a payment token on the result page", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        tokenKind: "payment",
+        status: "pending",
+        txtMtrId: "12345678",
+        txtAmount: "20",
+      }),
+    });
+
+    renderWithRouter(<ResultPage basePath="" />, { token: "test-token" });
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: /Session Expired/i }),
+      ).toBeInTheDocument();
+    });
   });
 
   test("renders negative pre-top-up balance with its sign", async () => {
@@ -888,6 +927,17 @@ describe("HomePage › validation", () => {
     renderHomePage();
     fireEvent.change(screen.getByPlaceholderText(/6\.00/i), {
       target: { value: "100" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
+    expect(
+      screen.getByText(/Between \$6\.00 and \$50\.00/i),
+    ).toBeInTheDocument();
+  });
+
+  test("shows amount error for malformed decimals", () => {
+    renderHomePage();
+    fireEvent.change(screen.getByPlaceholderText(/6\.00/i), {
+      target: { value: "10.001" },
     });
     fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
     expect(

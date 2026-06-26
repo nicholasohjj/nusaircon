@@ -16,7 +16,11 @@ const {
   resolveUpstreamLocation,
 } = require("../services/utils");
 
-const { isValidMeterId, isValidAmount } = require("../services/validators");
+const {
+  isValidMeterId,
+  isValidAmount,
+  parsePaymentAmount,
+} = require("../services/validators");
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -252,6 +256,11 @@ describe("isValidAmount", () => {
     expect(isValidAmount("30.50")).toBe(true);
   });
 
+  test("accepts common currency prefixes", () => {
+    expect(isValidAmount("$6")).toBe(true);
+    expect(isValidAmount("S$ 30.50")).toBe(true);
+  });
+
   test("rejects below minimum", () => {
     expect(isValidAmount(5.99)).toBe(false);
     expect(isValidAmount("5")).toBe(false);
@@ -271,6 +280,27 @@ describe("isValidAmount", () => {
 
   test("rejects non-numeric strings", () => {
     expect(isValidAmount("abc")).toBe(false);
+  });
+
+  test("rejects mixed or malformed amount strings", () => {
+    expect(isValidAmount("abc10")).toBe(false);
+    expect(isValidAmount("10abc")).toBe(false);
+    expect(isValidAmount("10.001")).toBe(false);
+    expect(isValidAmount("10.0.0")).toBe(false);
+  });
+});
+
+describe("parsePaymentAmount", () => {
+  test("returns normalized numeric amounts", () => {
+    expect(parsePaymentAmount("S$ 12.30")).toBe(12.3);
+    expect(parsePaymentAmount("$12")).toBe(12);
+    expect(parsePaymentAmount(12)).toBe(12);
+  });
+
+  test("returns null for invalid amounts", () => {
+    expect(parsePaymentAmount("abc10")).toBeNull();
+    expect(parsePaymentAmount("")).toBeNull();
+    expect(parsePaymentAmount(Number.NaN)).toBeNull();
   });
 });
 

@@ -126,8 +126,17 @@ function consumePaymentSession(token) {
   return getPaymentSession(token);
 }
 
-function getPaymentSession(token) {
-  return unseal(token);
+function getPaymentSession(token, expectedKind = null) {
+  const session = unseal(token);
+  if (!session) return null;
+  if (
+    expectedKind &&
+    session.tokenKind &&
+    session.tokenKind !== expectedKind
+  ) {
+    return null;
+  }
+  return session;
 }
 
 function storeReceiptPdf(receiptPdf) {
@@ -142,7 +151,7 @@ function storeReceiptPdf(receiptPdf) {
 }
 
 function getReceiptPdf(token) {
-  const session = getPaymentSession(token);
+  const session = getPaymentSession(token, "result");
   const receiptId = session?.receiptId;
   if (!receiptId) return null;
 

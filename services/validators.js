@@ -2,9 +2,24 @@ function isValidMeterId(txtMtrId) {
   return /^\d{8}$/.test(String(txtMtrId || "").trim());
 }
 
+function parsePaymentAmount(txtAmount) {
+  if (typeof txtAmount === "number") {
+    return Number.isFinite(txtAmount) ? txtAmount : null;
+  }
+
+  const value = String(txtAmount ?? "").trim();
+  if (!value) return null;
+
+  const match = /^(?:S\$\s*|\$\s*)?(\d+(?:\.\d{1,2})?)$/i.exec(value);
+  if (!match) return null;
+
+  const amount = Number(match[1]);
+  return Number.isFinite(amount) ? amount : null;
+}
+
 function isValidAmount(txtAmount) {
-  const amount = Number(String(txtAmount || "").replace(/[^0-9.]/g, ""));
-  return Number.isFinite(amount) && amount >= 6 && amount <= 50;
+  const amount = parsePaymentAmount(txtAmount);
+  return amount !== null && amount >= 6 && amount <= 50;
 }
 
 function validationError({ txtMtrId, txtAmount }) {
@@ -34,5 +49,6 @@ function validationError({ txtMtrId, txtAmount }) {
 module.exports = {
   isValidAmount,
   isValidMeterId,
+  parsePaymentAmount,
   validationError,
 };

@@ -7,7 +7,11 @@ const {
 } = require("./config");
 const { extractHiddenField } = require("./utils");
 const { isCp2Meter } = require("./cp2Service");
-const { isValidAmount, isValidMeterId } = require("./validators");
+const {
+  isValidAmount,
+  isValidMeterId,
+  parsePaymentAmount,
+} = require("./validators");
 const { getMeterSummary } = require("./ore");
 const FIXED_USER_ID = "5771";
 
@@ -222,7 +226,6 @@ async function runBootstrap({ txtMtrId, txtAmount }) {
       };
     }
 
-    const amount = Number(String(txtAmount).replace(/[^0-9.]/g, ""));
     if (!isValidAmount(txtAmount))
       return {
         ok: false,
@@ -230,6 +233,7 @@ async function runBootstrap({ txtMtrId, txtAmount }) {
         code: "INVALID_AMOUNT",
         error: "Amount must be between $6.00 and $50.00.",
       };
+    const amount = parsePaymentAmount(txtAmount);
 
     debug.stage = "meter_system_check";
     let cp2Check = false;

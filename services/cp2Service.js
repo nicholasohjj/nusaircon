@@ -9,7 +9,11 @@ const {
   resolveUpstreamLocation,
   htmlDecode,
 } = require("./utils");
-const { isValidAmount, isValidMeterId } = require("../services/validators");
+const {
+  isValidAmount,
+  isValidMeterId,
+  parsePaymentAmount,
+} = require("../services/validators");
 const {
   WEBPOS_HEADERS,
   CP2_WEBPOS_BASE,
@@ -72,9 +76,8 @@ async function runPurchaseFlow({ txtMtrId, txtAmount }) {
     return { ...result, error: "Amount must be between $6.00 and $50.00." };
   }
 
-  const cleanedAmount = String(txtAmount).replace(/[^0-9.]/g, "");
-  const amountDollars = Number(cleanedAmount);
-  if (!Number.isFinite(amountDollars) || amountDollars <= 0) {
+  const amountDollars = parsePaymentAmount(txtAmount);
+  if (amountDollars === null || amountDollars <= 0) {
     return { ...result, error: "Invalid txtAmount" };
   }
 

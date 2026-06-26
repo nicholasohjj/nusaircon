@@ -34,6 +34,7 @@ describe("paymentSession sealed tokens", () => {
     expect(session.txtMtrId).toBe("12345678");
     expect(session.txtAmount).toBe("20");
     expect(session.status).toBe("pending");
+    expect(session.tokenKind).toBe("payment");
     expect(session.nets.netsMid).toBe("807574000");
   });
 
@@ -88,6 +89,7 @@ describe("paymentSession sealed tokens", () => {
     const session = getPaymentSession(token);
 
     expect(session.status).toBe("success");
+    expect(session.tokenKind).toBe("result");
     expect(session.merchantTxnRef).toBe("MTR-001");
     expect(session.chatId).toBe("999");
     expect(session.nets).toBeUndefined();
@@ -112,5 +114,29 @@ describe("paymentSession sealed tokens", () => {
     );
 
     expect(getReceiptPdf(token).toString()).toBe("%PDF test");
+  });
+
+  test("rejects an explicit wrong token kind when requested", () => {
+    const {
+      createPaymentSession,
+      createPaymentResultSession,
+      getPaymentSession,
+    } = loadFreshPaymentSession();
+
+    const paymentToken = createPaymentSession({
+      txtMtrId: "12345678",
+      txtAmount: "20",
+      status: "pending",
+    });
+    const resultToken = createPaymentResultSession({
+      txtMtrId: "12345678",
+      txtAmount: "20",
+      status: "success",
+    });
+
+    expect(getPaymentSession(paymentToken, "payment")).toBeTruthy();
+    expect(getPaymentSession(resultToken, "result")).toBeTruthy();
+    expect(getPaymentSession(paymentToken, "result")).toBeNull();
+    expect(getPaymentSession(resultToken, "payment")).toBeNull();
   });
 });

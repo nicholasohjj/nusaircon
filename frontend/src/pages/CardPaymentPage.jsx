@@ -167,6 +167,11 @@ export default function CardPaymentPage({ basePath = "" }) {
           err.expired = expired;
           throw err;
         }
+        if (data.tokenKind && data.tokenKind !== "payment") {
+          const err = new Error("Invalid payment session.");
+          err.expired = true;
+          throw err;
+        }
         return data;
       })
       .then((data) => {

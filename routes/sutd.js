@@ -234,7 +234,7 @@ router.get("/webapp/pay", (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).send(errorPage("Missing payment token."));
 
-  const session = getPaymentSession(token);
+  const session = getPaymentSession(token, "payment");
   if (!session) {
     return res
       .status(400)
@@ -255,7 +255,7 @@ router.get("/webapp/result", (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).send(errorPage("Missing result token."));
 
-  const session = getPaymentSession(token);
+  const session = getPaymentSession(token, "result");
   if (!session) {
     return res
       .status(400)
@@ -291,10 +291,12 @@ router.get("/webapp/session", (req, res) => {
     merchantTxnRef,
     receiptId,
     chatId,
+    tokenKind,
   } = session;
 
   return res.json({
     ok: true,
+    tokenKind: tokenKind || "",
     txtMtrId,
     txtAmount,
     address: address || "",
@@ -349,7 +351,7 @@ router.post(
     let releaseSubmitLock = null;
     try {
       const { token } = req.body;
-      const session = getPaymentSession(token);
+      const session = getPaymentSession(token, "payment");
       if (!session) {
         return res
           .status(400)

@@ -52,8 +52,11 @@ describe("sutdService", () => {
   test("validates SUTD top-up amount range", () => {
     expect(isValidSutdAmount("10")).toBe(true);
     expect(isValidSutdAmount("50.00")).toBe(true);
+    expect(isValidSutdAmount("S$ 10.00")).toBe(true);
     expect(isValidSutdAmount("9.99")).toBe(false);
     expect(isValidSutdAmount("50.01")).toBe(false);
+    expect(isValidSutdAmount("abc10")).toBe(false);
+    expect(isValidSutdAmount("10.001")).toBe(false);
   });
 
   test("parses SUTD transaction history rows", () => {

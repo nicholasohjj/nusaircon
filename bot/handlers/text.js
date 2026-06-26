@@ -11,7 +11,11 @@ const {
 } = require("../../services/sutdService");
 const { saveUser } = require("../services/userStore");
 const { track } = require("../../services/analytics");
-const { isValidMeterId, isValidAmount } = require("../../services/validators");
+const {
+  isValidMeterId,
+  isValidAmount,
+  parsePaymentAmount,
+} = require("../../services/validators");
 const {
   withChatLock,
   getSession,
@@ -260,7 +264,7 @@ async function handleAwaitingAmount(ctx, chatId, text, session, config) {
     );
   }
 
-  const amt = Number(String(text).replace(/[^0-9.]/g, ""));
+  const amt = parsePaymentAmount(text);
   const isSutd = session.hostel === HOSTELS.SUTD;
   const validAmount = isSutd ? isValidSutdAmount(amt) : isValidAmount(amt);
   if (!validAmount) {

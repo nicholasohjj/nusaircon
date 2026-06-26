@@ -55,7 +55,14 @@ function isValidMeterId(v) {
 }
 
 function parseAmount(v) {
-  const n = Number(String(v || "").replace(/[^0-9.]/g, ""));
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+
+  const match = /^(?:S\$\s*|\$\s*)?(\d+(?:\.\d{1,2})?)$/i.exec(
+    String(v ?? "").trim(),
+  );
+  if (!match) return null;
+
+  const n = Number(match[1]);
   return Number.isFinite(n) ? n : null;
 }
 
