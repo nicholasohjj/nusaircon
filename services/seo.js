@@ -7,17 +7,28 @@ const SEO_HEAD_END = "<!-- seo:head:end -->";
 
 const SITE_NAME = "EVS Meter Tools";
 const HOME_DESCRIPTION =
-  "Check supported EVS meter balances and top-up history, and top up supported NUS EVS meters online.";
+  "Check supported NUS and SUTD EVS meter balances and top-up history, and top up supported EVS meters online.";
+const SUTD_DESCRIPTION =
+  "Check SUTD EVS meter balances and top-up history, and top up supported SUTD EVS meters online.";
 const TERMS_DESCRIPTION =
   "Terms of Use for the unofficial EVS Meter Tools bot and web app for supported EVS electricity meters.";
 
 const PUBLIC_PAGE_SEO = {
   "/app/": {
-    title: "EVS Meter Tools | Payments and Lookup",
+    title: "NUS and SUTD EVS Top Up | EVS Meter Tools",
     description: HOME_DESCRIPTION,
     canonicalPath: "/app/",
     ogType: "website",
     schemaType: "WebApplication",
+    audienceType: "NUS and SUTD EVS meter users",
+  },
+  "/app/sutd": {
+    title: "SUTD EVS Top Up | EVS Meter Tools",
+    description: SUTD_DESCRIPTION,
+    canonicalPath: "/app/sutd",
+    ogType: "website",
+    schemaType: "WebApplication",
+    audienceType: "SUTD EVS meter users",
   },
   "/app/terms": {
     title: "Terms of Use | EVS Meter Tools",
@@ -78,6 +89,7 @@ function buildRobotsTxt(baseUrl = "") {
   const lines = [
     "User-agent: *",
     "Allow: /app/",
+    "Allow: /app/sutd",
     "Allow: /app/terms",
     "Allow: /assets/",
     "Disallow: /api",
@@ -143,7 +155,7 @@ function buildStructuredData(metadata, baseUrl = "") {
       isAccessibleForFree: true,
       audience: {
         "@type": "Audience",
-        audienceType: "Supported EVS meter users",
+        audienceType: metadata.audienceType || "Supported EVS meter users",
       },
       termsOfService: absoluteUrl(baseUrl, "/app/terms"),
     };
@@ -262,7 +274,7 @@ function injectSeoHead(html = "", pathname = "/app/", baseUrl = "") {
 
 function buildSitemapXml(baseUrl = "") {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
-  const urls = ["/app/", "/app/terms"];
+  const urls = ["/app/", "/app/sutd", "/app/terms"];
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">

@@ -11,6 +11,7 @@ export default function App() {
       <Routes>
         {/* Entry point — hostel selection + meter details */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/sutd" element={<HomePage initialGroupId="sutd" />} />
         <Route path="/terms" element={<TermsPage />} />
 
         {/* cp2 flow — PGPR, PGP Houses, Residential Colleges, NUS College */}

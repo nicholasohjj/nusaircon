@@ -348,9 +348,14 @@ function TopupsResult({ result }) {
   );
 }
 
-export default function HomePage() {
+export default function HomePage({ initialGroupId = "" }) {
   const [activeMode, setActiveMode] = useState("topup");
-  const [groupIndex, setGroupIndex] = useState(null);
+  const initialGroupIndex = HOSTEL_GROUPS.findIndex(
+    (group) => group.id === initialGroupId,
+  );
+  const [groupIndex, setGroupIndex] = useState(
+    initialGroupIndex >= 0 ? initialGroupIndex : null,
+  );
   const [meterId, setMeterId] = useState("");
   const [meterLabel, setMeterLabel] = useState("");
   const [amount, setAmount] = useState("");

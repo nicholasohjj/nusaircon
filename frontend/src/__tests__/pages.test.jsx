@@ -27,10 +27,10 @@ function renderWithRouter(ui, params = {}) {
   );
 }
 
-function renderHomePage() {
+function renderHomePage(props = {}) {
   return render(
     <MemoryRouter>
-      <HomePage />
+      <HomePage {...props} />
     </MemoryRouter>,
   );
 }
@@ -658,6 +658,12 @@ describe("HomePage › hostel selection", () => {
     fireEvent.click(utownBtn);
     expect(pgprBtn.className).not.toMatch(/Active/i);
     expect(utownBtn.className).toMatch(/Active/i);
+  });
+
+  test("can start with SUTD selected for the SUTD landing route", () => {
+    renderHomePage({ initialGroupId: "sutd" });
+
+    expect(getSutdHostelButton().className).toMatch(/Active/i);
   });
 });
 

@@ -18,6 +18,7 @@ describe("SEO metadata", () => {
     const robots = buildRobotsTxt("https://example.com/");
 
     expect(robots).toContain("Allow: /app/");
+    expect(robots).toContain("Allow: /app/sutd");
     expect(robots).toContain("Allow: /app/terms");
     expect(robots).toContain("Disallow: /webapp");
     expect(robots).toContain("Disallow: /cp2nus/webapp");
@@ -29,6 +30,7 @@ describe("SEO metadata", () => {
     const sitemap = buildSitemapXml("https://example.com/");
 
     expect(sitemap).toContain("<loc>https://example.com/app/</loc>");
+    expect(sitemap).toContain("<loc>https://example.com/app/sutd</loc>");
     expect(sitemap).toContain("<loc>https://example.com/app/terms</loc>");
     expect(sitemap).not.toContain("webapp");
     expect(sitemap).not.toContain("pay");
@@ -37,11 +39,17 @@ describe("SEO metadata", () => {
 
   test("builds route-specific metadata for public pages", () => {
     const home = getSeoMetadata("/app/", "https://example.com/");
+    const sutd = getSeoMetadata("/app/sutd", "https://example.com/");
     const terms = getSeoMetadata("/app/terms", "https://example.com/");
 
-    expect(home.title).toBe("EVS Meter Tools | Payments and Lookup");
+    expect(home.title).toBe("NUS and SUTD EVS Top Up | EVS Meter Tools");
+    expect(home.description).toContain("NUS and SUTD EVS meter");
     expect(home.canonicalUrl).toBe("https://example.com/app/");
     expect(home.robots).toBe("index, follow");
+    expect(sutd.title).toBe("SUTD EVS Top Up | EVS Meter Tools");
+    expect(sutd.description).toContain("SUTD EVS meter balances");
+    expect(sutd.canonicalUrl).toBe("https://example.com/app/sutd");
+    expect(sutd.robots).toBe("index, follow");
     expect(terms.title).toBe("Terms of Use | EVS Meter Tools");
     expect(terms.canonicalUrl).toBe("https://example.com/app/terms");
   });
@@ -66,6 +74,8 @@ describe("SEO metadata", () => {
     expect(head).not.toContain('rel="canonical"');
     expect(shouldSendNoindexHeader("/app/pay")).toBe(true);
     expect(shouldSendNoindexHeader("/webapp/bootstrap")).toBe(true);
+    expect(shouldSendNoindexHeader("/app/sutd")).toBe(false);
+    expect(shouldSendNoindexHeader("/app/sutd/pay")).toBe(true);
     expect(shouldSendNoindexHeader("/app/terms")).toBe(false);
   });
 
