@@ -244,6 +244,12 @@ router.get("/webapp/receipt", (req, res) => {
   if (!receiptPdf) {
     return res.status(404).json({ ok: false, error: "Receipt not available." });
   }
+  const session = getPaymentSession(token);
+  track("receipt_viewed", {
+    meterId: session?.txtMtrId || null,
+    route: "cp2nus",
+    merchantTxnRef: session?.merchantTxnRef || null,
+  });
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader("Content-Disposition", 'inline; filename="receipt.pdf"');
   return res.send(receiptPdf);

@@ -1,0 +1,17 @@
+[
+  {
+    "event_name": "payment_completed",
+    "event_description": "User's SUTD payment completed successfully via the eNETS receipt fallback path.",
+    "file": "routes/sutd.js"
+  },
+  {
+    "event_name": "payment_failed",
+    "event_description": "User's SUTD payment failed via the eNETS receipt fallback path.",
+    "file": "routes/sutd.js"
+  },
+  {
+    "event_name": "receipt_viewed",
+    "event_description": "User viewed or downloaded the PDF payment receipt after a successful top-up.",
+    "file": "routes/cp2nus.js"
+  }
+]

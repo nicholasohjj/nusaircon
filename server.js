@@ -9,7 +9,7 @@ const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
 const sutd = require("./routes/sutd");
 const { router: websiteRoutes } = require("./routes/website");
-const { captureException } = require("./services/analytics");
+const { captureException, shutdownAnalytics } = require("./services/analytics");
 const {
   buildGoogleVerificationFileContent,
   buildRobotsTxt,
@@ -163,6 +163,7 @@ async function shutdown(signal) {
   console.log(`${signal} received, shutting down...`);
   server.close(async () => {
     await stopBot(signal);
+    await shutdownAnalytics();
     process.exit(0);
   });
 }

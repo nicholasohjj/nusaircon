@@ -511,6 +511,19 @@ router.post(
         completedAt: session.completedAt,
       });
 
+      track(
+        normalized.status === "success" ? "payment_completed" : "payment_failed",
+        {
+          route: "sutd",
+          meterId,
+          amount,
+          merchantTxnRef: session.merchantTxnRef,
+          status: normalized.status,
+          reason: normalized.reason || "",
+          source: "enets_receipt_fallback",
+        },
+      );
+
       return res.status(200).json({
         ok: true,
         resultToken,
