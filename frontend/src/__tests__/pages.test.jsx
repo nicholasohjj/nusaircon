@@ -1112,6 +1112,7 @@ describe("HomePage › lookup", () => {
 
 describe("HomePage › submission", () => {
   afterEach(() => {
+    delete window.__EVS_RUNTIME_CONFIG__;
     vi.restoreAllMocks();
   });
 
@@ -1145,6 +1146,40 @@ describe("HomePage › submission", () => {
     expect(assignSpy).toHaveBeenCalledWith(
       expect.not.stringContaining("cp2nus"),
     );
+  });
+
+  test("does not navigate when selected top-up system is disabled", () => {
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { ...window.location, href: "" },
+    });
+    Object.defineProperty(window.location, "href", {
+      set: assignSpy,
+      get: () => "",
+    });
+    window.__EVS_RUNTIME_CONFIG__ = {
+      topup: {
+        nus: {
+          disabled: true,
+          message: "Top-ups are temporarily unavailable.",
+        },
+        sutd: { disabled: false, message: "" },
+      },
+    };
+
+    renderHomePage();
+    fireEvent.click(getPgprHostelButton());
+    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "$20" }));
+
+    expect(
+      screen.getByText("Top-ups are temporarily unavailable."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continue/i })).toBeDisabled();
+    expect(assignSpy).not.toHaveBeenCalled();
   });
 
   test("navigates to cp2nus webapp URL on valid UTown submission", () => {

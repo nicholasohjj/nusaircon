@@ -15,8 +15,8 @@ const {
 const { getMeterSummary } = require("./ore");
 const FIXED_USER_ID = "5771";
 
-async function initPay({ username, amount }) {
-  const resp = await axios.post(
+async function requestInitPay({ username, amount }) {
+  return axios.post(
     `${EVS_API_BASE}/enets/init_pay`,
     {
       amount: String(amount),
@@ -35,6 +35,10 @@ async function initPay({ username, amount }) {
       validateStatus: () => true,
     },
   );
+}
+
+async function initPay({ username, amount }) {
+  const resp = await requestInitPay({ username, amount });
 
   if (resp.status !== 200)
     throw new Error(`init_pay returned HTTP ${resp.status}`);
@@ -48,6 +52,35 @@ async function initPay({ username, amount }) {
     txn_identifier: nets_resp.txn_identifier,
     req: nets_resp.req,
     sign: nets_resp.sign,
+  };
+}
+
+async function isCp2nusMeter(meterId, txtAmount = 6) {
+  if (!isValidMeterId(meterId)) {
+    return { ok: false, result: "invalid_meter_id", status: null };
+  }
+
+  const parsedAmount = parsePaymentAmount(txtAmount);
+  const amount = parsedAmount !== null && isValidAmount(parsedAmount)
+    ? parsedAmount
+    : 6;
+  const resp = await requestInitPay({ username: meterId, amount });
+
+  if (resp.status !== 200) {
+    return {
+      ok: false,
+      result: "http_error",
+      status: resp.status,
+    };
+  }
+
+  const { nets_resp } = resp.data || {};
+  const recognized = Boolean(nets_resp?.req && nets_resp?.sign);
+
+  return {
+    ok: recognized,
+    result: recognized ? "valid" : "invalid",
+    status: resp.status,
   };
 }
 
@@ -638,6 +671,7 @@ function parsePayResult(finalUrl, html) {
 
 module.exports = {
   initPay,
+  isCp2nusMeter,
   buildPayDisplayAddress,
   buildEnetsPayUrl,
   fetchEnvJsp,

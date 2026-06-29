@@ -24,6 +24,11 @@ const {
   paymentSubmitLimiter,
   securityHeaders,
 } = require("./services/httpMiddleware");
+const {
+  getWebsiteTopupStatus,
+  requireTopupEnabledJson,
+  requireTopupEnabledPage,
+} = require("./services/topupAvailability");
 const swaggerUi = require("swagger-ui-express");
 const YAML = require("yamljs");
 const {
@@ -69,9 +74,19 @@ function sendAppIndex(req, res, next) {
   fs.readFile(appIndexPath, "utf8", (err, html) => {
     if (err) return next(err);
 
+    const runtimeConfigScript = `<script>window.__EVS_RUNTIME_CONFIG__=${JSON.stringify({
+      topup: getWebsiteTopupStatus(),
+    }).replace(/</g, "\\u003c")};</script>`;
+    const htmlWithRuntimeConfig = html.replace(
+      "</head>",
+      `${runtimeConfigScript}</head>`,
+    );
+
     res
       .type("html")
-      .send(injectSeoHead(html, req.path, getPublicBaseUrl(req)));
+      .send(
+        injectSeoHead(htmlWithRuntimeConfig, req.path, getPublicBaseUrl(req)),
+      );
   });
 }
 
@@ -110,6 +125,13 @@ app.get(/^\/app$/, (req, res) => {
   res.redirect(301, "/app/");
 });
 
+app.get(/^\/app\/(?:loading|pay)\/?$/, requireTopupEnabledPage("nus"));
+app.get(
+  /^\/app\/cp2nus\/(?:loading|pay)\/?$/,
+  requireTopupEnabledPage("nus"),
+);
+app.get(/^\/app\/sutd\/(?:loading|pay)\/?$/, requireTopupEnabledPage("sutd"));
+
 app.get(/^\/app\/.*$/, sendAppIndex);
 
 app.get("/health", (req, res) => res.status(200).json({ ok: true }));
@@ -123,6 +145,19 @@ if (process.env.NODE_ENV !== "production") {
 }
 app.use("/website", websiteRoutes);
 app.use("/api", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+
+app.get("/webapp", requireTopupEnabledPage("nus"));
+app.get("/cp2nus/webapp", requireTopupEnabledPage("nus"));
+app.get("/sutd/webapp", requireTopupEnabledPage("sutd"));
+app.get("/webapp/pay", requireTopupEnabledPage("nus"));
+app.get("/cp2nus/webapp/pay", requireTopupEnabledPage("nus"));
+app.get("/sutd/webapp/pay", requireTopupEnabledPage("sutd"));
+app.get("/webapp/bootstrap", requireTopupEnabledJson("nus"));
+app.get("/cp2nus/webapp/bootstrap", requireTopupEnabledJson("nus"));
+app.get("/sutd/webapp/bootstrap", requireTopupEnabledJson("sutd"));
+app.post("/webapp/enets_pay", requireTopupEnabledJson("nus"));
+app.post("/cp2nus/webapp/enets_pay", requireTopupEnabledJson("nus"));
+app.post("/sutd/webapp/enets_pay", requireTopupEnabledJson("sutd"));
 
 app.use("/webapp/bootstrap", paymentBootstrapLimiter);
 app.use("/cp2nus/webapp/bootstrap", paymentBootstrapLimiter);

@@ -18,6 +18,7 @@ A Telegram bot and web app for supported EVS electricity meters. Supported NUS a
 - RSA-encrypted card entry — card details never leave the browser in plaintext
 - Works as a Telegram Mini App and as a standalone website
 - Cross-system guard: cp2nus bootstrap rejects meters that belong to the cp2 system before initiating payment
+- Cross-system guard: cp2 bootstrap rejects meters that appear to belong to the cp2nus system before initiating payment
 - SUTD balance, top-up history, and top-up support
 - Analytics tracking and error capture throughout the flow
 
@@ -305,4 +306,4 @@ Note: threading only follows the original notification message. If the owner rep
 - The cp2nus flow distinguishes between the top-level `netsMid` (`UMID_xxx`) and `paymtNetsMid` (acquiring MID from `paymtSvcInfoList[0]`). Using the wrong MID will cause the payment to fail silently.
 - Accepted top-up amount input is strict: plain numbers plus common currency prefixes such as `$10` or `S$ 10.00`; malformed mixed strings are rejected. NUS minimum top-up is **$6.00 SGD**, SUTD minimum top-up is **$10.00 SGD**, and all systems currently cap top-ups at **$50.00 SGD**.
 - The website entry point (`/app/`) and the Telegram Mini App use the same Express routes and React pages — no separate codepaths.
-- Top-ups can be disabled at runtime with `/topupoff` (owner command) or at startup with `TOPUP_DISABLED=true`. Users in an active top-up session when the flag is set will have their session reset and see the maintenance message.
+- Top-ups can be disabled at runtime with `/topupoff` (owner command) or at startup with `TOPUP_DISABLED=true`. Bot users in an active top-up session when the flag is set will have their session reset and see the maintenance message. Website payment start, loading, card, bootstrap, and card-submit routes also return the maintenance response while top-ups are disabled; lookup, terms, result, and feedback routes remain available.

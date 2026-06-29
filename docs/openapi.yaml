@@ -129,6 +129,18 @@ paths:
         "429":
           description: Rate limited
 
+  /website/topup-status:
+    get:
+      tags: [Website]
+      summary: Read current top-up availability for website flows
+      responses:
+        "200":
+          description: Current NUS and SUTD top-up availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TopupStatusResponse"
+
   /webapp:
     get:
       tags: [CP2]
@@ -627,6 +639,36 @@ components:
           example: INVALID_AMOUNT
         error:
           type: string
+
+    TopupAvailability:
+      type: object
+      properties:
+        audience:
+          type: string
+          enum: [nus, sutd]
+        botAudience:
+          type: string
+          enum: [nus, sutd]
+        enabled:
+          type: boolean
+        disabled:
+          type: boolean
+        message:
+          type: string
+
+    TopupStatusResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          example: true
+        topup:
+          type: object
+          properties:
+            nus:
+              $ref: "#/components/schemas/TopupAvailability"
+            sutd:
+              $ref: "#/components/schemas/TopupAvailability"
 
     BootstrapResponse:
       type: object

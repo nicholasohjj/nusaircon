@@ -79,6 +79,22 @@ function amountRangeLabel(group = null) {
   return `$${min.toFixed(2)} and $${max.toFixed(2)}`;
 }
 
+function readRuntimeTopupStatus() {
+  if (typeof window === "undefined") return null;
+  const status = window.__EVS_RUNTIME_CONFIG__?.topup;
+  return status && typeof status === "object" ? status : null;
+}
+
+function topupStatusKey(group) {
+  return group?.id === "sutd" ? "sutd" : "nus";
+}
+
+function getTopupDisabledMessage(group, topupStatus) {
+  if (!group || !topupStatus) return "";
+  const status = topupStatus[topupStatusKey(group)];
+  return status?.disabled ? status.message || "Top-ups are unavailable." : "";
+}
+
 function getProfileId(groupIndex, meterId) {
   return `${groupIndex}:${meterId}`;
 }
@@ -377,6 +393,7 @@ export default function HomePage({ initialGroupId = "" }) {
   const [feedbackContact, setFeedbackContact] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [topupStatus] = useState(readRuntimeTopupStatus);
 
   useEffect(() => {
     const saved = readSavedState();
@@ -396,7 +413,9 @@ export default function HomePage({ initialGroupId = "" }) {
   function validateTopUp() {
     const e = {};
     const group = HOSTEL_GROUPS[groupIndex];
+    const disabledMessage = getTopupDisabledMessage(group, topupStatus);
     if (!group) e.group = "Please select your hostel";
+    else if (disabledMessage) e.group = disabledMessage;
     else if (!group.topupSupported) e.group = "Online top-up is not available.";
     if (!isValidMeterId(meterId)) e.meterId = "Must be exactly 8 digits";
     if (!isValidAmount(amount, group)) {
@@ -554,6 +573,11 @@ export default function HomePage({ initialGroupId = "" }) {
   }
 
   const isLookupMode = ["balance", "usage", "topups"].includes(activeMode);
+  const selectedGroup = HOSTEL_GROUPS[groupIndex] || null;
+  const selectedTopupDisabledMessage = getTopupDisabledMessage(
+    selectedGroup,
+    topupStatus,
+  );
 
   return (
     <Card align="left" className={styles.homeCard}>
@@ -653,6 +677,11 @@ export default function HomePage({ initialGroupId = "" }) {
             {errors.group && (
               <div className={styles.errMsg}>{errors.group}</div>
             )}
+            {selectedTopupDisabledMessage && !errors.group && (
+              <div className={styles.errorBox}>
+                {selectedTopupDisabledMessage}
+              </div>
+            )}
           </div>
 
           <MeterField
@@ -732,7 +761,11 @@ export default function HomePage({ initialGroupId = "" }) {
           </div>
 
           <div className={styles.actionGrid}>
-            <button type="submit" className={styles.btn}>
+            <button
+              type="submit"
+              className={styles.btn}
+              disabled={Boolean(selectedTopupDisabledMessage)}
+            >
               Continue
             </button>
             <button

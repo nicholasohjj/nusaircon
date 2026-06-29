@@ -32,6 +32,7 @@ const {
   getPaymentSubmitLockKey,
 } = require("../services/paymentSubmitLock");
 const { DEFAULT_HEADERS, CP2_WEBPOS_BASE } = require("../services/config");
+const { guardCp2PaymentSystem } = require("../services/meterSystemGuard");
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
 
@@ -182,12 +183,30 @@ router.get("/webapp/bootstrap", async (req, res) => {
   }
 
   try {
+    track("bootstrap_started", { meterId: txtMtrId, amount: txtAmount });
+
+    const systemGuard = await guardCp2PaymentSystem({ txtMtrId, txtAmount });
+    if (!systemGuard.ok) {
+      track("bootstrap_failed", {
+        meterId: txtMtrId,
+        amount: txtAmount,
+        stage: systemGuard.stage || "meter_system_check",
+        code: systemGuard.code,
+        error: systemGuard.error,
+      });
+
+      return res.status(400).json({
+        ok: false,
+        stage: systemGuard.stage || "meter_system_check",
+        code: systemGuard.code,
+        error: systemGuard.error,
+      });
+    }
+
     const [out, meterSummary] = await Promise.all([
       runPurchaseFlow({ txtMtrId, txtAmount }),
       getMeterSummary(txtMtrId),
     ]);
-
-    track("bootstrap_started", { meterId: txtMtrId, amount: txtAmount });
 
     if (!out?.ok) {
       const error =

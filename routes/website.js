@@ -16,6 +16,7 @@ const {
 const { track, captureException } = require("../services/analytics");
 const { isValidMeterId } = require("../services/validators");
 const { createJsonRateLimiter } = require("../services/httpMiddleware");
+const { getWebsiteTopupStatus } = require("../services/topupAvailability");
 const { getPaymentBot } = require("../bot/bot");
 
 const router = express.Router();
@@ -36,6 +37,13 @@ const feedbackLimiter = createJsonRateLimiter({
 });
 
 const LOOKUP_HOSTELS = new Set(["cp2", "cp2nus", "sutd"]);
+
+router.get("/topup-status", (req, res) => {
+  return res.json({
+    ok: true,
+    topup: getWebsiteTopupStatus(),
+  });
+});
 
 function normalizeLookupHostel(value) {
   const clean = String(value || "")
