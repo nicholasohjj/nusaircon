@@ -43,9 +43,9 @@
 
 .savedMeter {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  align-items: stretch;
+  align-items: center;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #111;
@@ -85,6 +85,24 @@
   line-height: 1.35;
 }
 
+.savedMeterRemove {
+  width: 72px;
+  min-height: 36px;
+  margin-right: 8px;
+  border: 1px solid rgba(255, 92, 92, 0.35);
+  border-radius: 8px;
+  background: rgba(255, 92, 92, 0.08);
+  color: var(--error);
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.savedMeterRemove:hover {
+  border-color: var(--error);
+}
+
 .helpBox {
   border-bottom: 1px solid var(--border);
   margin-bottom: 16px;
@@ -121,6 +139,11 @@
 
   .savedMeter {
     grid-template-columns: 1fr;
+  }
+
+  .savedMeterRemove {
+    width: auto;
+    margin: 0 8px 8px;
   }
 
 }

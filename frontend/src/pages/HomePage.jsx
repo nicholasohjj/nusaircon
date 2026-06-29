@@ -525,6 +525,27 @@ export default function HomePage({
     activateSavedMeter(profile);
   }
 
+  function handleSavedMeterRemove(profile) {
+    const nextSavedMeters = savedMeters.filter((saved) => saved.id !== profile.id);
+    const nextActive =
+      activeSavedId === profile.id
+        ? nextSavedMeters[0] || null
+        : nextSavedMeters.find((saved) => saved.id === activeSavedId) || null;
+
+    setSavedMeters(nextSavedMeters);
+    setActiveSavedId(nextActive?.id || null);
+    persistSavedState(nextSavedMeters, nextActive?.id || null);
+
+    if (activeSavedId !== profile.id) return;
+
+    setGroupIndex(nextActive?.groupIndex ?? null);
+    setMeterId(nextActive?.meterId || "");
+    setMeterLabel(nextActive?.label || "");
+    setErrors({});
+    setLookupError("");
+    setLookupResult(null);
+  }
+
   function handleSubmit(e) {
     e.preventDefault();
     const errs = validateTopUp();
@@ -700,6 +721,14 @@ export default function HomePage({
                 <span>
                   {profile.meterId} · {HOSTEL_GROUPS[profile.groupIndex].label}
                 </span>
+              </button>
+              <button
+                type="button"
+                className={styles.savedMeterRemove}
+                aria-label={`Remove saved meter ${profile.label}`}
+                onClick={() => handleSavedMeterRemove(profile)}
+              >
+                Remove
               </button>
             </div>
           ))}

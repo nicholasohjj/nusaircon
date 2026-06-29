@@ -826,7 +826,7 @@ describe("HomePage › saved meters", () => {
     expect(screen.getByRole("button", { name: /^Legacy/i })).toBeInTheDocument();
   });
 
-  test("renders saved meter cards without inline action buttons", () => {
+  test("renders saved meter cards with remove buttons only", () => {
     window.localStorage.setItem(
       WEB_PROFILE_STORAGE_KEY,
       JSON.stringify({
@@ -870,6 +870,9 @@ describe("HomePage › saved meters", () => {
     expect(
       screen.queryByRole("button", { name: /Forget Room/i }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Remove saved meter Room/i }),
+    ).toBeInTheDocument();
   });
 
   test("selecting a saved meter fills the top-up form", () => {
@@ -898,6 +901,116 @@ describe("HomePage › saved meters", () => {
     );
     expect(screen.getByPlaceholderText(/Room, Friend/i).value).toBe("Friend");
     expect(screen.getByPlaceholderText(/6\.00/i)).toBeInTheDocument();
+  });
+
+  test("removes an inactive saved meter and persists the active one", () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "0:12345678",
+        profiles: [
+          {
+            id: "0:12345678",
+            label: "Room",
+            meterId: "12345678",
+            groupIndex: 0,
+            savedAt: 1,
+          },
+          {
+            id: "1:87654321",
+            label: "Friend",
+            meterId: "87654321",
+            groupIndex: 1,
+            savedAt: 2,
+          },
+        ],
+      }),
+    );
+
+    renderHomePage();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Remove saved meter Friend/i }),
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /^Friend/i }),
+    ).not.toBeInTheDocument();
+    const saved = JSON.parse(window.localStorage.getItem(WEB_PROFILE_STORAGE_KEY));
+    expect(saved.activeId).toBe("0:12345678");
+    expect(saved.profiles.map((profile) => profile.id)).toEqual(["0:12345678"]);
+  });
+
+  test("removes the active saved meter and selects the next saved meter", () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "0:12345678",
+        profiles: [
+          {
+            id: "0:12345678",
+            label: "Room",
+            meterId: "12345678",
+            groupIndex: 0,
+            savedAt: 1,
+          },
+          {
+            id: "1:87654321",
+            label: "Friend",
+            meterId: "87654321",
+            groupIndex: 1,
+            savedAt: 2,
+          },
+        ],
+      }),
+    );
+
+    renderHomePage();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Remove saved meter Room/i }),
+    );
+
+    expect(screen.queryByRole("button", { name: /^Room/i })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/8-digit meter ID/i).value).toBe(
+      "87654321",
+    );
+    expect(screen.getByPlaceholderText(/Room, Friend/i).value).toBe("Friend");
+    expect(getUtownHostelButton().className).toMatch(/Active/i);
+    const saved = JSON.parse(window.localStorage.getItem(WEB_PROFILE_STORAGE_KEY));
+    expect(saved.activeId).toBe("1:87654321");
+    expect(saved.profiles.map((profile) => profile.id)).toEqual(["1:87654321"]);
+  });
+
+  test("removing the last saved meter clears the saved state selection", () => {
+    window.localStorage.setItem(
+      WEB_PROFILE_STORAGE_KEY,
+      JSON.stringify({
+        version: 2,
+        activeId: "0:12345678",
+        profiles: [
+          {
+            id: "0:12345678",
+            label: "Room",
+            meterId: "12345678",
+            groupIndex: 0,
+            savedAt: 1,
+          },
+        ],
+      }),
+    );
+
+    renderHomePage();
+    fireEvent.click(
+      screen.getByRole("button", { name: /Remove saved meter Room/i }),
+    );
+
+    expect(screen.queryByRole("button", { name: /^Room/i })).not.toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/8-digit meter ID/i).value).toBe("");
+    expect(screen.getByPlaceholderText(/Room, Friend/i).value).toBe("");
+    const saved = JSON.parse(window.localStorage.getItem(WEB_PROFILE_STORAGE_KEY));
+    expect(saved.activeId).toBeNull();
+    expect(saved.profiles).toEqual([]);
   });
 });
 
