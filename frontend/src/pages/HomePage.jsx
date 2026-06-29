@@ -57,10 +57,20 @@ const LANDING_COPY = {
     subtitle:
       "Check supported EVS meter balances, usage, top-up history, or start a secure NUS or SUTD top-up from one place.",
   },
+  cp2: {
+    title: "PGPR, PGP Houses and NUS College EVS Top Up",
+    subtitle:
+      "Use the CP2 EVS system for PGPR, Houses at PGP except Valour House, Residential Colleges, and NUS College balance checks, usage, top-up history, and top-ups.",
+  },
   cp2nus: {
     title: "UTown, RVRC and Valour House EVS Top Up",
     subtitle:
       "Use the CP2NUS EVS system for UTown Residence, RVRC, and Valour House meter balance checks, usage, top-up history, and top-ups.",
+  },
+  balance: {
+    title: "EVS Meter Balance Check",
+    subtitle:
+      "Check supported NUS and SUTD EVS meter balances online before starting a top-up.",
   },
   sutd: {
     title: "SUTD EVS Top Up",
@@ -71,6 +81,11 @@ const LANDING_COPY = {
 
 function getLandingCopy(initialGroupId) {
   return LANDING_COPY[initialGroupId] || LANDING_COPY.default;
+}
+
+function normalizeInitialMode(initialMode) {
+  const mode = String(initialMode || "").trim();
+  return MODES.some((item) => item.id === mode) ? mode : "topup";
 }
 
 function isValidMeterId(v) {
@@ -422,8 +437,14 @@ function SystemGuide() {
   );
 }
 
-export default function HomePage({ initialGroupId = "" }) {
-  const [activeMode, setActiveMode] = useState("topup");
+export default function HomePage({
+  initialGroupId = "",
+  initialMode = "topup",
+  landingKey = "",
+}) {
+  const [activeMode, setActiveMode] = useState(() =>
+    normalizeInitialMode(initialMode),
+  );
   const initialGroupIndex = HOSTEL_GROUPS.findIndex(
     (group) => group.id === initialGroupId,
   );
@@ -629,7 +650,7 @@ export default function HomePage({ initialGroupId = "" }) {
     selectedGroup,
     topupStatus,
   );
-  const landingCopy = getLandingCopy(initialGroupId);
+  const landingCopy = getLandingCopy(landingKey || initialGroupId);
 
   return (
     <Card align="left" className={styles.homeCard}>

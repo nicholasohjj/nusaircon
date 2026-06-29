@@ -655,6 +655,29 @@ describe("HomePage › static rendering", () => {
     expect(screen.getByText(/Supported Systems/i)).toBeInTheDocument();
   });
 
+  test("renders cp2 landing title", () => {
+    renderHomePage({ initialGroupId: "cp2" });
+
+    expect(
+      screen.getByRole("heading", {
+        name: /PGPR, PGP Houses and NUS College EVS Top Up/i,
+      }),
+    ).toBeInTheDocument();
+    expect(getPgprHostelButton().className).toMatch(/Active/i);
+  });
+
+  test("renders balance landing with balance mode selected", () => {
+    renderHomePage({ initialMode: "balance", landingKey: "balance" });
+
+    expect(
+      screen.getByRole("heading", { name: /^EVS Meter Balance Check$/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Balance$/i }).className).toMatch(
+      /Active/i,
+    );
+    expect(screen.getByRole("button", { name: /Check Meter/i })).toBeInTheDocument();
+  });
+
   test("renders hostel group buttons", () => {
     renderHomePage();
     expect(getPgprHostelButton()).toBeInTheDocument();

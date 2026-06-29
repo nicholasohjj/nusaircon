@@ -1,6 +1,8 @@
 User-agent: *
 Allow: /app/
+Allow: /app/cp2
 Allow: /app/cp2nus
+Allow: /app/balance
 Allow: /app/sutd
 Allow: /app/terms
 Allow: /assets/

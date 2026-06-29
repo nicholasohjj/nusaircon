@@ -7,6 +7,8 @@ React + Vite frontend for the EVS electricity top-up web app. Served at `/app/` 
 | Route             | Component         | Description                                             |
 | ----------------- | ----------------- | ------------------------------------------------------- |
 | `/`               | `HomePage`        | Hostel selection, meter ID, and amount entry            |
+| `/cp2`            | `HomePage`        | CP2-preselected entry point                             |
+| `/balance`        | `HomePage`        | Balance-check entry point                               |
 | `/loading`        | `LoadingPage`     | Calls `/webapp/bootstrap`; shows progress               |
 | `/pay`            | `CardPaymentPage` | RSA-encrypted card form; submits to `/webapp/enets_pay` |
 | `/result`         | `ResultPage`      | Payment outcome; reads from server session              |

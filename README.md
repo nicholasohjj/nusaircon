@@ -47,6 +47,8 @@ Telegram Bot (telegraf)          Website (React, /app/)
 
     React Frontend (/app/)
           ├── /                 — HomePage (hostel + meter ID + amount)
+          ├── /cp2              — HomePage preselected for PGPR / PGP Houses / RC / NUS College
+          ├── /balance          — HomePage opened in balance-check mode
           ├── /loading          — LoadingPage (calls /webapp/bootstrap)
           ├── /pay              — CardPaymentPage (RSA encryption + submit)
           ├── /result           — ResultPage (outcome from server session)

@@ -11,9 +11,14 @@ export default function App() {
       <Routes>
         {/* Entry point — hostel selection + meter details */}
         <Route path="/" element={<HomePage />} />
+        <Route path="/cp2" element={<HomePage initialGroupId="cp2" />} />
         <Route
           path="/cp2nus"
           element={<HomePage initialGroupId="cp2nus" />}
+        />
+        <Route
+          path="/balance"
+          element={<HomePage initialMode="balance" landingKey="balance" />}
         />
         <Route path="/sutd" element={<HomePage initialGroupId="sutd" />} />
         <Route path="/terms" element={<TermsPage />} />

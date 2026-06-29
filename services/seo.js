@@ -8,8 +8,12 @@ const SEO_HEAD_END = "<!-- seo:head:end -->";
 const SITE_NAME = "EVS Meter Tools";
 const HOME_DESCRIPTION =
   "Check supported NUS and SUTD EVS meter balances and top-up history, and top up supported EVS meters online.";
+const CP2_DESCRIPTION =
+  "Top up and check EVS meter balances for PGPR, Houses at PGP except Valour House, Residential Colleges, and NUS College.";
 const CP2NUS_DESCRIPTION =
   "Top up and check EVS meter balances for UTown Residence, RVRC, and Valour House through the CP2NUS EVS system.";
+const BALANCE_DESCRIPTION =
+  "Check supported NUS and SUTD EVS meter balances online before topping up.";
 const SUTD_DESCRIPTION =
   "Check SUTD EVS meter balances and top-up history, and top up supported SUTD EVS meters online.";
 const TERMS_DESCRIPTION =
@@ -24,6 +28,15 @@ const PUBLIC_PAGE_SEO = {
     schemaType: "WebApplication",
     audienceType: "NUS and SUTD EVS meter users",
   },
+  "/app/cp2": {
+    title: "PGPR, PGP Houses and NUS College EVS Top Up | EVS Meter Tools",
+    description: CP2_DESCRIPTION,
+    canonicalPath: "/app/cp2",
+    ogType: "website",
+    schemaType: "WebApplication",
+    audienceType:
+      "PGPR, Houses at PGP, Residential Colleges, and NUS College EVS meter users",
+  },
   "/app/cp2nus": {
     title: "UTown, RVRC and Valour House EVS Top Up | EVS Meter Tools",
     description: CP2NUS_DESCRIPTION,
@@ -31,6 +44,14 @@ const PUBLIC_PAGE_SEO = {
     ogType: "website",
     schemaType: "WebApplication",
     audienceType: "UTown Residence, RVRC, and Valour House EVS meter users",
+  },
+  "/app/balance": {
+    title: "EVS Meter Balance Check | EVS Meter Tools",
+    description: BALANCE_DESCRIPTION,
+    canonicalPath: "/app/balance",
+    ogType: "website",
+    schemaType: "WebApplication",
+    audienceType: "NUS and SUTD EVS meter users checking meter balance",
   },
   "/app/sutd": {
     title: "SUTD EVS Top Up | EVS Meter Tools",
@@ -99,7 +120,9 @@ function buildRobotsTxt(baseUrl = "") {
   const lines = [
     "User-agent: *",
     "Allow: /app/",
+    "Allow: /app/cp2",
     "Allow: /app/cp2nus",
+    "Allow: /app/balance",
     "Allow: /app/sutd",
     "Allow: /app/terms",
     "Allow: /assets/",
@@ -285,7 +308,14 @@ function injectSeoHead(html = "", pathname = "/app/", baseUrl = "") {
 
 function buildSitemapXml(baseUrl = "") {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
-  const urls = ["/app/", "/app/cp2nus", "/app/sutd", "/app/terms"];
+  const urls = [
+    "/app/",
+    "/app/cp2",
+    "/app/cp2nus",
+    "/app/balance",
+    "/app/sutd",
+    "/app/terms",
+  ];
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
