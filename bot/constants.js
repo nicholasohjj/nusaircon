@@ -23,8 +23,8 @@ const HOSTELS = {
 
 const HOSTEL_LABELS = {
   [HOSTELS.CP2]:
-    "PGPR / Houses @ PGP / Residential Colleges / NUS College (cp2)",
-  [HOSTELS.CP2NUS]: "UTown Residence / RVRC (cp2nus)",
+    "PGPR / Houses @ PGP except Valour House / Residential Colleges / NUS College (cp2)",
+  [HOSTELS.CP2NUS]: "UTown Residence / RVRC / Valour House (cp2nus)",
   [HOSTELS.SUTD]: "SUTD",
 };
 
@@ -94,7 +94,7 @@ const hostelInlineKeyboard = Markup.inlineKeyboard([
   [Markup.button.callback("🏠 PGPR / PGP / RC / NUSC (cp2)", "hostel_cp2")],
   [
     Markup.button.callback(
-      "🏠 UTown Residence / RVRC (cp2nus)",
+      "🏠 UTown / RVRC / Valour House (cp2nus)",
       "hostel_cp2nus",
     ),
   ],

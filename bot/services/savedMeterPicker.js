@@ -11,7 +11,7 @@ const MODE_LABELS = {
 };
 
 function shortHostelLabel(hostel) {
-  if (hostel === HOSTELS.CP2NUS) return "UTown/RVRC";
+  if (hostel === HOSTELS.CP2NUS) return "UTown/RVRC/Valour";
   if (hostel === HOSTELS.SUTD) return "SUTD";
   return "PGPR/PGP/RC/NUSC";
 }

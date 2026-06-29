@@ -33,12 +33,13 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
     `ℹ️ *${config.displayName} Help*\n\n` +
     `*Supported NUS systems*\n` +
     `• PGPR\n` +
-    `• Houses @ PGP\n` +
+    `• Houses @ PGP, except Valour House\n` +
     `• Residential Colleges\n` +
     `• NUS College\n` +
     `  → uses cp2.evs.com.sg\n` +
     `• UTown Residence\n` +
     `• RVRC\n` +
+    `• Valour House\n` +
     `  → uses cp2nus.evs.com.sg\n\n` +
     `*Accepted NUS top-up amount*\n` +
     `• Minimum: $6.00 SGD\n` +

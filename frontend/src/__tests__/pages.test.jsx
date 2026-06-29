@@ -37,13 +37,13 @@ function renderHomePage(props = {}) {
 
 function getPgprHostelButton() {
   return screen.getByRole("button", {
-    name: /^PGPR, Houses @ PGP, Residential Colleges, NUS College$/i,
+    name: /^PGPR, Houses @ PGP except Valour House, Residential Colleges, NUS College$/i,
   });
 }
 
 function getUtownHostelButton() {
   return screen.getByRole("button", {
-    name: /^UTown Residence, RVRC$/i,
+    name: /^UTown Residence, RVRC, Valour House$/i,
   });
 }
 

@@ -14,12 +14,12 @@ export default function App() {
         <Route path="/sutd" element={<HomePage initialGroupId="sutd" />} />
         <Route path="/terms" element={<TermsPage />} />
 
-        {/* cp2 flow — PGPR, PGP Houses, Residential Colleges, NUS College */}
+        {/* cp2 flow — PGPR, PGP Houses except Valour House, Residential Colleges, NUS College */}
         <Route path="/loading" element={<LoadingPage basePath="" />} />
         <Route path="/pay" element={<CardPaymentPage basePath="" />} />
         <Route path="/result" element={<ResultPage basePath="" />} />
 
-        {/* cp2nus flow — UTown Residence, RVRC */}
+        {/* cp2nus flow — UTown Residence, RVRC, Valour House */}
         <Route
           path="/cp2nus/loading"
           element={<LoadingPage basePath="/cp2nus" />}

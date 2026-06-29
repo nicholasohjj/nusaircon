@@ -11,7 +11,8 @@ const MAX_TOPUP_AMOUNT = 50;
 
 const HOSTEL_GROUPS = [
   {
-    label: "PGPR, Houses @ PGP, Residential Colleges, NUS College",
+    label:
+      "PGPR, Houses @ PGP except Valour House, Residential Colleges, NUS College",
     id: "cp2",
     basePath: "",
     loadingPath: "/loading",
@@ -21,7 +22,7 @@ const HOSTEL_GROUPS = [
     maxAmount: 50,
   },
   {
-    label: "UTown Residence, RVRC",
+    label: "UTown Residence, RVRC, Valour House",
     id: "cp2nus",
     basePath: "/cp2nus",
     loadingPath: "/cp2nus/loading",
@@ -640,9 +641,10 @@ export default function HomePage({ initialGroupId = "" }) {
         <summary>Help</summary>
         <div className={styles.helpContent}>
           <p>
-            Supported NUS hostels: PGPR, Houses at PGP, Residential Colleges,
-            NUS College, UTown Residence, and RVRC. SUTD meter balance, top-up
-            history, and online top-up are also supported.
+            Supported NUS hostels: PGPR, Houses at PGP except Valour House,
+            Residential Colleges, NUS College, UTown Residence, RVRC, and Valour
+            House. SUTD meter balance, top-up history, and online top-up are
+            also supported.
           </p>
           <p>
             Accepted NUS top-up amount: SGD 6.00 to SGD 50.00. Accepted SUTD
