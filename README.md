@@ -50,6 +50,7 @@ Telegram Bot (telegraf)          Website (React, /app/)
           ├── /loading          — LoadingPage (calls /webapp/bootstrap)
           ├── /pay              — CardPaymentPage (RSA encryption + submit)
           ├── /result           — ResultPage (outcome from server session)
+          ├── /cp2nus           — HomePage preselected for UTown / RVRC / Valour House
           ├── /cp2nus/loading   — cp2nus variant
           ├── /cp2nus/pay       — cp2nus variant
           ├── /cp2nus/result    — cp2nus variant

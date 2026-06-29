@@ -106,6 +106,14 @@
   line-height: 1.45;
 }
 
+.guideTitle {
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  margin: 0;
+}
+
 @media (max-width: 560px) {
   .modeTabs {
     grid-template-columns: repeat(2, 1fr);

@@ -18,6 +18,7 @@ describe("SEO metadata", () => {
     const robots = buildRobotsTxt("https://example.com/");
 
     expect(robots).toContain("Allow: /app/");
+    expect(robots).toContain("Allow: /app/cp2nus");
     expect(robots).toContain("Allow: /app/sutd");
     expect(robots).toContain("Allow: /app/terms");
     expect(robots).toContain("Disallow: /webapp");
@@ -30,6 +31,7 @@ describe("SEO metadata", () => {
     const sitemap = buildSitemapXml("https://example.com/");
 
     expect(sitemap).toContain("<loc>https://example.com/app/</loc>");
+    expect(sitemap).toContain("<loc>https://example.com/app/cp2nus</loc>");
     expect(sitemap).toContain("<loc>https://example.com/app/sutd</loc>");
     expect(sitemap).toContain("<loc>https://example.com/app/terms</loc>");
     expect(sitemap).not.toContain("webapp");
@@ -39,6 +41,7 @@ describe("SEO metadata", () => {
 
   test("builds route-specific metadata for public pages", () => {
     const home = getSeoMetadata("/app/", "https://example.com/");
+    const cp2nus = getSeoMetadata("/app/cp2nus", "https://example.com/");
     const sutd = getSeoMetadata("/app/sutd", "https://example.com/");
     const terms = getSeoMetadata("/app/terms", "https://example.com/");
 
@@ -46,6 +49,12 @@ describe("SEO metadata", () => {
     expect(home.description).toContain("NUS and SUTD EVS meter");
     expect(home.canonicalUrl).toBe("https://example.com/app/");
     expect(home.robots).toBe("index, follow");
+    expect(cp2nus.title).toBe(
+      "UTown, RVRC and Valour House EVS Top Up | EVS Meter Tools",
+    );
+    expect(cp2nus.description).toContain("Valour House");
+    expect(cp2nus.canonicalUrl).toBe("https://example.com/app/cp2nus");
+    expect(cp2nus.robots).toBe("index, follow");
     expect(sutd.title).toBe("SUTD EVS Top Up | EVS Meter Tools");
     expect(sutd.description).toContain("SUTD EVS meter balances");
     expect(sutd.canonicalUrl).toBe("https://example.com/app/sutd");
@@ -74,6 +83,7 @@ describe("SEO metadata", () => {
     expect(head).not.toContain('rel="canonical"');
     expect(shouldSendNoindexHeader("/app/pay")).toBe(true);
     expect(shouldSendNoindexHeader("/webapp/bootstrap")).toBe(true);
+    expect(shouldSendNoindexHeader("/app/cp2nus")).toBe(false);
     expect(shouldSendNoindexHeader("/app/sutd")).toBe(false);
     expect(shouldSendNoindexHeader("/app/sutd/pay")).toBe(true);
     expect(shouldSendNoindexHeader("/app/terms")).toBe(false);

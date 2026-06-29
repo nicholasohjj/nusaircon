@@ -640,8 +640,19 @@ describe("HomePage › static rendering", () => {
   test("renders page title", () => {
     renderHomePage();
     expect(
-      screen.getByRole("heading", { name: /EVS Meter Tools/i }),
+      screen.getByRole("heading", { name: /NUS and SUTD EVS Top Up/i }),
     ).toBeInTheDocument();
+  });
+
+  test("renders cp2nus landing title and system guide", () => {
+    renderHomePage({ initialGroupId: "cp2nus" });
+
+    expect(
+      screen.getByRole("heading", {
+        name: /UTown, RVRC and Valour House EVS Top Up/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Supported Systems/i)).toBeInTheDocument();
   });
 
   test("renders hostel group buttons", () => {

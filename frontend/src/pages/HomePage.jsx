@@ -51,6 +51,28 @@ const MODES = [
   { id: "feedback", label: "Feedback" },
 ];
 
+const LANDING_COPY = {
+  default: {
+    title: "NUS and SUTD EVS Top Up",
+    subtitle:
+      "Check supported EVS meter balances, usage, top-up history, or start a secure NUS or SUTD top-up from one place.",
+  },
+  cp2nus: {
+    title: "UTown, RVRC and Valour House EVS Top Up",
+    subtitle:
+      "Use the CP2NUS EVS system for UTown Residence, RVRC, and Valour House meter balance checks, usage, top-up history, and top-ups.",
+  },
+  sutd: {
+    title: "SUTD EVS Top Up",
+    subtitle:
+      "Check SUTD EVS meter balance and top-up history, or start a secure SUTD meter top-up.",
+  },
+};
+
+function getLandingCopy(initialGroupId) {
+  return LANDING_COPY[initialGroupId] || LANDING_COPY.default;
+}
+
 function isValidMeterId(v) {
   return /^\d{8}$/.test(String(v || "").trim());
 }
@@ -372,6 +394,34 @@ function TopupsResult({ result }) {
   );
 }
 
+function SystemGuide() {
+  return (
+    <details className={styles.helpBox}>
+      <summary>Supported Systems</summary>
+      <div className={styles.helpContent}>
+        <h2 className={styles.guideTitle}>Choose the right EVS system</h2>
+        <p>
+          <strong>CP2:</strong> PGPR, Houses at PGP except Valour House,
+          Residential Colleges, and NUS College.
+        </p>
+        <p>
+          <strong>CP2NUS:</strong> UTown Residence, RVRC, and Valour House.
+        </p>
+        <p>
+          <strong>SUTD:</strong> SUTD EVS meters. Usage history is not available
+          for SUTD yet.
+        </p>
+        <p>
+          Balance checks, recent usage, and top-up history are available where
+          the upstream EVS system provides them. Supported NUS top-up amounts
+          are SGD 6.00 to SGD 50.00; supported SUTD top-up amounts are SGD 10.00
+          to SGD 50.00.
+        </p>
+      </div>
+    </details>
+  );
+}
+
 export default function HomePage({ initialGroupId = "" }) {
   const [activeMode, setActiveMode] = useState("topup");
   const initialGroupIndex = HOSTEL_GROUPS.findIndex(
@@ -579,15 +629,13 @@ export default function HomePage({ initialGroupId = "" }) {
     selectedGroup,
     topupStatus,
   );
+  const landingCopy = getLandingCopy(initialGroupId);
 
   return (
     <Card align="left" className={styles.homeCard}>
       <Logo>⚡</Logo>
-      <h1 className={styles.title}>EVS Meter Tools</h1>
-      <p className={styles.sub}>
-        Check supported EVS meters, top up NUS or SUTD meters, or send feedback
-        from one place.
-      </p>
+      <h1 className={styles.title}>{landingCopy.title}</h1>
+      <p className={styles.sub}>{landingCopy.subtitle}</p>
 
       <div className={styles.modeTabs} role="tablist" aria-label="Website tools">
         {MODES.map((mode) => (
@@ -652,6 +700,8 @@ export default function HomePage({ initialGroupId = "" }) {
           </p>
         </div>
       </details>
+
+      <SystemGuide />
 
       {activeMode === "topup" && (
         <form onSubmit={handleSubmit} autoComplete="off" noValidate>

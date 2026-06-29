@@ -10,7 +10,8 @@ React + Vite frontend for the EVS electricity top-up web app. Served at `/app/` 
 | `/loading`        | `LoadingPage`     | Calls `/webapp/bootstrap`; shows progress               |
 | `/pay`            | `CardPaymentPage` | RSA-encrypted card form; submits to `/webapp/enets_pay` |
 | `/result`         | `ResultPage`      | Payment outcome; reads from server session              |
-| `/cp2nus/loading` | `LoadingPage`     | cp2nus variant (UTown / RVRC)                           |
+| `/cp2nus`         | `HomePage`        | CP2NUS-preselected entry point (UTown / RVRC / Valour)  |
+| `/cp2nus/loading` | `LoadingPage`     | cp2nus variant (UTown / RVRC / Valour House)            |
 | `/cp2nus/pay`     | `CardPaymentPage` | cp2nus variant                                          |
 | `/cp2nus/result`  | `ResultPage`      | cp2nus variant                                          |
 | `/sutd`           | `HomePage`        | SUTD-preselected entry point                            |

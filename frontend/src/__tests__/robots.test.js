@@ -10,9 +10,12 @@ describe("robots.txt", () => {
     );
 
     expect(robots).toContain("Allow: /app/");
+    expect(robots).toContain("Allow: /app/cp2nus");
+    expect(robots).toContain("Allow: /app/sutd");
     expect(robots).toContain("Allow: /app/terms");
     expect(robots).toContain("Disallow: /webapp");
     expect(robots).toContain("Disallow: /cp2nus/webapp");
+    expect(robots).toContain("Disallow: /sutd/webapp");
     expect(robots).toContain("Disallow: /app/pay");
     expect(robots.split("\n")).not.toContain("Disallow: /");
   });

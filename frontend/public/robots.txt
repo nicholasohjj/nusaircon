@@ -1,5 +1,7 @@
 User-agent: *
 Allow: /app/
+Allow: /app/cp2nus
+Allow: /app/sutd
 Allow: /app/terms
 Allow: /assets/
 Disallow: /api
@@ -8,9 +10,13 @@ Disallow: /health
 Disallow: /telegram/
 Disallow: /webapp
 Disallow: /cp2nus/webapp
+Disallow: /sutd/webapp
 Disallow: /app/loading
 Disallow: /app/pay
 Disallow: /app/result
 Disallow: /app/cp2nus/loading
 Disallow: /app/cp2nus/pay
 Disallow: /app/cp2nus/result
+Disallow: /app/sutd/loading
+Disallow: /app/sutd/pay
+Disallow: /app/sutd/result
