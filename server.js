@@ -39,6 +39,43 @@ const {
 } = require("./bot/index");
 
 const openapiSpec = YAML.load(path.join(__dirname, "docs/openapi.yaml"));
+const openapiJsonPath = "/api/openapi.json";
+const swaggerUiOptions = {
+  customSiteTitle: "EVS Meter Tools API",
+  swaggerOptions: {
+    url: openapiJsonPath,
+    validatorUrl: null,
+  },
+};
+
+function setNoStoreHeaders(res) {
+  res.set({
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+    "Surrogate-Control": "no-store",
+  });
+}
+
+function buildSwaggerInitScript(specUrl = openapiJsonPath) {
+  return `window.onload = function() {
+  window.ui = SwaggerUIBundle({
+    url: ${JSON.stringify(specUrl)},
+    dom_id: "#swagger-ui",
+    deepLinking: true,
+    presets: [
+      SwaggerUIBundle.presets.apis,
+      SwaggerUIStandalonePreset
+    ],
+    plugins: [
+      SwaggerUIBundle.plugins.DownloadUrl
+    ],
+    layout: "StandaloneLayout",
+    validatorUrl: null
+  });
+};
+`;
+}
 
 function getPublicBaseUrl(req) {
   if (process.env.SERVER_URL) {
@@ -144,7 +181,15 @@ if (process.env.NODE_ENV !== "production") {
   app.get("/debug", (req, res) => res.send("cp2nus prefix reachable"));
 }
 app.use("/website", websiteRoutes);
-app.use("/api", swaggerUi.serve, swaggerUi.setup(openapiSpec));
+app.get(openapiJsonPath, (req, res) => {
+  setNoStoreHeaders(res);
+  res.type("application/json").end(JSON.stringify(openapiSpec));
+});
+app.get("/api/swagger-ui-init.js", (req, res) => {
+  setNoStoreHeaders(res);
+  res.type("application/javascript").end(buildSwaggerInitScript());
+});
+app.use("/api", swaggerUi.serve, swaggerUi.setup(null, swaggerUiOptions));
 
 app.get("/webapp", requireTopupEnabledPage("nus"));
 app.get("/cp2nus/webapp", requireTopupEnabledPage("nus"));
