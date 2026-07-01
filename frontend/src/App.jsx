@@ -28,7 +28,7 @@ export default function App() {
         <Route path="/pay" element={<CardPaymentPage basePath="" />} />
         <Route path="/result" element={<ResultPage basePath="" />} />
 
-        {/* cp2nus flow — UTown Residence, RVRC, Valour House */}
+        {/* cp2nus flow — UTown Residences, RVRC, Valour House */}
         <Route
           path="/cp2nus/loading"
           element={<LoadingPage basePath="/cp2nus" />}

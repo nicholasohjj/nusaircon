@@ -11,7 +11,7 @@ const HOME_DESCRIPTION =
 const CP2_DESCRIPTION =
   "Top up and check EVS meter balances for PGPR, Houses at PGP except Valour House, Residential Colleges, and NUS College.";
 const CP2NUS_DESCRIPTION =
-  "Top up and check EVS meter balances for UTown Residence, RVRC, and Valour House through the CP2NUS EVS system.";
+  "Top up and check EVS meter balances for UTown Residences, RVRC, and Valour House through the CP2NUS EVS system.";
 const BALANCE_DESCRIPTION =
   "Check supported NUS and SUTD EVS meter balances online before topping up.";
 const SUTD_DESCRIPTION =
@@ -38,12 +38,12 @@ const PUBLIC_PAGE_SEO = {
       "PGPR, Houses at PGP, Residential Colleges, and NUS College EVS meter users",
   },
   "/app/cp2nus": {
-    title: "UTown, RVRC and Valour House EVS Top Up | EVS Meter Tools",
+    title: "UTown Residences, RVRC and Valour House EVS Top Up | EVS Meter Tools",
     description: CP2NUS_DESCRIPTION,
     canonicalPath: "/app/cp2nus",
     ogType: "website",
     schemaType: "WebApplication",
-    audienceType: "UTown Residence, RVRC, and Valour House EVS meter users",
+    audienceType: "UTown Residences, RVRC, and Valour House EVS meter users",
   },
   "/app/balance": {
     title: "EVS Meter Balance Check | EVS Meter Tools",

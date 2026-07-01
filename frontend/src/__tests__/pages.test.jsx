@@ -43,7 +43,7 @@ function getPgprHostelButton() {
 
 function getUtownHostelButton() {
   return screen.getByRole("button", {
-    name: /^UTown Residence, RVRC, Valour House$/i,
+    name: /^UTown Residences, RVRC, Valour House$/i,
   });
 }
 
@@ -649,7 +649,7 @@ describe("HomePage › static rendering", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /UTown, RVRC and Valour House EVS Top Up/i,
+        name: /UTown Residences, RVRC and Valour House EVS Top Up/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Supported Systems/i)).toBeInTheDocument();

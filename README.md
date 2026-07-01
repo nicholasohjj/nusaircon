@@ -7,7 +7,7 @@ A Telegram bot and web app for supported EVS electricity meters. Supported NUS a
 | Hostel group                                          | EVS system          |
 | ----------------------------------------------------- | ------------------- |
 | PGPR, Houses @ PGP except Valour House, Residential Colleges, NUS College | `cp2.evs.com.sg`    |
-| UTown Residence, RVRC, Valour House                                      | `cp2nus.evs.com.sg` |
+| UTown Residences, RVRC, Valour House                                     | `cp2nus.evs.com.sg` |
 | SUTD                                                  | `SUTDMain` / `EVSSUTDWebPOS` |
 
 ## Features
@@ -52,7 +52,7 @@ Telegram Bot (telegraf)          Website (React, /app/)
           ├── /loading          — LoadingPage (calls /webapp/bootstrap)
           ├── /pay              — CardPaymentPage (RSA encryption + submit)
           ├── /result           — ResultPage (outcome from server session)
-          ├── /cp2nus           — HomePage preselected for UTown / RVRC / Valour House
+          ├── /cp2nus           — HomePage preselected for UTown Residences / RVRC / Valour House
           ├── /cp2nus/loading   — cp2nus variant
           ├── /cp2nus/pay       — cp2nus variant
           ├── /cp2nus/result    — cp2nus variant
@@ -83,7 +83,7 @@ Scrapes the EVS WebPOS portal to create a transaction, then proxies through eNET
    - Writes outcome (`status`, `merchantTxnRef`, `reason`) back to the server-side session
 5. **Result page** (`/app/result`) — React component; reads outcome from server session via `/webapp/session`
 
-### CP2NUS — UTown Residence / RVRC / Valour House
+### CP2NUS — UTown Residences / RVRC / Valour House
 
 Uses the EVS JSON API and the eNETS Payment Page (enetspp) host directly.
 

@@ -16,7 +16,7 @@ tags:
   - name: CP2
     description: PGPR, PGP Houses except Valour House, Residential Colleges, and NUS College payment flow
   - name: CP2NUS
-    description: UTown Residence, RVRC, and Valour House payment flow
+    description: UTown Residences, RVRC, and Valour House payment flow
   - name: SUTD
     description: SUTD payment flow
 

@@ -37,7 +37,7 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
     `• Residential Colleges\n` +
     `• NUS College\n` +
     `  → uses cp2.evs.com.sg\n` +
-    `• UTown Residence\n` +
+    `• UTown Residences\n` +
     `• RVRC\n` +
     `• Valour House\n` +
     `  → uses cp2nus.evs.com.sg\n\n` +

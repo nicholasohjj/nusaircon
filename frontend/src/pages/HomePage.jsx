@@ -22,7 +22,7 @@ const HOSTEL_GROUPS = [
     maxAmount: 50,
   },
   {
-    label: "UTown Residence, RVRC, Valour House",
+    label: "UTown Residences, RVRC, Valour House",
     id: "cp2nus",
     basePath: "/cp2nus",
     loadingPath: "/cp2nus/loading",
@@ -63,9 +63,9 @@ const LANDING_COPY = {
       "Use the CP2 EVS system for PGPR, Houses at PGP except Valour House, Residential Colleges, and NUS College balance checks, usage, top-up history, and top-ups.",
   },
   cp2nus: {
-    title: "UTown, RVRC and Valour House EVS Top Up",
+    title: "UTown Residences, RVRC and Valour House EVS Top Up",
     subtitle:
-      "Use the CP2NUS EVS system for UTown Residence, RVRC, and Valour House meter balance checks, usage, top-up history, and top-ups.",
+      "Use the CP2NUS EVS system for UTown Residences, RVRC, and Valour House meter balance checks, usage, top-up history, and top-ups.",
   },
   balance: {
     title: "EVS Meter Balance Check",
@@ -420,7 +420,7 @@ function SystemGuide() {
           Residential Colleges, and NUS College.
         </p>
         <p>
-          <strong>CP2NUS:</strong> UTown Residence, RVRC, and Valour House.
+          <strong>CP2NUS:</strong> UTown Residences, RVRC, and Valour House.
         </p>
         <p>
           <strong>SUTD:</strong> SUTD EVS meters. Usage history is not available
@@ -740,7 +740,7 @@ export default function HomePage({
         <div className={styles.helpContent}>
           <p>
             Supported NUS hostels: PGPR, Houses at PGP except Valour House,
-            Residential Colleges, NUS College, UTown Residence, RVRC, and Valour
+            Residential Colleges, NUS College, UTown Residences, RVRC, and Valour
             House. SUTD meter balance, top-up history, and online top-up are
             also supported.
           </p>

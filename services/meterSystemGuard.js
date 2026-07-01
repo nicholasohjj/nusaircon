@@ -3,7 +3,7 @@ const { isCp2nusMeter } = require("./cp2nusService");
 
 const CP2NUS_ON_CP2_ERROR =
   "This meter belongs to the CP2NUS system and cannot be topped up here. " +
-  "Please use the UTown Residence / RVRC / Valour House option instead.";
+  "Please use the UTown Residences / RVRC / Valour House option instead.";
 
 function createCp2SystemGuard({
   cp2MeterCheck = isCp2Meter,

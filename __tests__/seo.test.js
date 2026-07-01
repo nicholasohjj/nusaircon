@@ -62,7 +62,7 @@ describe("SEO metadata", () => {
     expect(cp2.canonicalUrl).toBe("https://example.com/app/cp2");
     expect(cp2.robots).toBe("index, follow");
     expect(cp2nus.title).toBe(
-      "UTown, RVRC and Valour House EVS Top Up | EVS Meter Tools",
+      "UTown Residences, RVRC and Valour House EVS Top Up | EVS Meter Tools",
     );
     expect(cp2nus.description).toContain("Valour House");
     expect(cp2nus.canonicalUrl).toBe("https://example.com/app/cp2nus");
