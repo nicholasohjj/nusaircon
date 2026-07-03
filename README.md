@@ -149,6 +149,7 @@ SERVER_URL=https://your-public-server.example.com
 OWNER_CHAT_ID=your_telegram_chat_id   # receives feedback notifications
 MAINTENANCE_MODE=false                # set to "true" to put the app and bot in global maintenance mode
 MAINTENANCE_MESSAGE=                  # optional custom global maintenance message
+OWNER_STATUS_TIMEOUT_MS=4000          # optional timeout for owner /status EVS/eNETS checks
 TOPUP_DISABLED=false                  # set to "true" to show maintenance message
 DB_DIR=.                              # local SQLite dir; use /data on Railway with a mounted volume
 TELEGRAM_BOT_MODE=                    # production/Railway defaults to webhook; dev defaults to polling
@@ -220,6 +221,7 @@ npm run lint
 | `/feedback` | Share feedback or report an issue |
 | `/cancel`   | Cancel the current flow           |
 | `/help`     | Show help and hostel information  |
+| `/status`   | Owner-only live service health    |
 | `/stats`    | Owner-only runtime snapshot       |
 
 ## Bot session flow

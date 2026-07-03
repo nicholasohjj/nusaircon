@@ -1,4 +1,5 @@
 const { PostHog } = require("posthog-node");
+const { recordPaymentFailure } = require("./paymentMetrics");
 
 const SERVER_URL = process.env.SERVER_URL || "";
 const IS_LOCAL =
@@ -16,6 +17,10 @@ const posthog =
 
 function track(event, data = {}) {
   const { distinctId, chatId, meterId, ...properties } = data;
+
+  if (event === "payment_failed") {
+    recordPaymentFailure(data);
+  }
 
   console.log(
     JSON.stringify({

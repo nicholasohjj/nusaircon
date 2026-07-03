@@ -10,6 +10,7 @@ const MAINTENANCE_OWNER_COMMANDS = new Set([
   "maintenanceon",
   "maintenanceoff",
   "maintenancestatus",
+  "status",
 ]);
 
 function runtimeParts(runtime = {}) {

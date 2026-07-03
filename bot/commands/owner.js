@@ -9,6 +9,7 @@ const { inferRuntimeMode } = require("../runtimeMode");
 const { track } = require("../../services/analytics");
 const { getSessionStats } = require("../services/session");
 const { getPaymentSubmitLockStats } = require("../../services/paymentSubmitLock");
+const { buildOwnerStatus } = require("../services/ownerStatus");
 const {
   getGlobalMaintenanceStatus,
   setGlobalMaintenanceEnabled,
@@ -280,12 +281,32 @@ function registerStats(bot, runtime) {
   });
 }
 
+function registerStatus(bot, runtime) {
+  const { state } = runtimeParts(runtime);
+
+  bot.command("status", async (ctx) => {
+    if (!isOwner(ctx)) return;
+
+    const loading = await ctx.reply("Checking service status...");
+    const message = await buildOwnerStatus({ state });
+
+    if (loading?.message_id && ctx.telegram?.editMessageText) {
+      return ctx.telegram
+        .editMessageText(ctx.chat.id, loading.message_id, undefined, message)
+        .catch(() => ctx.reply(message));
+    }
+
+    return ctx.reply(message);
+  });
+}
+
 function registerOwnerCommands(bot, runtime) {
   registerBroadcast(bot);
   registerAnnounce(bot);
   registerMaintenanceToggle(bot);
   registerTopupToggle(bot, runtime);
   registerStats(bot, runtime);
+  registerStatus(bot, runtime);
 }
 
 module.exports = {
