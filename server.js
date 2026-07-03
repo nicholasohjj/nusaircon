@@ -29,6 +29,7 @@ const {
   requireTopupEnabledJson,
   requireTopupEnabledPage,
 } = require("./services/topupAvailability");
+const { requireGlobalMaintenanceOff } = require("./services/maintenanceMode");
 const swaggerUi = require("swagger-ui-express");
 const YAML = require("yamljs");
 const {
@@ -100,6 +101,7 @@ app.use((req, res, next) => {
 });
 
 mountTelegramWebhook(app);
+app.use(requireGlobalMaintenanceOff());
 app.use("/assets", express.static("assets"));
 
 const appDistDir = path.join(__dirname, "frontend/dist");

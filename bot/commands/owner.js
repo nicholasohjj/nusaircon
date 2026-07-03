@@ -9,6 +9,10 @@ const { inferRuntimeMode } = require("../runtimeMode");
 const { track } = require("../../services/analytics");
 const { getSessionStats } = require("../services/session");
 const { getPaymentSubmitLockStats } = require("../../services/paymentSubmitLock");
+const {
+  getGlobalMaintenanceStatus,
+  setGlobalMaintenanceEnabled,
+} = require("../../services/maintenanceMode");
 
 const OWNER_CHAT_ID = process.env.OWNER_CHAT_ID;
 
@@ -47,6 +51,9 @@ function buildOwnerStatsMessage({
 }) {
   const runtimeMode = runtimeState.runtimeMode || inferRuntimeMode();
   const topupStatus = runtimeState.topupDisabled ? "disabled" : "enabled";
+  const maintenanceStatus = getGlobalMaintenanceStatus().enabled
+    ? "active"
+    : "inactive";
   const paymentSecret = process.env.PAYMENT_SESSION_SECRET
     ? "dedicated"
     : "bot token fallback";
@@ -54,6 +61,7 @@ function buildOwnerStatsMessage({
   return [
     "📊 Bot Stats",
     "",
+    `Global maintenance: ${maintenanceStatus}`,
     `Top-ups: ${topupStatus}`,
     `Runtime: ${runtimeMode}`,
     `Uptime: ${formatUptime(runtimeState.startedAt, now)}`,
@@ -158,6 +166,43 @@ function registerAnnounce(bot) {
   });
 }
 
+// ── /maintenanceon / /maintenanceoff / /maintenancestatus ────────────────────
+function registerMaintenanceToggle(bot) {
+  bot.command("maintenanceon", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    const status = setGlobalMaintenanceEnabled(true);
+    track("global_maintenance_toggled", {
+      chatId: ctx.chat?.id,
+      enabled: true,
+    });
+    console.log("Global maintenance enabled by owner via /maintenanceon");
+    return ctx.reply(
+      `Maintenance mode is now ON. Users will see:\n\n${status.message}\n\nUse /maintenanceoff to re-enable the app and bot.`,
+    );
+  });
+
+  bot.command("maintenanceoff", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    setGlobalMaintenanceEnabled(false);
+    track("global_maintenance_toggled", {
+      chatId: ctx.chat?.id,
+      enabled: false,
+    });
+    console.log("Global maintenance disabled by owner via /maintenanceoff");
+    return ctx.reply("Maintenance mode is now OFF. The app and bot are live.");
+  });
+
+  bot.command("maintenancestatus", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    const status = getGlobalMaintenanceStatus();
+    return ctx.reply(
+      status.enabled
+        ? `Maintenance mode is ON. Users see:\n\n${status.message}`
+        : "Maintenance mode is OFF. The app and bot are live.",
+    );
+  });
+}
+
 // ── /topupoff / /topupon / /topupstatus ───────────────────────────────────────
 const fallbackState = {
   topupDisabled: process.env.TOPUP_DISABLED === "true",
@@ -238,6 +283,7 @@ function registerStats(bot, runtime) {
 function registerOwnerCommands(bot, runtime) {
   registerBroadcast(bot);
   registerAnnounce(bot);
+  registerMaintenanceToggle(bot);
   registerTopupToggle(bot, runtime);
   registerStats(bot, runtime);
 }

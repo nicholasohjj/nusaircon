@@ -13,7 +13,11 @@ const { setupTelegramUi } = require("./services/ui");
 function registerHandlers(context) {
   const telegramBot = context.bot;
 
-  // Order matters: ownerReply before generic text.
+  // Order matters: maintenance guard first; ownerReply before generic text.
+  require("./middleware/maintenance").registerGlobalMaintenanceGuard(
+    telegramBot,
+    context,
+  );
   require("./commands/user").registerUserCommands(telegramBot, context);
   require("./commands/owner").registerOwnerCommands(telegramBot, context);
   require("./handlers/buttons").registerButtonHandlers(telegramBot, context);

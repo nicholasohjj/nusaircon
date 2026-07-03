@@ -147,6 +147,8 @@ SUTD_TELEGRAM_BOT_TOKEN=your_sutd_bot_token # optional, for concurrent sutdairco
 PAYMENT_SESSION_SECRET=replace_with_openssl_rand_hex_32 # stable secret for signed payment/result tokens
 SERVER_URL=https://your-public-server.example.com
 OWNER_CHAT_ID=your_telegram_chat_id   # receives feedback notifications
+MAINTENANCE_MODE=false                # set to "true" to put the app and bot in global maintenance mode
+MAINTENANCE_MESSAGE=                  # optional custom global maintenance message
 TOPUP_DISABLED=false                  # set to "true" to show maintenance message
 DB_DIR=.                              # local SQLite dir; use /data on Railway with a mounted volume
 TELEGRAM_BOT_MODE=                    # production/Railway defaults to webhook; dev defaults to polling
@@ -309,4 +311,5 @@ Note: threading only follows the original notification message. If the owner rep
 - The cp2nus flow distinguishes between the top-level `netsMid` (`UMID_xxx`) and `paymtNetsMid` (acquiring MID from `paymtSvcInfoList[0]`). Using the wrong MID will cause the payment to fail silently.
 - Accepted top-up amount input is strict: plain numbers plus common currency prefixes such as `$10` or `S$ 10.00`; malformed mixed strings are rejected. NUS minimum top-up is **$6.00 SGD**, SUTD minimum top-up is **$10.00 SGD**, and all systems currently cap top-ups at **$50.00 SGD**.
 - The website entry point (`/app/`) and the Telegram Mini App use the same Express routes and React pages — no separate codepaths.
+- Global maintenance mode can be enabled at runtime with `/maintenanceon` (owner command) or at startup with `MAINTENANCE_MODE=true`. Users see the global maintenance message across the app and bot; `/health` and Telegram webhooks remain available so the service stays reachable and the owner can run `/maintenanceoff`. Set `MAINTENANCE_MESSAGE` to customize the copy. `GLOBAL_MAINTENANCE=true` is accepted as a legacy alias.
 - Top-ups can be disabled at runtime with `/topupoff` (owner command) or at startup with `TOPUP_DISABLED=true`. Bot users in an active top-up session when the flag is set will have their session reset and see the maintenance message. Website payment start, loading, card, bootstrap, and card-submit routes also return the maintenance response while top-ups are disabled; lookup, terms, result, and feedback routes remain available.
