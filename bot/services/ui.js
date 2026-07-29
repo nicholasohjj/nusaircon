@@ -33,14 +33,14 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
     `ℹ️ *${config.displayName} Help*\n\n` +
     `*Supported NUS systems*\n` +
     `• PGPR\n` +
-    `• Houses @ PGP, except Valour House\n` +
+    `• Houses @ PGP\n` +
     `• Residential Colleges\n` +
     `• NUS College\n` +
-    `  → uses cp2.evs.com.sg\n` +
     `• UTown Residences\n` +
     `• RVRC\n` +
     `• Valour House\n` +
-    `  → uses cp2nus.evs.com.sg\n\n` +
+    `  → uses cp2nus.evs.com.sg\n` +
+    `• Legacy CP2 fallback is available if your meter has not migrated\n\n` +
     `*Accepted NUS top-up amount*\n` +
     `• Minimum: $6.00 SGD\n` +
     `• Maximum: $50.00 SGD\n\n` +

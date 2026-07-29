@@ -14,9 +14,9 @@ tags:
   - name: Website
     description: Standalone website lookup and feedback API
   - name: CP2
-    description: PGPR, PGP Houses except Valour House, Residential Colleges, and NUS College payment flow
+    description: Legacy CP2 payment flow for NUS meters that have not migrated
   - name: CP2NUS
-    description: UTown Residences, RVRC, and Valour House payment flow
+    description: Primary CP2NUS payment flow for supported NUS hostel meters
   - name: SUTD
     description: SUTD payment flow
 

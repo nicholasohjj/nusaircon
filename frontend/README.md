@@ -7,13 +7,13 @@ React + Vite frontend for the EVS electricity top-up web app. Served at `/app/` 
 | Route             | Component         | Description                                             |
 | ----------------- | ----------------- | ------------------------------------------------------- |
 | `/`               | `HomePage`        | Hostel selection, meter ID, and amount entry            |
-| `/cp2`            | `HomePage`        | CP2-preselected entry point                             |
+| `/cp2`            | `HomePage`        | Legacy CP2 fallback entry point                         |
 | `/balance`        | `HomePage`        | Balance-check entry point                               |
 | `/loading`        | `LoadingPage`     | Calls `/webapp/bootstrap`; shows progress               |
 | `/pay`            | `CardPaymentPage` | RSA-encrypted card form; submits to `/webapp/enets_pay` |
 | `/result`         | `ResultPage`      | Payment outcome; reads from server session              |
-| `/cp2nus`         | `HomePage`        | CP2NUS-preselected entry point (UTown Residences / RVRC / Valour) |
-| `/cp2nus/loading` | `LoadingPage`     | cp2nus variant (UTown Residences / RVRC / Valour House) |
+| `/cp2nus`         | `HomePage`        | Primary NUS CP2NUS entry point                          |
+| `/cp2nus/loading` | `LoadingPage`     | cp2nus variant                                          |
 | `/cp2nus/pay`     | `CardPaymentPage` | cp2nus variant                                          |
 | `/cp2nus/result`  | `ResultPage`      | cp2nus variant                                          |
 | `/sutd`           | `HomePage`        | SUTD-preselected entry point                            |
@@ -54,7 +54,7 @@ frontend/
 
 **Amount input** — top-up amount validation accepts plain numbers and common currency prefixes such as `$10` or `S$ 10.00`, but rejects malformed mixed strings and decimals beyond cents.
 
-**cp2, cp2nus, and SUTD variants** — `LoadingPage`, `CardPaymentPage`, and `ResultPage` accept a `basePath` prop (`""` for cp2, `"/cp2nus"` for cp2nus, `"/sutd"` for SUTD). All fetch calls are prefixed with `basePath` so the same components work for all payment flows.
+**cp2, cp2nus, and SUTD variants** — `LoadingPage`, `CardPaymentPage`, and `ResultPage` accept a `basePath` prop (`""` for legacy cp2, `"/cp2nus"` for the primary NUS cp2nus flow, `"/sutd"` for SUTD). All fetch calls are prefixed with `basePath` so the same components work for all payment flows.
 
 ## Development
 

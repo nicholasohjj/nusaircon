@@ -22,9 +22,8 @@ const HOSTELS = {
 };
 
 const HOSTEL_LABELS = {
-  [HOSTELS.CP2]:
-    "PGPR / Houses @ PGP except Valour House / Residential Colleges / NUS College (cp2)",
-  [HOSTELS.CP2NUS]: "UTown Residences / RVRC / Valour House (cp2nus)",
+  [HOSTELS.CP2]: "Legacy CP2 fallback (only if your meter has not migrated)",
+  [HOSTELS.CP2NUS]: "NUS hostels (cp2nus)",
   [HOSTELS.SUTD]: "SUTD",
 };
 
@@ -91,11 +90,11 @@ const mainKeyboard = DEFAULT_BOT_CONFIG.mainKeyboard;
 const cancelKeyboard = Markup.keyboard([["❌ Cancel"]]).resize();
 
 const hostelInlineKeyboard = Markup.inlineKeyboard([
-  [Markup.button.callback("🏠 PGPR / PGP / RC / NUSC (cp2)", "hostel_cp2")],
+  [Markup.button.callback("🏠 NUS hostels (cp2nus)", "hostel_cp2nus")],
   [
     Markup.button.callback(
-      "🏠 UTown Residences / RVRC / Valour House (cp2nus)",
-      "hostel_cp2nus",
+      "🏠 Legacy CP2 fallback (if not migrated)",
+      "hostel_cp2",
     ),
   ],
 ]);

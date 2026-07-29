@@ -5,6 +5,7 @@ import path from "node:path";
 
 let startTopUp;
 let handleTopUpStart;
+let getWebAppPath;
 let saveUser;
 let STAGES;
 let HOSTELS;
@@ -12,7 +13,9 @@ let HOSTELS;
 beforeAll(async () => {
   process.env.DB_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "evs-topup-"));
 
-  ({ handleTopUpStart, startTopUp } = await import("../bot/services/topup.js"));
+  ({ getWebAppPath, handleTopUpStart, startTopUp } = await import(
+    "../bot/services/topup.js"
+  ));
   ({ saveUser } = await import("../bot/services/userStore.js"));
   ({ STAGES, HOSTELS } = await import("../bot/constants.js"));
 });
@@ -35,14 +38,14 @@ describe("startTopUp", () => {
     expect(session.stage).toBe(STAGES.AWAITING_AMOUNT);
   });
 
-  test("falls back to saved meter details when no deep-link meter is supplied", () => {
+  test("asks for system confirmation when saved details are legacy cp2", () => {
     saveUser("saved-details", "87654321", HOSTELS.CP2);
 
     const session = startTopUp("saved-details");
 
     expect(session.txtMtrId).toBe("87654321");
-    expect(session.hostel).toBe(HOSTELS.CP2);
-    expect(session.stage).toBe(STAGES.AWAITING_AMOUNT);
+    expect(session.hostel).toBeUndefined();
+    expect(session.stage).toBe(STAGES.AWAITING_HOSTEL);
   });
 
   test("prompts for a saved meter when multiple meters exist", async () => {
@@ -66,5 +69,10 @@ describe("startTopUp", () => {
         }),
       }),
     );
+  });
+
+  test("routes cp2nus as primary and keeps cp2 as legacy", () => {
+    expect(getWebAppPath(HOSTELS.CP2NUS)).toBe("/cp2nus/webapp");
+    expect(getWebAppPath(HOSTELS.CP2)).toBe("/webapp");
   });
 });

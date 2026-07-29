@@ -55,16 +55,12 @@ describe("SEO metadata", () => {
     expect(home.description).toContain("NUS and SUTD EVS meter");
     expect(home.canonicalUrl).toBe("https://example.com/app/");
     expect(home.robots).toBe("index, follow");
-    expect(cp2.title).toBe(
-      "PGPR, PGP Houses and NUS College EVS Top Up | EVS Meter Tools",
-    );
-    expect(cp2.description).toContain("PGPR");
+    expect(cp2.title).toBe("Legacy CP2 EVS Top Up | EVS Meter Tools");
+    expect(cp2.description).toContain("Legacy CP2");
     expect(cp2.canonicalUrl).toBe("https://example.com/app/cp2");
     expect(cp2.robots).toBe("index, follow");
-    expect(cp2nus.title).toBe(
-      "UTown Residences, RVRC and Valour House EVS Top Up | EVS Meter Tools",
-    );
-    expect(cp2nus.description).toContain("Valour House");
+    expect(cp2nus.title).toBe("NUS CP2NUS EVS Top Up | EVS Meter Tools");
+    expect(cp2nus.description).toContain("CP2NUS");
     expect(cp2nus.canonicalUrl).toBe("https://example.com/app/cp2nus");
     expect(cp2nus.robots).toBe("index, follow");
     expect(balance.title).toBe("EVS Meter Balance Check | EVS Meter Tools");

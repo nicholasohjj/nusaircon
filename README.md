@@ -6,8 +6,8 @@ A Telegram bot and web app for supported EVS electricity meters. Supported NUS a
 
 | Hostel group                                          | EVS system          |
 | ----------------------------------------------------- | ------------------- |
-| PGPR, Houses @ PGP except Valour House, Residential Colleges, NUS College | `cp2.evs.com.sg`    |
-| UTown Residences, RVRC, Valour House                                     | `cp2nus.evs.com.sg` |
+| NUS hostels, including PGPR, Houses @ PGP, Residential Colleges, NUS College, UTown Residences, RVRC, Valour House | `cp2nus.evs.com.sg` |
+| Legacy NUS fallback for meters not yet migrated       | `cp2.evs.com.sg`    |
 | SUTD                                                  | `SUTDMain` / `EVSSUTDWebPOS` |
 
 ## Features
@@ -47,12 +47,12 @@ Telegram Bot (telegraf)          Website (React, /app/)
 
     React Frontend (/app/)
           ├── /                 — HomePage (hostel + meter ID + amount)
-          ├── /cp2              — HomePage preselected for PGPR / PGP Houses / RC / NUS College
+          ├── /cp2              — HomePage preselected for legacy CP2 fallback
           ├── /balance          — HomePage opened in balance-check mode
           ├── /loading          — LoadingPage (calls /webapp/bootstrap)
           ├── /pay              — CardPaymentPage (RSA encryption + submit)
           ├── /result           — ResultPage (outcome from server session)
-          ├── /cp2nus           — HomePage preselected for UTown Residences / RVRC / Valour House
+          ├── /cp2nus           — HomePage preselected for primary NUS CP2NUS flow
           ├── /cp2nus/loading   — cp2nus variant
           ├── /cp2nus/pay       — cp2nus variant
           ├── /cp2nus/result    — cp2nus variant
@@ -63,9 +63,9 @@ Telegram Bot (telegraf)          Website (React, /app/)
 
 ## Payment flows
 
-### CP2 — PGPR / Houses @ PGP except Valour House / Residential Colleges / NUS College
+### CP2 — legacy NUS fallback
 
-Scrapes the EVS WebPOS portal to create a transaction, then proxies through eNETS.
+Scrapes the legacy EVS WebPOS portal to create a transaction, then proxies through eNETS. Use this only for NUS meters that have not migrated to CP2NUS.
 
 1. **`/webapp`** — fetches meter address and balance from ORE, redirects to React loading page with address/balance in query params
 2. **Bootstrap** (`/webapp/bootstrap`) — runs `runPurchaseFlow` and `getMeterSummary` in parallel:
@@ -83,9 +83,9 @@ Scrapes the EVS WebPOS portal to create a transaction, then proxies through eNET
    - Writes outcome (`status`, `merchantTxnRef`, `reason`) back to the server-side session
 5. **Result page** (`/app/result`) — React component; reads outcome from server session via `/webapp/session`
 
-### CP2NUS — UTown Residences / RVRC / Valour House
+### CP2NUS — primary NUS hostel flow
 
-Uses the EVS JSON API and the eNETS Payment Page (enetspp) host directly.
+Uses the EVS JSON API and the eNETS Payment Page (enetspp) host directly. This is the primary NUS hostel flow for migrated meters.
 
 1. **`/webapp`** — same as cp2; fetches meter info, redirects to `/app/cp2nus/loading`
 2. **Bootstrap** (`/cp2nus/webapp/bootstrap`) — `runBootstrap` runs sequentially:
@@ -230,7 +230,7 @@ Sessions are stored in-memory with a **15-minute TTL**. All messages for a given
 
 ```
 idle
-  → awaiting_hostel            (cp2 / cp2nus inline keyboard)
+  → awaiting_hostel            (cp2nus primary / legacy cp2 inline keyboard)
   → awaiting_meter_id          (8-digit ID; prefetches balance + 7-day usage)
   → awaiting_amount            ($6–$50 SGD)
   → awaiting_payment           (WebApp Pay button; re-prompts on text)

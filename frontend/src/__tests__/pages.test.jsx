@@ -37,19 +37,25 @@ function renderHomePage(props = {}) {
 
 function getPgprHostelButton() {
   return screen.getByRole("button", {
-    name: /^PGPR, Houses @ PGP except Valour House, Residential Colleges, NUS College$/i,
+    name: /^PGPR, Houses @ PGP, Residential Colleges, NUS College \(CP2NUS\)$/i,
   });
 }
 
 function getUtownHostelButton() {
   return screen.getByRole("button", {
-    name: /^UTown Residences, RVRC, Valour House$/i,
+    name: /^UTown Residences, RVRC, Valour House \(CP2NUS\)$/i,
   });
 }
 
 function getSutdHostelButton() {
   return screen.getByRole("button", {
     name: /^SUTD$/i,
+  });
+}
+
+function getLegacyCp2HostelButton() {
+  return screen.getByRole("button", {
+    name: /^Legacy CP2 fallback$/i,
   });
 }
 
@@ -649,21 +655,21 @@ describe("HomePage › static rendering", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: /UTown Residences, RVRC and Valour House EVS Top Up/i,
+        name: /NUS CP2NUS EVS Top Up/i,
       }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Supported Systems/i)).toBeInTheDocument();
   });
 
-  test("renders cp2 landing title", () => {
+  test("renders cp2 legacy landing title", () => {
     renderHomePage({ initialGroupId: "cp2" });
 
     expect(
       screen.getByRole("heading", {
-        name: /PGPR, PGP Houses and NUS College EVS Top Up/i,
+        name: /Legacy CP2 EVS Top Up/i,
       }),
     ).toBeInTheDocument();
-    expect(getPgprHostelButton().className).toMatch(/Active/i);
+    expect(getLegacyCp2HostelButton().className).toMatch(/Active/i);
   });
 
   test("renders balance landing with balance mode selected", () => {
@@ -682,6 +688,7 @@ describe("HomePage › static rendering", () => {
     renderHomePage();
     expect(getPgprHostelButton()).toBeInTheDocument();
     expect(getUtownHostelButton()).toBeInTheDocument();
+    expect(getLegacyCp2HostelButton()).toBeInTheDocument();
   });
 
   test("renders meter ID input", () => {
@@ -823,7 +830,9 @@ describe("HomePage › saved meters", () => {
 
     renderHomePage();
 
-    expect(screen.getByRole("button", { name: /^Legacy/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^Legacy\s+12345678/i }),
+    ).toBeInTheDocument();
   });
 
   test("renders saved meter cards with remove buttons only", () => {
@@ -1263,7 +1272,7 @@ describe("HomePage › submission", () => {
     vi.restoreAllMocks();
   });
 
-  test("navigates to cp2 webapp URL on valid PGPR submission", () => {
+  test("navigates to cp2nus webapp URL on valid migrated PGPR submission", () => {
     const assignSpy = vi.fn();
     Object.defineProperty(window, "location", {
       writable: true,
@@ -1282,14 +1291,37 @@ describe("HomePage › submission", () => {
     fireEvent.click(screen.getByRole("button", { name: "$20" }));
     fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
 
-    expect(assignSpy).toHaveBeenCalledWith(expect.stringContaining("/webapp?"));
+    expect(assignSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/cp2nus/webapp?"),
+    );
     expect(assignSpy).toHaveBeenCalledWith(
       expect.stringContaining("txtMtrId=12345678"),
     );
     expect(assignSpy).toHaveBeenCalledWith(
       expect.stringContaining("txtAmount=20"),
     );
-    // cp2 (PGPR) uses the root basePath — no /cp2nus prefix
+  });
+
+  test("keeps legacy CP2 fallback on the root webapp URL", () => {
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      writable: true,
+      value: { ...window.location, href: "" },
+    });
+    Object.defineProperty(window.location, "href", {
+      set: assignSpy,
+      get: () => "",
+    });
+
+    renderHomePage();
+    fireEvent.click(getLegacyCp2HostelButton());
+    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+      target: { value: "12345678" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "$20" }));
+    fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
+
+    expect(assignSpy).toHaveBeenCalledWith(expect.stringContaining("/webapp?"));
     expect(assignSpy).toHaveBeenCalledWith(
       expect.not.stringContaining("cp2nus"),
     );

@@ -106,6 +106,16 @@ async function handleSavedMeterAction(ctx, runtime) {
   if (parsed.mode === "topup") {
     resetSession(chatId, config.sessionKey);
     const session = getSession(chatId, config.sessionKey);
+    if (parsed.hostel === HOSTELS.CP2) {
+      session.stage = STAGES.AWAITING_HOSTEL;
+      session.txtMtrId = parsed.meterId;
+      return ctx.reply(
+        `🔌 Using saved Meter ID: <code>${parsed.meterId}</code>\n\n` +
+          `🏠 Please select your EVS system:`,
+        { parse_mode: "HTML", reply_markup: hostelInlineKeyboard.reply_markup },
+      );
+    }
+
     session.stage = STAGES.AWAITING_AMOUNT;
     session.hostel = parsed.hostel;
     session.txtMtrId = parsed.meterId;

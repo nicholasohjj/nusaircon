@@ -11,9 +11,9 @@ const MODE_LABELS = {
 };
 
 function shortHostelLabel(hostel) {
-  if (hostel === HOSTELS.CP2NUS) return "UTown Residences/RVRC/Valour";
+  if (hostel === HOSTELS.CP2NUS) return "NUS hostels (cp2nus)";
   if (hostel === HOSTELS.SUTD) return "SUTD";
-  return "PGPR/PGP/RC/NUSC";
+  return "Legacy CP2";
 }
 
 function savedMeterButtonText(meter) {

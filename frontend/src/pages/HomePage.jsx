@@ -12,17 +12,17 @@ const MAX_TOPUP_AMOUNT = 50;
 const HOSTEL_GROUPS = [
   {
     label:
-      "PGPR, Houses @ PGP except Valour House, Residential Colleges, NUS College",
-    id: "cp2",
-    basePath: "",
-    loadingPath: "/loading",
+      "PGPR, Houses @ PGP, Residential Colleges, NUS College (CP2NUS)",
+    id: "cp2nus-migrated",
+    basePath: "/cp2nus",
+    loadingPath: "/cp2nus/loading",
     topupSupported: true,
     usageSupported: true,
     minAmount: 6,
     maxAmount: 50,
   },
   {
-    label: "UTown Residences, RVRC, Valour House",
+    label: "UTown Residences, RVRC, Valour House (CP2NUS)",
     id: "cp2nus",
     basePath: "/cp2nus",
     loadingPath: "/cp2nus/loading",
@@ -41,6 +41,16 @@ const HOSTEL_GROUPS = [
     minAmount: 10,
     maxAmount: 50,
   },
+  {
+    label: "Legacy CP2 fallback",
+    id: "cp2",
+    basePath: "",
+    loadingPath: "/loading",
+    topupSupported: true,
+    usageSupported: true,
+    minAmount: 6,
+    maxAmount: 50,
+  },
 ];
 
 const MODES = [
@@ -55,17 +65,22 @@ const LANDING_COPY = {
   default: {
     title: "NUS and SUTD EVS Top Up",
     subtitle:
-      "Check supported EVS meter balances, usage, top-up history, or start a secure NUS or SUTD top-up from one place.",
+      "Check supported EVS meter balances, usage, top-up history, or start a secure top-up. NUS hostel top-ups now use CP2NUS, with CP2 kept as a legacy fallback.",
   },
   cp2: {
-    title: "PGPR, PGP Houses and NUS College EVS Top Up",
+    title: "Legacy CP2 EVS Top Up",
     subtitle:
-      "Use the CP2 EVS system for PGPR, Houses at PGP except Valour House, Residential Colleges, and NUS College balance checks, usage, top-up history, and top-ups.",
+      "Use the legacy CP2 EVS system only if your NUS hostel meter has not migrated to CP2NUS.",
+  },
+  "cp2nus-migrated": {
+    title: "NUS CP2NUS EVS Top Up",
+    subtitle:
+      "Use the CP2NUS EVS system for migrated NUS hostel meters, including PGPR, Houses at PGP, Residential Colleges, and NUS College.",
   },
   cp2nus: {
-    title: "UTown Residences, RVRC and Valour House EVS Top Up",
+    title: "NUS CP2NUS EVS Top Up",
     subtitle:
-      "Use the CP2NUS EVS system for UTown Residences, RVRC, and Valour House meter balance checks, usage, top-up history, and top-ups.",
+      "Use the CP2NUS EVS system for supported NUS hostel meters, including UTown Residences, RVRC, Valour House, PGPR, Houses at PGP, Residential Colleges, and NUS College.",
   },
   balance: {
     title: "EVS Meter Balance Check",
@@ -416,11 +431,13 @@ function SystemGuide() {
       <div className={styles.helpContent}>
         <h2 className={styles.guideTitle}>Choose the right EVS system</h2>
         <p>
-          <strong>CP2:</strong> PGPR, Houses at PGP except Valour House,
-          Residential Colleges, and NUS College.
+          <strong>CP2NUS:</strong> NUS hostel meters, including PGPR, Houses at
+          PGP, Residential Colleges, NUS College, UTown Residences, RVRC, and
+          Valour House.
         </p>
         <p>
-          <strong>CP2NUS:</strong> UTown Residences, RVRC, and Valour House.
+          <strong>Legacy CP2:</strong> use only if your meter has not migrated
+          to CP2NUS.
         </p>
         <p>
           <strong>SUTD:</strong> SUTD EVS meters. Usage history is not available
@@ -739,10 +756,10 @@ export default function HomePage({
         <summary>Help</summary>
         <div className={styles.helpContent}>
           <p>
-            Supported NUS hostels: PGPR, Houses at PGP except Valour House,
-            Residential Colleges, NUS College, UTown Residences, RVRC, and Valour
-            House. SUTD meter balance, top-up history, and online top-up are
-            also supported.
+            Supported NUS hostels now use CP2NUS: PGPR, Houses at PGP,
+            Residential Colleges, NUS College, UTown Residences, RVRC, and
+            Valour House. SUTD meter balance, top-up history, and online top-up
+            are also supported.
           </p>
           <p>
             Accepted NUS top-up amount: SGD 6.00 to SGD 50.00. Accepted SUTD

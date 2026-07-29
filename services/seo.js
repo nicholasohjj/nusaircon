@@ -9,9 +9,9 @@ const SITE_NAME = "EVS Meter Tools";
 const HOME_DESCRIPTION =
   "Check supported NUS and SUTD EVS meter balances and top-up history, and top up supported EVS meters online.";
 const CP2_DESCRIPTION =
-  "Top up and check EVS meter balances for PGPR, Houses at PGP except Valour House, Residential Colleges, and NUS College.";
+  "Legacy CP2 top-up flow for NUS hostel meters that have not migrated to CP2NUS.";
 const CP2NUS_DESCRIPTION =
-  "Top up and check EVS meter balances for UTown Residences, RVRC, and Valour House through the CP2NUS EVS system.";
+  "Top up and check EVS meter balances for supported NUS hostel meters through the CP2NUS EVS system.";
 const BALANCE_DESCRIPTION =
   "Check supported NUS and SUTD EVS meter balances online before topping up.";
 const SUTD_DESCRIPTION =
@@ -29,21 +29,20 @@ const PUBLIC_PAGE_SEO = {
     audienceType: "NUS and SUTD EVS meter users",
   },
   "/app/cp2": {
-    title: "PGPR, PGP Houses and NUS College EVS Top Up | EVS Meter Tools",
+    title: "Legacy CP2 EVS Top Up | EVS Meter Tools",
     description: CP2_DESCRIPTION,
     canonicalPath: "/app/cp2",
     ogType: "website",
     schemaType: "WebApplication",
-    audienceType:
-      "PGPR, Houses at PGP, Residential Colleges, and NUS College EVS meter users",
+    audienceType: "Legacy CP2 EVS meter users",
   },
   "/app/cp2nus": {
-    title: "UTown Residences, RVRC and Valour House EVS Top Up | EVS Meter Tools",
+    title: "NUS CP2NUS EVS Top Up | EVS Meter Tools",
     description: CP2NUS_DESCRIPTION,
     canonicalPath: "/app/cp2nus",
     ogType: "website",
     schemaType: "WebApplication",
-    audienceType: "UTown Residences, RVRC, and Valour House EVS meter users",
+    audienceType: "NUS CP2NUS EVS meter users",
   },
   "/app/balance": {
     title: "EVS Meter Balance Check | EVS Meter Tools",

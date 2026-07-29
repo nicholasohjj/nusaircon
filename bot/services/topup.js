@@ -56,10 +56,13 @@ function startTopUp(
   const dbUserAllowed =
     dbUser && config.allowedHostels.includes(dbUser.hostel) ? dbUser : null;
   const meterId = savedInSession ?? dbUserAllowed?.meterId ?? null;
+  const savedHostel = dbUserAllowed?.hostel || null;
   const hostel =
     config.audience === "sutd"
       ? HOSTELS.SUTD
-      : dbUserAllowed?.hostel || null;
+      : savedHostel === HOSTELS.CP2
+        ? null
+        : savedHostel;
 
   if (meterId) session.txtMtrId = meterId;
   if (hostel) session.hostel = hostel;
