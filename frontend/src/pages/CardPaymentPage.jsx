@@ -339,8 +339,8 @@ export default function CardPaymentPage({ basePath = "" }) {
         address,
         balance,
         amount: `S$ ${Number(txtAmount).toFixed(2)}`,
+        debug: String(debugActive),
       });
-      if (debugActive) payload.set("debug", "1");
 
       setBtnLabel("Processing…");
 

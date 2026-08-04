@@ -1,9 +1,6 @@
 import { describe, test, expect } from "vitest";
 
-const {
-  buildDebugSuccessPayResultUrl,
-  parsePayResult,
-} = require("../services/cp2nusService");
+const { parsePayResult } = require("../services/cp2nusService");
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -186,66 +183,6 @@ describe("parsePayResult", () => {
   test("returns failure for completely empty inputs", () => {
     const result = parsePayResult("", "");
     expect(result.status).toBe("failure");
-  });
-});
-
-// ── buildDebugSuccessPayResultUrl ────────────────────────────────────────────
-
-describe("buildDebugSuccessPayResultUrl", () => {
-  const decodeParams = (url) => {
-    const parsed = new URL(url);
-    const decoded = {};
-    for (const key of ["r", "t", "a", "x", "s", "m"]) {
-      decoded[key] = Buffer.from(
-        parsed.searchParams.get(key),
-        "base64",
-      ).toString("utf8");
-    }
-    return decoded;
-  };
-
-  test("flips b2s decline params to success while preserving t and x", () => {
-    const declineUrl = makePayResultUrl({
-      r: "fail",
-      t: "12345678",
-      a: "0.00",
-      x: "MTR-DECLINED-001",
-      s: "3099-01045",
-      m: "Payment declined - No such issuer",
-    });
-
-    const url = buildDebugSuccessPayResultUrl({
-      finalUrl: declineUrl,
-      meterId: "87654321",
-      amount: "50",
-      merchantTxnRef: "FALLBACK-REF",
-    });
-
-    expect(decodeParams(url)).toEqual({
-      r: "success",
-      t: "12345678",
-      a: "50.00",
-      x: "MTR-DECLINED-001",
-      s: "00",
-      m: "Payment successful",
-    });
-  });
-
-  test("builds a parseable success result when upstream redirect is missing", () => {
-    const url = buildDebugSuccessPayResultUrl({
-      finalUrl: "",
-      meterId: "12345678",
-      amount: "6.5",
-      merchantTxnRef: "MTR-FALLBACK",
-    });
-
-    const result = parsePayResult(url, "");
-    expect(result.status).toBe("success");
-    expect(result.meterId).toBe("12345678");
-    expect(result.amount).toBe("S$ 6.50");
-    expect(result.merchantTxnRef).toBe("MTR-FALLBACK");
-    expect(result.stageRespCode).toBe("00");
-    expect(result.reason).toBe("Payment completed.");
   });
 });
 

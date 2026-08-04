@@ -117,49 +117,6 @@ function buildEnetsPayUrl({ req, sign, username, amount, address }) {
   return `${ENETS_PP_HOST}/pay?p=${p}`;
 }
 
-function b64dec(value) {
-  return value ? Buffer.from(value, "base64").toString("utf8") : null;
-}
-
-function b64enc(value) {
-  return Buffer.from(String(value ?? "")).toString("base64");
-}
-
-function formatPayResultAmount(amount) {
-  const parsedAmount = parsePaymentAmount(amount);
-  return parsedAmount === null ? String(amount || "") : parsedAmount.toFixed(2);
-}
-
-function buildDebugSuccessPayResultUrl({
-  finalUrl,
-  meterId,
-  amount,
-  merchantTxnRef,
-}) {
-  let baseUrl = "https://enetspp-nus-live.evs.com.sg/pay_result";
-  let target = meterId || "";
-  let txnRef = merchantTxnRef || "";
-
-  try {
-    const url = new URL(finalUrl);
-    baseUrl = `${url.origin}${url.pathname}`;
-    target = b64dec(url.searchParams.get("t")) || target;
-    txnRef = b64dec(url.searchParams.get("x")) || txnRef;
-  } catch {
-    // Fall back to the known pay_result endpoint and session identifiers.
-  }
-
-  const debugUrl = new URL(baseUrl);
-  debugUrl.searchParams.set("r", b64enc("success"));
-  debugUrl.searchParams.set("t", b64enc(target));
-  debugUrl.searchParams.set("a", b64enc(formatPayResultAmount(amount)));
-  debugUrl.searchParams.set("x", b64enc(txnRef));
-  debugUrl.searchParams.set("s", b64enc("00"));
-  debugUrl.searchParams.set("m", b64enc("Payment successful"));
-
-  return debugUrl.toString();
-}
-
 async function fetchEnvJsp() {
   const resp = await axios.get(
     "https://www2.enets.sg/GW2/pluginpages/env.jsp",
@@ -667,6 +624,8 @@ function parsePayResult(finalUrl, html) {
 
   try {
     const u = new URL(finalUrl);
+    const b64dec = (v) =>
+      v ? Buffer.from(v, "base64").toString("utf8") : null;
     r = b64dec(u.searchParams.get("r")); // 'success' | 'fail'
     t = b64dec(u.searchParams.get("t")); // target / meter id
     a = b64dec(u.searchParams.get("a")); // amount e.g. "6.00"
@@ -715,7 +674,6 @@ module.exports = {
   isCp2nusMeter,
   buildPayDisplayAddress,
   buildEnetsPayUrl,
-  buildDebugSuccessPayResultUrl,
   fetchEnvJsp,
   fetchNetsFields,
   fetchReceipt,
