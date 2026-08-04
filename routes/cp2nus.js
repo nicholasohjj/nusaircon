@@ -26,6 +26,8 @@ const {
   callCreditInit,
   submitPanForm,
   postToB2s,
+  buildDebugSuccessPayResultUrl,
+  parsePayResult,
 } = require("../services/cp2nusService");
 const { getPaymentBot } = require("../bot/bot");
 
@@ -400,6 +402,8 @@ router.post(
 
       if (debug && panResult.preParsed) {
         panResult.preParsed.status = "success";
+        panResult.preParsed.amount = `S$ ${Number(amount).toFixed(2)}`;
+        panResult.preParsed.stageRespCode = "00";
         panResult.preParsed.reason = "Payment completed.";
       }
 
@@ -453,7 +457,7 @@ router.post(
       }
 
       // Step 4c: POST auto-submit form to b2s, follow redirect to /pay_result
-      const b2sResult = await postToB2s({
+      let b2sResult = await postToB2s({
         action: panResult.action,
         message: panResult.message,
         hmac: panResult.hmac,
@@ -466,14 +470,23 @@ router.post(
         if (pdfBuffer) session.receiptId = storeReceiptPdf(pdfBuffer);
       }
 
+      if (debug) {
+        const debugFinalUrl = buildDebugSuccessPayResultUrl({
+          finalUrl: b2sResult.finalUrl,
+          meterId,
+          amount,
+          merchantTxnRef: effectiveMerchantTxnRef,
+        });
+        b2sResult = {
+          ...b2sResult,
+          finalUrl: debugFinalUrl,
+          parsed: parsePayResult(debugFinalUrl, ""),
+        };
+      }
+
       const parsed = b2sResult.parsed || {};
       const normalized = normalizeFinalOutcome(parsed);
       const finalAmount = parsed.amount || amount || "";
-
-      if (debug) {
-        normalized.status = "success";
-        normalized.reason = "Payment completed.";
-      }
 
       session.status = normalized.status;
       session.merchantTxnRef =
