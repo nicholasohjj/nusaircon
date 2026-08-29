@@ -619,6 +619,27 @@ async function postToB2s({ action, message, hmac, keyId, jsessionId }) {
   };
 }
 
+function overwritePayResultParams(finalUrl, overrides) {
+  try {
+    const url = new URL(finalUrl);
+
+    for (const [key, value] of Object.entries(overrides || {})) {
+      if (value == null) {
+        url.searchParams.delete(key);
+        continue;
+      }
+      url.searchParams.set(
+        key,
+        Buffer.from(String(value), "utf8").toString("base64"),
+      );
+    }
+
+    return url.toString();
+  } catch {
+    return finalUrl;
+  }
+}
+
 function parsePayResult(finalUrl, html) {
   let r, t, a, x, s, m;
 
@@ -682,5 +703,6 @@ module.exports = {
   callCreditInit,
   submitPanForm,
   postToB2s,
+  overwritePayResultParams,
   parsePayResult,
 };

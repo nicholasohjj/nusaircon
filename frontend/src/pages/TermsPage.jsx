@@ -49,7 +49,7 @@ export default function TermsPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Terms of Use</h1>
         <p className={styles.meta}>
-          EVS Meter Tools · Last updated: June 2026
+          EVS Meter Tools · Last updated: August 2026
         </p>
         <Para>
           Please read these Terms carefully before using EVS Meter Tools ("the
@@ -170,26 +170,28 @@ export default function TermsPage() {
       <Section id="s6" title="6. Session and data handling">
         <Ul
           items={[
-            "Your meter ID and selected EVS system are saved to a local database so you do not need to re-enter them on future top-ups or lookups. You can delete this at any time with the /forget command.",
+            "When you use the Bot, your Telegram chat identifier, meter ID(s), selected EVS system, meter label, and saved/last-used timestamps are stored in a service-operated database so you do not need to re-enter them on future top-ups or lookups. You can remove saved meter records with the /forget command. This does not remove information already held in operational, security, or analytics logs, where retention may be necessary for those purposes.",
             "Bot sessions (conversation state, current top-up stage) are held in memory only and expire after 15 minutes of inactivity. They are not written to disk and are lost on service restart.",
             "Pending payment tokens are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, Telegram chat identifier if the flow was started from Telegram, and eNETS gateway fields required to complete the payment. They expire after approximately 10 minutes.",
             "Completed result tokens are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, transaction outcome, transaction reference, and Telegram chat identifier if available. They expire after approximately 24 hours.",
             "Receipt PDFs, when available for cp2nus payments, may be cached temporarily and may become unavailable after expiry or service restart.",
-            "To support feedback replies, message routing information is held in memory for up to 7 days after a feedback submission. This consists only of Telegram message and chat identifiers; no message content is retained beyond what Telegram itself stores.",
-            "Basic analytics and request logs are captured to maintain service quality, troubleshoot errors, and limit abuse. These may include request path, response status, IP address, user agent, meter ID, top-up amount, transaction outcome, and error details, but never your plaintext card details. Sensitive URL fields such as payment tokens are redacted from structured request logs.",
-            "By submitting feedback via /feedback, you consent to your message being forwarded to the Service operator and to receiving a reply from the Service operator through the Bot.",
+            "To support feedback replies, Telegram message-routing information is held in memory for up to 7 days after a Bot feedback submission. This consists of Telegram message and chat identifiers.",
+            "Feedback content, ratings, and any contact details you provide may be recorded in service logs, sent to the Service operator through Telegram, and processed by our analytics and hosting providers to receive, respond to, and improve the Service. Do not include card details or other sensitive information in feedback.",
+            "Basic analytics and request logs are captured to maintain service quality, troubleshoot errors, and limit abuse. These may include request path, response status, IP address, user agent, Telegram chat identifier, meter ID, top-up amount, transaction outcome, feedback-related event data, and error details, but never your plaintext card details. Sensitive URL fields such as payment tokens are redacted from structured request logs.",
+            "We disclose information only as needed to operate the Service: to Telegram for Bot communications; eNETS and EVS or relevant institutional systems to process lookups and payments; and hosting, logging, and analytics providers. These providers may process information outside Singapore.",
+            "By submitting feedback through the Bot or website, you consent to it being forwarded to the Service operator. If you provide contact details, they may be used to respond to your feedback.",
           ]}
         />
       </Section>
 
       <Section id="s7" title="7. Operator communication">
         <Para>
-          When you submit feedback, the Service operator may reply to you
+          When you submit Bot feedback, the Service operator may reply to you
           directly through the Bot. These replies are sent via Telegram and will
           appear as messages from the Bot. You may also reply to those messages
-          and your reply will be forwarded to the operator. This two-way
-          exchange is limited to feedback threads and is not used for any other
-          purpose.
+          and your reply will be forwarded to the operator. For website feedback,
+          the Service operator may use the contact details you provide to respond.
+          These exchanges are limited to feedback and support matters.
         </Para>
       </Section>
 
@@ -254,7 +256,11 @@ export default function TermsPage() {
       <Section id="s13" title="13. Contact">
         <Para>
           For issues, disputes, or feedback, use the{" "}
-          <code className={styles.code}>/feedback</code> command within the Bot.
+          <code className={styles.code}>/feedback</code> command in the Bot or
+          the Feedback section of the web app. For a privacy, access, correction,
+          or deletion request, use either channel, state that the request concerns
+          privacy, and provide enough information for us to verify and locate your
+          records. We may need to verify your identity before acting on a request.
         </Para>
       </Section>
     </Card>

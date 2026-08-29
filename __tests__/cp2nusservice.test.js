@@ -1,6 +1,9 @@
 import { describe, test, expect } from "vitest";
 
-const { parsePayResult } = require("../services/cp2nusService");
+const {
+  overwritePayResultParams,
+  parsePayResult,
+} = require("../services/cp2nusService");
 
 // ── Test fixtures ─────────────────────────────────────────────────────────────
 
@@ -151,6 +154,32 @@ describe("parsePayResult", () => {
     });
     const result = parsePayResult(url, "");
     expect(result.amount).toBeNull();
+  });
+
+  test("debug overwrite rewrites the base64 r param to success", () => {
+    const overwritten = overwritePayResultParams(FAILURE_URL, {
+      r: "success",
+      m: "Approval",
+    });
+    const parsedUrl = new URL(overwritten);
+
+    expect(
+      Buffer.from(parsedUrl.searchParams.get("r"), "base64").toString("utf8"),
+    ).toBe("success");
+    expect(
+      Buffer.from(parsedUrl.searchParams.get("m"), "base64").toString("utf8"),
+    ).toBe("Approval");
+  });
+
+  test("debug overwrite changes parsed failure result to success", () => {
+    const overwritten = overwritePayResultParams(FAILURE_URL, {
+      r: "success",
+      m: "Approval",
+    });
+    const result = parsePayResult(overwritten, "");
+
+    expect(result.status).toBe("success");
+    expect(result.reason).toBe("Payment completed.");
   });
 
   // ── HTML fallback path ────────────────────────────────────────────────────

@@ -26,6 +26,8 @@ const {
   callCreditInit,
   submitPanForm,
   postToB2s,
+  overwritePayResultParams,
+  parsePayResult,
 } = require("../services/cp2nusService");
 const { getPaymentBot } = require("../bot/bot");
 
@@ -461,6 +463,14 @@ router.post(
         jsessionId,
       });
 
+      if (debug) {
+        b2sResult.finalUrl = overwritePayResultParams(b2sResult.finalUrl, {
+          r: "success",
+          m: "Approval",
+        });
+        b2sResult.parsed = parsePayResult(b2sResult.finalUrl, "");
+      }
+
       if (b2sResult.parsed?.status === "success") {
         const pdfBuffer = await fetchReceipt(jsessionId, b2sResult.finalUrl);
         if (pdfBuffer) session.receiptId = storeReceiptPdf(pdfBuffer);
@@ -469,11 +479,6 @@ router.post(
       const parsed = b2sResult.parsed || {};
       const normalized = normalizeFinalOutcome(parsed);
       const finalAmount = parsed.amount || amount || "";
-
-      if (debug) {
-        normalized.status = "success";
-        normalized.reason = "Payment completed.";
-      }
 
       session.status = normalized.status;
       session.merchantTxnRef =
