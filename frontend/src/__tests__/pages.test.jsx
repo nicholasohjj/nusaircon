@@ -678,7 +678,7 @@ describe("HomePage › static rendering", () => {
     expect(
       screen.getByRole("heading", { name: /^EVS Meter Balance Check$/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^Balance$/i }).className).toMatch(
+    expect(screen.getByRole("tab", { name: /^Balance$/i }).className).toMatch(
       /Active/i,
     );
     expect(screen.getByRole("button", { name: /Check Meter/i })).toBeInTheDocument();
@@ -1164,7 +1164,7 @@ describe("HomePage › lookup", () => {
     });
 
     renderHomePage();
-    fireEvent.click(screen.getByRole("button", { name: /^Balance$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Balance$/i }));
     fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
       target: { value: "12345678" },
     });
@@ -1203,7 +1203,7 @@ describe("HomePage › lookup", () => {
     });
 
     renderHomePage();
-    fireEvent.click(screen.getByRole("button", { name: /^Usage$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Usage$/i }));
     fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
       target: { value: "12345678" },
     });
@@ -1250,7 +1250,7 @@ describe("HomePage › lookup", () => {
     });
 
     renderHomePage();
-    fireEvent.click(screen.getByRole("button", { name: /^Top-ups$/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /^Top-ups$/i }));
     fireEvent.click(screen.getByRole("button", { name: /^SUTD$/i }));
     fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
       target: { value: "20000596" },

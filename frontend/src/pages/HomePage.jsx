@@ -424,36 +424,6 @@ function TopupsResult({ result }) {
   );
 }
 
-function SystemGuide() {
-  return (
-    <details className={styles.helpBox}>
-      <summary>Supported Systems</summary>
-      <div className={styles.helpContent}>
-        <h2 className={styles.guideTitle}>Choose the right EVS system</h2>
-        <p>
-          <strong>CP2NUS:</strong> NUS hostel meters, including PGPR, Houses at
-          PGP, Residential Colleges, NUS College, UTown Residences, RVRC, and
-          Valour House.
-        </p>
-        <p>
-          <strong>Legacy CP2:</strong> use only if your meter has not migrated
-          to CP2NUS.
-        </p>
-        <p>
-          <strong>SUTD:</strong> SUTD EVS meters. Usage history is not available
-          for SUTD yet.
-        </p>
-        <p>
-          Balance checks, recent usage, and top-up history are available where
-          the upstream EVS system provides them. Supported NUS top-up amounts
-          are SGD 6.00 to SGD 50.00; supported SUTD top-up amounts are SGD 10.00
-          to SGD 50.00.
-        </p>
-      </div>
-    </details>
-  );
-}
-
 export default function HomePage({
   initialGroupId = "",
   initialMode = "topup",
@@ -482,6 +452,7 @@ export default function HomePage({
   const [feedbackContact, setFeedbackContact] = useState("");
   const [feedbackStatus, setFeedbackStatus] = useState("");
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [topupSubmitting, setTopupSubmitting] = useState(false);
   const [topupStatus] = useState(readRuntimeTopupStatus);
 
   useEffect(() => {
@@ -543,6 +514,13 @@ export default function HomePage({
   }
 
   function handleSavedMeterRemove(profile) {
+    if (
+      typeof window !== "undefined" &&
+      !window.confirm(`Remove saved meter "${profile.label}"?`)
+    ) {
+      return;
+    }
+
     const nextSavedMeters = savedMeters.filter((saved) => saved.id !== profile.id);
     const nextActive =
       activeSavedId === profile.id
@@ -570,6 +548,8 @@ export default function HomePage({
       setErrors(errs);
       return;
     }
+
+    setTopupSubmitting(true);
 
     const group = HOSTEL_GROUPS[groupIndex];
     const cleanMeterId = meterId.trim();
@@ -701,6 +681,8 @@ export default function HomePage({
           <button
             key={mode.id}
             type="button"
+            role="tab"
+            aria-selected={activeMode === mode.id}
             className={[
               styles.modeTab,
               activeMode === mode.id ? styles.modeTabActive : "",
@@ -753,22 +735,30 @@ export default function HomePage({
       )}
 
       <details className={styles.helpBox}>
-        <summary>Help</summary>
+        <summary>Help &amp; Supported Systems</summary>
         <div className={styles.helpContent}>
+          <h2 className={styles.guideTitle}>Choose the right EVS system</h2>
           <p>
-            Supported NUS hostels now use CP2NUS: PGPR, Houses at PGP,
-            Residential Colleges, NUS College, UTown Residences, RVRC, and
-            Valour House. SUTD meter balance, top-up history, and online top-up
-            are also supported.
+            <strong>CP2NUS:</strong> NUS hostel meters, including PGPR, Houses
+            at PGP, Residential Colleges, NUS College, UTown Residences, RVRC,
+            and Valour House.
           </p>
           <p>
-            Accepted NUS top-up amount: SGD 6.00 to SGD 50.00. Accepted SUTD
-            top-up amount: SGD 10.00 to SGD 50.00.
+            <strong>Legacy CP2:</strong> use only if your meter has not
+            migrated to CP2NUS.
+          </p>
+          <p>
+            <strong>SUTD:</strong> SUTD EVS meters. Usage history is not
+            available for SUTD yet.
+          </p>
+          <p>
+            Balance checks, recent usage, and top-up history are available
+            where the upstream EVS system provides them. Accepted NUS top-up
+            amount: SGD 6.00 to SGD 50.00. Accepted SUTD top-up amount: SGD
+            10.00 to SGD 50.00.
           </p>
         </div>
       </details>
-
-      <SystemGuide />
 
       {activeMode === "topup" && (
         <form onSubmit={handleSubmit} autoComplete="off" noValidate>
@@ -779,6 +769,7 @@ export default function HomePage({
                 <button
                   key={i}
                   type="button"
+                  aria-pressed={groupIndex === i}
                   className={[
                     styles.groupBtn,
                     groupIndex === i ? styles.groupBtnActive : "",
@@ -853,10 +844,14 @@ export default function HomePage({
                   if (errors.amount)
                     setErrors((p) => ({ ...p, amount: undefined }));
                 }}
+                aria-invalid={errors.amount ? "true" : undefined}
+                aria-describedby={errors.amount ? "amount-error" : undefined}
               />
             </div>
             {errors.amount && (
-              <div className={styles.errMsg}>{errors.amount}</div>
+              <div id="amount-error" className={styles.errMsg}>
+                {errors.amount}
+              </div>
             )}
           </div>
 
@@ -865,6 +860,7 @@ export default function HomePage({
               <button
                 key={v}
                 type="button"
+                aria-pressed={amount === String(v)}
                 className={[
                   styles.preset,
                   amount === String(v) ? styles.presetActive : "",
@@ -883,9 +879,9 @@ export default function HomePage({
             <button
               type="submit"
               className={styles.btn}
-              disabled={Boolean(selectedTopupDisabledMessage)}
+              disabled={Boolean(selectedTopupDisabledMessage) || topupSubmitting}
             >
-              Continue
+              {topupSubmitting ? "Redirecting…" : "Continue"}
             </button>
             <button
               type="button"
@@ -913,6 +909,7 @@ export default function HomePage({
                 <button
                   key={g.id}
                   type="button"
+                  aria-pressed={groupIndex === i}
                   className={[
                     styles.groupBtn,
                     groupIndex === i ? styles.groupBtnActive : "",
@@ -935,7 +932,7 @@ export default function HomePage({
           />
 
           <div className={styles.actionGrid}>
-            <button type="submit" className={styles.btn}>
+            <button type="submit" className={styles.btn} disabled={lookupLoading}>
               {lookupLoading ? "Checking..." : "Check Meter"}
             </button>
             <button
@@ -974,6 +971,7 @@ export default function HomePage({
                 <button
                   key={rating}
                   type="button"
+                  aria-pressed={feedbackRating === rating}
                   className={[
                     styles.preset,
                     feedbackRating === rating ? styles.presetActive : "",
@@ -1015,7 +1013,7 @@ export default function HomePage({
           </div>
 
           <div className={styles.actionGrid}>
-            <button type="submit" className={styles.btn}>
+            <button type="submit" className={styles.btn} disabled={feedbackLoading}>
               {feedbackLoading ? "Sending..." : "Submit Feedback"}
             </button>
             <button
@@ -1051,8 +1049,14 @@ function MeterField({ meterId, error, onChange }) {
         placeholder="8-digit meter ID"
         value={meterId}
         onChange={(e) => onChange(e.target.value)}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={error ? "meterId-error" : undefined}
       />
-      {error && <div className={styles.errMsg}>{error}</div>}
+      {error && (
+        <div id="meterId-error" className={styles.errMsg}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }

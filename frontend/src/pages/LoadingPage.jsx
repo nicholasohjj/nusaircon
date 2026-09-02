@@ -40,6 +40,12 @@ export default function LoadingPage({ basePath = "" }) {
     balance !== null && balance !== "" ? Number(balance).toFixed(2) : null;
   const systemLabel =
     basePath === "/cp2nus" ? "cp2nus" : basePath === "/sutd" ? "SUTD" : "cp2";
+  const homeHref =
+    basePath === "/cp2nus"
+      ? "/app/cp2nus"
+      : basePath === "/sutd"
+        ? "/app/sutd"
+        : "/app/";
 
   const [statusText, setStatusText] = useState("Initialising…");
   const [error, setError] = useState(null);
@@ -91,6 +97,11 @@ export default function LoadingPage({ basePath = "" }) {
     return () => abortRef.current?.abort();
   }, [runFlow]);
 
+  function handleCancel() {
+    abortRef.current?.abort();
+    window.location.href = homeHref;
+  }
+
   return (
     <Card align="center">
       <Logo>⚡</Logo>
@@ -110,6 +121,13 @@ export default function LoadingPage({ basePath = "" }) {
         <div className={styles.spinnerWrap}>
           <div className={styles.spinner} />
           <div className={styles.statusText}>{statusText}</div>
+          <button
+            type="button"
+            className={styles.cancelLink}
+            onClick={handleCancel}
+          >
+            Cancel
+          </button>
         </div>
       )}
 

@@ -76,12 +76,18 @@ function submitExternalPostForm(action, fields) {
 
 // ── Field component ───────────────────────────────────────────────────────────
 
-function Field({ label, error, children }) {
+function Field({ id, label, error, children }) {
   return (
     <div className={styles.field}>
-      <label className={styles.label}>{label}</label>
+      <label className={styles.label} htmlFor={id}>
+        {label}
+      </label>
       {children}
-      {error && <div className={styles.errMsg}>{error}</div>}
+      {error && (
+        <div id={`${id}-error`} className={styles.errMsg}>
+          {error}
+        </div>
+      )}
     </div>
   );
 }
@@ -92,6 +98,8 @@ function Input({ id, inputRef, error, ...props }) {
       id={id}
       ref={inputRef}
       className={[styles.input, error ? styles.inputError : ""].join(" ")}
+      aria-invalid={error ? "true" : undefined}
+      aria-describedby={error ? `${id}-error` : undefined}
       {...props}
     />
   );
@@ -448,8 +456,9 @@ export default function CardPaymentPage({ basePath = "" }) {
         <span className={styles.summaryVal}>SGD {amtDisplay}</span>
       </div>
       <form onSubmit={handleSubmit} autoComplete="off">
-        <Field label="Cardholder name" error={errors.name}>
+        <Field id="name" label="Cardholder name" error={errors.name}>
           <Input
+            id="name"
             name="name"
             type="text"
             value={fields.name}
@@ -460,8 +469,9 @@ export default function CardPaymentPage({ basePath = "" }) {
             style={{ fontFamily: "var(--sans)" }}
           />
         </Field>
-        <Field label="Email" error={errors.email}>
+        <Field id="email" label="Email" error={errors.email}>
           <Input
+            id="email"
             name="email"
             type="email"
             value={fields.email}
@@ -472,9 +482,10 @@ export default function CardPaymentPage({ basePath = "" }) {
             style={{ fontFamily: "var(--sans)" }}
           />
         </Field>
-        <Field label="Card number" error={errors.cardNo}>
+        <Field id="cardNo" label="Card number" error={errors.cardNo}>
           <div className={styles.cardNumberWrap}>
             <Input
+              id="cardNo"
               name="cardNo"
               type="tel"
               value={fields.cardNo}
@@ -495,8 +506,9 @@ export default function CardPaymentPage({ basePath = "" }) {
           </div>
         </Field>
         <div className={styles.row3}>
-          <Field label="Month" error={errors.expMth}>
+          <Field id="expMth" label="Month" error={errors.expMth}>
             <Input
+              id="expMth"
               name="expMth"
               type="tel"
               value={fields.expMth}
@@ -509,8 +521,9 @@ export default function CardPaymentPage({ basePath = "" }) {
             />
           </Field>
 
-          <Field label="Year" error={errors.expYr}>
+          <Field id="expYr" label="Year" error={errors.expYr}>
             <Input
+              id="expYr"
               name="expYr"
               type="tel"
               value={fields.expYr}
@@ -524,9 +537,10 @@ export default function CardPaymentPage({ basePath = "" }) {
             />
           </Field>
 
-          <Field label="CVV" error={errors.cvv}>
+          <Field id="cvv" label="CVV" error={errors.cvv}>
             <div className={styles.cvvWrap}>
               <Input
+                id="cvv"
                 name="cvv"
                 type="tel"
                 value={fields.cvv}

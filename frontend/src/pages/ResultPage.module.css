@@ -291,6 +291,10 @@
   opacity: 0.85;
 }
 
+.btnFull {
+  grid-column: 1 / -1;
+}
+
 /* ── Processing spinner screen ────────────────────────────────────────────── */
 
 .spinnerWrap {

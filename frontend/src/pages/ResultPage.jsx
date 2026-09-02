@@ -183,8 +183,9 @@ export default function ResultPage({ basePath = "" }) {
             href={`/cp2nus/webapp/receipt?token=${encodeURIComponent(token)}`}
             target="_blank"
             rel="noreferrer"
-            className={[styles.btn, styles.btnSecondary].join(" ")}
-            style={{ gridColumn: "1 / -1" }}
+            className={[styles.btn, styles.btnSecondary, styles.btnFull].join(
+              " ",
+            )}
           >
             Download Receipt
           </a>

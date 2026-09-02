@@ -178,3 +178,19 @@
 .retryBtn:hover {
   opacity: 0.88;
 }
+
+.cancelLink {
+  display: inline-block;
+  margin-top: 4px;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.cancelLink:hover {
+  color: var(--text);
+}
