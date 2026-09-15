@@ -60,6 +60,30 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
   );
 }
 
+function shortDescription(config = DEFAULT_BOT_CONFIG) {
+  if (config.audience === "sutd") {
+    return "Check your SUTD EVS electricity balance and top up by card — right in Telegram.";
+  }
+
+  return "Check your hostel EVS electricity balance and top up by card — right in Telegram.";
+}
+
+function longDescription(config = DEFAULT_BOT_CONFIG) {
+  if (config.audience === "sutd") {
+    return (
+      "Top up your SUTD EVS electricity meter by credit card, check your balance, " +
+      "and view recent top-ups — all inside Telegram. Tap Start to begin."
+    );
+  }
+
+  return (
+    "Top up your NUS hostel EVS electricity meter by credit card, check your balance, " +
+    "see 7-day usage, and view recent top-ups — all inside Telegram. Supports PGPR, " +
+    "Houses @ PGP, Residential Colleges, NUS College, UTown Residences, RVRC, and " +
+    "Valour House. Tap Start to begin."
+  );
+}
+
 async function sendHelp(ctx, config = DEFAULT_BOT_CONFIG) {
   return ctx.replyWithMarkdown(helpText(config), config.mainKeyboard);
 }
@@ -81,20 +105,26 @@ async function setupTelegramUi(bot, config = DEFAULT_BOT_CONFIG) {
           { command: "topups", description: "Show recent top-ups" },
         ];
 
-  await bot.telegram.setMyCommands([
-    ...(config.supportsTopup
-      ? [{ command: "topup", description: "Start electricity top-up" }]
-      : []),
-    ...lookupCommands,
-    { command: "forget", description: "Clear saved meters" },
-    { command: "feedback", description: "Share feedback or report an issue" },
-    { command: "help", description: "Show help and usage" },
-    { command: "cancel", description: "Cancel current flow" },
+  await Promise.all([
+    bot.telegram.setMyCommands([
+      ...(config.supportsTopup
+        ? [{ command: "topup", description: "Start electricity top-up" }]
+        : []),
+      ...lookupCommands,
+      { command: "forget", description: "Clear saved meters" },
+      { command: "feedback", description: "Share feedback or report an issue" },
+      { command: "help", description: "Show help and usage" },
+      { command: "cancel", description: "Cancel current flow" },
+    ]),
+    bot.telegram.setMyShortDescription(shortDescription(config)),
+    bot.telegram.setMyDescription(longDescription(config)),
   ]);
 }
 
 module.exports = {
   helpText,
+  shortDescription,
+  longDescription,
   sendHelp,
   sendHelpForConfig,
   setupTelegramUi,

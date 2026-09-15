@@ -245,6 +245,7 @@ function shouldSendNoindexHeader(pathname = "") {
 function buildSeoHeadTags(pathname = "/app/", baseUrl = "") {
   const metadata = getSeoMetadata(pathname, baseUrl);
   const structuredData = buildStructuredData(metadata, baseUrl);
+  const imageUrl = absoluteUrl(baseUrl, "/app/og-image.png");
   const lines = [
     `<title>${xmlEscape(metadata.title)}</title>`,
     `<meta name="description" content="${xmlEscape(metadata.description)}" />`,
@@ -255,11 +256,15 @@ function buildSeoHeadTags(pathname = "/app/", baseUrl = "") {
       metadata.description,
     )}" />`,
     `<meta property="og:type" content="${xmlEscape(metadata.ogType)}" />`,
-    `<meta name="twitter:card" content="summary" />`,
+    `<meta property="og:image" content="${xmlEscape(imageUrl)}" />`,
+    `<meta property="og:image:width" content="1200" />`,
+    `<meta property="og:image:height" content="630" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${xmlEscape(metadata.title)}" />`,
     `<meta name="twitter:description" content="${xmlEscape(
       metadata.description,
     )}" />`,
+    `<meta name="twitter:image" content="${xmlEscape(imageUrl)}" />`,
   ];
 
   if (metadata.canonicalUrl) {
