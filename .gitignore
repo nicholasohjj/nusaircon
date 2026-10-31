@@ -4,3 +4,4 @@ node_modules
 *.db
 evs_users.db-shm
 evs_users.db-wal
+/test
