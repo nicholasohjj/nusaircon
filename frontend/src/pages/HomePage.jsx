@@ -41,16 +41,17 @@ const HOSTEL_GROUPS = [
     minAmount: 10,
     maxAmount: 50,
   },
-  {
-    label: "Legacy CP2 fallback",
-    id: "cp2",
-    basePath: "",
-    loadingPath: "/loading",
-    topupSupported: true,
-    usageSupported: true,
-    minAmount: 6,
-    maxAmount: 50,
-  },
+  // Legacy CP2 fallback — hidden from the UI; backend routes are kept.
+  // {
+  //   label: "Legacy CP2 fallback",
+  //   id: "cp2",
+  //   basePath: "",
+  //   loadingPath: "/loading",
+  //   topupSupported: true,
+  //   usageSupported: true,
+  //   minAmount: 6,
+  //   maxAmount: 50,
+  // },
 ];
 
 const MODES = [
@@ -65,13 +66,13 @@ const LANDING_COPY = {
   default: {
     title: "NUS and SUTD EVS Top Up",
     subtitle:
-      "Check supported EVS meter balances, usage, top-up history, or start a secure top-up. NUS hostel top-ups now use CP2NUS, with CP2 kept as a legacy fallback.",
+      "Check supported EVS meter balances, usage, top-up history, or start a secure top-up. NUS hostel top-ups use CP2NUS.",
   },
-  cp2: {
-    title: "Legacy CP2 EVS Top Up",
-    subtitle:
-      "Use the legacy CP2 EVS system only if your NUS hostel meter has not migrated to CP2NUS.",
-  },
+  // cp2: {
+  //   title: "Legacy CP2 EVS Top Up",
+  //   subtitle:
+  //     "Use the legacy CP2 EVS system only if your NUS hostel meter has not migrated to CP2NUS.",
+  // },
   "cp2nus-migrated": {
     title: "NUS CP2NUS EVS Top Up",
     subtitle:
@@ -743,10 +744,10 @@ export default function HomePage({
             at PGP, Residential Colleges, NUS College, UTown Residences, RVRC,
             and Valour House.
           </p>
-          <p>
+          {/* <p>
             <strong>Legacy CP2:</strong> use only if your meter has not
             migrated to CP2NUS.
-          </p>
+          </p> */}
           <p>
             <strong>SUTD:</strong> SUTD EVS meters. Usage history is not
             available for SUTD yet.

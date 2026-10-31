@@ -18,7 +18,7 @@ describe("SEO metadata", () => {
     const robots = buildRobotsTxt("https://example.com/");
 
     expect(robots).toContain("Allow: /app/");
-    expect(robots).toContain("Allow: /app/cp2");
+    expect(robots).not.toContain("Allow: /app/cp2\n");
     expect(robots).toContain("Allow: /app/cp2nus");
     expect(robots).toContain("Allow: /app/balance");
     expect(robots).toContain("Allow: /app/sutd");
@@ -33,7 +33,7 @@ describe("SEO metadata", () => {
     const sitemap = buildSitemapXml("https://example.com/");
 
     expect(sitemap).toContain("<loc>https://example.com/app/</loc>");
-    expect(sitemap).toContain("<loc>https://example.com/app/cp2</loc>");
+    expect(sitemap).not.toContain("<loc>https://example.com/app/cp2</loc>");
     expect(sitemap).toContain("<loc>https://example.com/app/cp2nus</loc>");
     expect(sitemap).toContain("<loc>https://example.com/app/balance</loc>");
     expect(sitemap).toContain("<loc>https://example.com/app/sutd</loc>");
@@ -43,9 +43,14 @@ describe("SEO metadata", () => {
     expect(sitemap).not.toContain("result");
   });
 
+  test("does not expose the hidden legacy CP2 landing page", () => {
+    expect(getSeoMetadata("/app/cp2", "https://example.com/").robots).not.toBe(
+      "index, follow",
+    );
+  });
+
   test("builds route-specific metadata for public pages", () => {
     const home = getSeoMetadata("/app/", "https://example.com/");
-    const cp2 = getSeoMetadata("/app/cp2", "https://example.com/");
     const cp2nus = getSeoMetadata("/app/cp2nus", "https://example.com/");
     const balance = getSeoMetadata("/app/balance", "https://example.com/");
     const sutd = getSeoMetadata("/app/sutd", "https://example.com/");
@@ -55,10 +60,6 @@ describe("SEO metadata", () => {
     expect(home.description).toContain("NUS and SUTD EVS meter");
     expect(home.canonicalUrl).toBe("https://example.com/app/");
     expect(home.robots).toBe("index, follow");
-    expect(cp2.title).toBe("Legacy CP2 EVS Top Up | EVS Meter Tools");
-    expect(cp2.description).toContain("Legacy CP2");
-    expect(cp2.canonicalUrl).toBe("https://example.com/app/cp2");
-    expect(cp2.robots).toBe("index, follow");
     expect(cp2nus.title).toBe("NUS CP2NUS EVS Top Up | EVS Meter Tools");
     expect(cp2nus.description).toContain("CP2NUS");
     expect(cp2nus.canonicalUrl).toBe("https://example.com/app/cp2nus");
@@ -95,7 +96,7 @@ describe("SEO metadata", () => {
     expect(head).not.toContain('rel="canonical"');
     expect(shouldSendNoindexHeader("/app/pay")).toBe(true);
     expect(shouldSendNoindexHeader("/webapp/bootstrap")).toBe(true);
-    expect(shouldSendNoindexHeader("/app/cp2")).toBe(false);
+    expect(shouldSendNoindexHeader("/app/cp2")).toBe(true);
     expect(shouldSendNoindexHeader("/app/cp2nus")).toBe(false);
     expect(shouldSendNoindexHeader("/app/balance")).toBe(false);
     expect(shouldSendNoindexHeader("/app/sutd")).toBe(false);

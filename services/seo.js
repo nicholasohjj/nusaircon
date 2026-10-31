@@ -8,8 +8,8 @@ const SEO_HEAD_END = "<!-- seo:head:end -->";
 const SITE_NAME = "EVS Meter Tools";
 const HOME_DESCRIPTION =
   "Check supported NUS and SUTD EVS meter balances and top-up history, and top up supported EVS meters online.";
-const CP2_DESCRIPTION =
-  "Legacy CP2 top-up flow for NUS hostel meters that have not migrated to CP2NUS.";
+// const CP2_DESCRIPTION =
+//   "Legacy CP2 top-up flow for NUS hostel meters that have not migrated to CP2NUS.";
 const CP2NUS_DESCRIPTION =
   "Top up and check EVS meter balances for supported NUS hostel meters through the CP2NUS EVS system.";
 const BALANCE_DESCRIPTION =
@@ -28,14 +28,15 @@ const PUBLIC_PAGE_SEO = {
     schemaType: "WebApplication",
     audienceType: "NUS and SUTD EVS meter users",
   },
-  "/app/cp2": {
-    title: "Legacy CP2 EVS Top Up | EVS Meter Tools",
-    description: CP2_DESCRIPTION,
-    canonicalPath: "/app/cp2",
-    ogType: "website",
-    schemaType: "WebApplication",
-    audienceType: "Legacy CP2 EVS meter users",
-  },
+  // Legacy CP2 fallback — hidden from the UI.
+  // "/app/cp2": {
+  //   title: "Legacy CP2 EVS Top Up | EVS Meter Tools",
+  //   description: CP2_DESCRIPTION,
+  //   canonicalPath: "/app/cp2",
+  //   ogType: "website",
+  //   schemaType: "WebApplication",
+  //   audienceType: "Legacy CP2 EVS meter users",
+  // },
   "/app/cp2nus": {
     title: "NUS CP2NUS EVS Top Up | EVS Meter Tools",
     description: CP2NUS_DESCRIPTION,
@@ -119,7 +120,7 @@ function buildRobotsTxt(baseUrl = "") {
   const lines = [
     "User-agent: *",
     "Allow: /app/",
-    "Allow: /app/cp2",
+    // "Allow: /app/cp2",
     "Allow: /app/cp2nus",
     "Allow: /app/balance",
     "Allow: /app/sutd",
@@ -314,7 +315,7 @@ function buildSitemapXml(baseUrl = "") {
   const normalizedBaseUrl = normalizeBaseUrl(baseUrl);
   const urls = [
     "/app/",
-    "/app/cp2",
+    // "/app/cp2",
     "/app/cp2nus",
     "/app/balance",
     "/app/sutd",

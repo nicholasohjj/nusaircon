@@ -39,8 +39,8 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
     `• UTown Residences\n` +
     `• RVRC\n` +
     `• Valour House\n` +
-    `  → uses cp2nus.evs.com.sg\n` +
-    `• Legacy CP2 fallback is available if your meter has not migrated\n\n` +
+    `  → uses cp2nus.evs.com.sg\n\n` +
+    // `• Legacy CP2 fallback is available if your meter has not migrated\n\n` +
     `*Accepted NUS top-up amount*\n` +
     `• Minimum: $6.00 SGD\n` +
     `• Maximum: $50.00 SGD\n\n` +

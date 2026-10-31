@@ -5,7 +5,7 @@ const {
   DEFAULT_BOT_CONFIG,
   TOPUP_SUPPORTED_HOSTELS,
   cancelKeyboard,
-  hostelInlineKeyboard,
+  // hostelInlineKeyboard,
 } = require("../constants");
 const { getSession, resetSession } = require("./session");
 const { getSavedMeters, getUser } = require("./userStore");
@@ -56,23 +56,29 @@ function startTopUp(
   const dbUserAllowed =
     dbUser && config.allowedHostels.includes(dbUser.hostel) ? dbUser : null;
   const meterId = savedInSession ?? dbUserAllowed?.meterId ?? null;
-  const savedHostel = dbUserAllowed?.hostel || null;
-  const hostel =
-    config.audience === "sutd"
-      ? HOSTELS.SUTD
-      : savedHostel === HOSTELS.CP2
-        ? null
-        : savedHostel;
+  // Legacy CP2 fallback is hidden, so NUS top-ups always use cp2nus and
+  // skip the hostel picker.
+  // const savedHostel = dbUserAllowed?.hostel || null;
+  // const hostel =
+  //   config.audience === "sutd"
+  //     ? HOSTELS.SUTD
+  //     : savedHostel === HOSTELS.CP2
+  //       ? null
+  //       : savedHostel;
+  const hostel = config.audience === "sutd" ? HOSTELS.SUTD : HOSTELS.CP2NUS;
 
   if (meterId) session.txtMtrId = meterId;
-  if (hostel) session.hostel = hostel;
+  session.hostel = hostel;
 
-  session.stage =
-    session.txtMtrId && session.hostel
-      ? STAGES.AWAITING_AMOUNT
-      : config.audience === "sutd"
-        ? STAGES.AWAITING_METER_ID
-        : STAGES.AWAITING_HOSTEL;
+  // session.stage =
+  //   session.txtMtrId && session.hostel
+  //     ? STAGES.AWAITING_AMOUNT
+  //     : config.audience === "sutd"
+  //       ? STAGES.AWAITING_METER_ID
+  //       : STAGES.AWAITING_HOSTEL;
+  session.stage = session.txtMtrId
+    ? STAGES.AWAITING_AMOUNT
+    : STAGES.AWAITING_METER_ID;
 
   return session;
 }
@@ -115,25 +121,33 @@ async function handleTopUpStart(
     );
   }
 
-  if (config.audience === "sutd") {
-    return ctx.reply("🔌 Please enter your 8-digit SUTD Meter ID:", {
+  return promptForTopUpMeterId(ctx, config);
+}
+
+function promptForTopUpMeterId(ctx, config = DEFAULT_BOT_CONFIG) {
+  const isSutd = config.audience === "sutd";
+  return ctx.reply(
+    isSutd
+      ? "🔌 Please enter your 8-digit SUTD Meter ID:"
+      : "🔌 Please enter your 8-digit Meter ID:",
+    {
       ...cancelKeyboard,
       reply_markup: {
         ...cancelKeyboard.reply_markup,
-        input_field_placeholder: "e.g. 20000596",
+        input_field_placeholder: isSutd ? "e.g. 20000596" : "e.g. 12345678",
       },
-    });
-  }
+    },
+  );
 
-  if (session.txtMtrId) {
-    return ctx.reply(
-      `🔌 Using saved Meter ID: <code>${session.txtMtrId}</code>\n\n` +
-        `🏠 Please select your hostel:`,
-      { parse_mode: "HTML", reply_markup: hostelInlineKeyboard.reply_markup },
-    );
-  }
-
-  return ctx.reply("🏠 Please select your hostel:", hostelInlineKeyboard);
+  // Legacy hostel picker — hidden while the CP2 fallback is hidden.
+  // if (session.txtMtrId) {
+  //   return ctx.reply(
+  //     `🔌 Using saved Meter ID: <code>${session.txtMtrId}</code>\n\n` +
+  //       `🏠 Please select your hostel:`,
+  //     { parse_mode: "HTML", reply_markup: hostelInlineKeyboard.reply_markup },
+  //   );
+  // }
+  // return ctx.reply("🏠 Please select your hostel:", hostelInlineKeyboard);
 }
 
 module.exports = {
@@ -144,4 +158,5 @@ module.exports = {
   isHttpsUrl,
   startTopUp,
   handleTopUpStart,
+  promptForTopUpMeterId,
 };

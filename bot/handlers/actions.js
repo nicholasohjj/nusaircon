@@ -6,14 +6,18 @@ const {
   promptForLookupMeterId,
 } = require("../services/lookup");
 const { parseSavedMeterCallback } = require("../services/savedMeterPicker");
-const { getAmountPrompt, getHostelLabel } = require("../services/topup");
+const {
+  getAmountPrompt,
+  getHostelLabel,
+  promptForTopUpMeterId,
+} = require("../services/topup");
 const {
   STAGES,
   HOSTELS,
   DEFAULT_BOT_CONFIG,
   TOPUP_SUPPORTED_HOSTELS,
   cancelKeyboard,
-  hostelInlineKeyboard,
+  // hostelInlineKeyboard,
   TOPUP_DISABLED_MESSAGE,
 } = require("../constants");
 
@@ -65,21 +69,15 @@ async function handleSavedMeterAction(ctx, runtime) {
     if (parsed.mode === "topup") {
       resetSession(chatId, config.sessionKey);
       const session = getSession(chatId, config.sessionKey);
-      session.stage =
-        config.audience === "sutd"
-          ? STAGES.AWAITING_METER_ID
-          : STAGES.AWAITING_HOSTEL;
-      if (config.audience === "sutd") {
-        session.hostel = HOSTELS.SUTD;
-        return ctx.reply("🔌 Please enter your 8-digit SUTD Meter ID:", {
-          ...cancelKeyboard,
-          reply_markup: {
-            ...cancelKeyboard.reply_markup,
-            input_field_placeholder: "e.g. 20000596",
-          },
-        });
-      }
-      return ctx.reply("🏠 Please select your hostel:", hostelInlineKeyboard);
+      // Legacy hostel picker skipped while the CP2 fallback is hidden.
+      // session.stage =
+      //   config.audience === "sutd"
+      //     ? STAGES.AWAITING_METER_ID
+      //     : STAGES.AWAITING_HOSTEL;
+      session.stage = STAGES.AWAITING_METER_ID;
+      session.hostel =
+        config.audience === "sutd" ? HOSTELS.SUTD : HOSTELS.CP2NUS;
+      return promptForTopUpMeterId(ctx, config);
     }
 
     return promptForLookupMeterId(ctx, chatId, parsed.mode, {
@@ -106,24 +104,26 @@ async function handleSavedMeterAction(ctx, runtime) {
   if (parsed.mode === "topup") {
     resetSession(chatId, config.sessionKey);
     const session = getSession(chatId, config.sessionKey);
-    if (parsed.hostel === HOSTELS.CP2) {
-      session.stage = STAGES.AWAITING_HOSTEL;
-      session.txtMtrId = parsed.meterId;
-      return ctx.reply(
-        `🔌 Using saved Meter ID: <code>${parsed.meterId}</code>\n\n` +
-          `🏠 Please select your EVS system:`,
-        { parse_mode: "HTML", reply_markup: hostelInlineKeyboard.reply_markup },
-      );
-    }
+    // Legacy CP2 fallback is hidden; stale CP2 saved-meter buttons go to cp2nus.
+    // if (parsed.hostel === HOSTELS.CP2) {
+    //   session.stage = STAGES.AWAITING_HOSTEL;
+    //   session.txtMtrId = parsed.meterId;
+    //   return ctx.reply(
+    //     `🔌 Using saved Meter ID: <code>${parsed.meterId}</code>\n\n` +
+    //       `🏠 Please select your EVS system:`,
+    //     { parse_mode: "HTML", reply_markup: hostelInlineKeyboard.reply_markup },
+    //   );
+    // }
 
     session.stage = STAGES.AWAITING_AMOUNT;
-    session.hostel = parsed.hostel;
+    session.hostel =
+      parsed.hostel === HOSTELS.CP2 ? HOSTELS.CP2NUS : parsed.hostel;
     session.txtMtrId = parsed.meterId;
 
     return ctx.reply(
       `🔌 Meter ID: <code>${parsed.meterId}</code>\n` +
-        `🏠 Hostel: <b>${getHostelLabel(parsed.hostel)}</b>\n\n` +
-        `Enter the amount in SGD (${getAmountPrompt(parsed.hostel)}), or tap ❌ Cancel to start over.`,
+        `🏠 Hostel: <b>${getHostelLabel(session.hostel)}</b>\n\n` +
+        `Enter the amount in SGD (${getAmountPrompt(session.hostel)}), or tap ❌ Cancel to start over.`,
       { parse_mode: "HTML", ...cancelKeyboard },
     );
   }

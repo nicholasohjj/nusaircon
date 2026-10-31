@@ -211,7 +211,12 @@ function registerForget(bot, runtime) {
     if (!chatId) return;
 
     track("forget_command", { chatId });
-    const deleted = forgetUser(chatId, config.allowedHostels);
+    // Also clear saved legacy CP2 meters, which are hidden from allowedHostels.
+    const hostels =
+      config.audience === "sutd"
+        ? config.allowedHostels
+        : [...config.allowedHostels, HOSTELS.CP2];
+    const deleted = forgetUser(chatId, hostels);
     resetSession(chatId, config.sessionKey);
 
     return ctx.reply(

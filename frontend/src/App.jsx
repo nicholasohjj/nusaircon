@@ -11,7 +11,7 @@ export default function App() {
       <Routes>
         {/* Entry point — hostel selection + meter details */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/cp2" element={<HomePage initialGroupId="cp2" />} />
+        {/* <Route path="/cp2" element={<HomePage initialGroupId="cp2" />} /> */}
         <Route
           path="/cp2nus"
           element={<HomePage initialGroupId="cp2nus" />}
@@ -23,10 +23,11 @@ export default function App() {
         <Route path="/sutd" element={<HomePage initialGroupId="sutd" />} />
         <Route path="/terms" element={<TermsPage />} />
 
-        {/* Legacy CP2 flow */}
+        {/* Legacy CP2 flow — hidden from the UI; backend routes are kept.
         <Route path="/loading" element={<LoadingPage basePath="" />} />
         <Route path="/pay" element={<CardPaymentPage basePath="" />} />
         <Route path="/result" element={<ResultPage basePath="" />} />
+        */}
 
         {/* CP2NUS flow — primary NUS hostel system */}
         <Route

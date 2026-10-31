@@ -58,7 +58,9 @@ function createMainKeyboard(audience) {
 function createBotConfig(audienceValue = process.env.TELEGRAM_BOT_AUDIENCE) {
   const audience = normalizeBotAudience(audienceValue);
   const allowedHostels =
-    audience === "sutd" ? [HOSTELS.SUTD] : [HOSTELS.CP2, HOSTELS.CP2NUS];
+    audience === "sutd"
+      ? [HOSTELS.SUTD]
+      : [/* HOSTELS.CP2, — legacy fallback hidden */ HOSTELS.CP2NUS];
 
   return {
     audience,
@@ -91,12 +93,13 @@ const cancelKeyboard = Markup.keyboard([["❌ Cancel"]]).resize();
 
 const hostelInlineKeyboard = Markup.inlineKeyboard([
   [Markup.button.callback("🏠 NUS hostels (cp2nus)", "hostel_cp2nus")],
-  [
-    Markup.button.callback(
-      "🏠 Legacy CP2 fallback (if not migrated)",
-      "hostel_cp2",
-    ),
-  ],
+  // Legacy CP2 fallback — hidden; the hostel_cp2 handler is kept.
+  // [
+  //   Markup.button.callback(
+  //     "🏠 Legacy CP2 fallback (if not migrated)",
+  //     "hostel_cp2",
+  //   ),
+  // ],
 ]);
 
 function ratingKeyboard() {

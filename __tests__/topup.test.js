@@ -21,11 +21,12 @@ beforeAll(async () => {
 });
 
 describe("startTopUp", () => {
-  test("preserves a CP2 deep-link meter ID when no user is saved", () => {
+  test("uses cp2nus for a deep-link meter ID when no user is saved", () => {
     const session = startTopUp("deep-link-new-user", "12345678");
 
     expect(session.txtMtrId).toBe("12345678");
-    expect(session.stage).toBe(STAGES.AWAITING_HOSTEL);
+    expect(session.hostel).toBe(HOSTELS.CP2NUS);
+    expect(session.stage).toBe(STAGES.AWAITING_AMOUNT);
   });
 
   test("uses a deep-link meter ID with the saved hostel", () => {
@@ -38,18 +39,18 @@ describe("startTopUp", () => {
     expect(session.stage).toBe(STAGES.AWAITING_AMOUNT);
   });
 
-  test("asks for system confirmation when saved details are legacy cp2", () => {
+  test("ignores saved legacy cp2 details now that the fallback is hidden", () => {
     saveUser("saved-details", "87654321", HOSTELS.CP2);
 
     const session = startTopUp("saved-details");
 
-    expect(session.txtMtrId).toBe("87654321");
-    expect(session.hostel).toBeUndefined();
-    expect(session.stage).toBe(STAGES.AWAITING_HOSTEL);
+    expect(session.txtMtrId).toBeUndefined();
+    expect(session.hostel).toBe(HOSTELS.CP2NUS);
+    expect(session.stage).toBe(STAGES.AWAITING_METER_ID);
   });
 
   test("prompts for a saved meter when multiple meters exist", async () => {
-    saveUser("multiple-saved", "11111111", HOSTELS.CP2, "Room");
+    saveUser("multiple-saved", "11111111", HOSTELS.CP2NUS, "Room");
     saveUser("multiple-saved", "22222222", HOSTELS.CP2NUS, "Friend");
     const ctx = { reply: vi.fn() };
 
@@ -68,6 +69,17 @@ describe("startTopUp", () => {
           ]),
         }),
       }),
+    );
+  });
+
+  test("skips the hostel picker and asks for a meter ID for new NUS users", async () => {
+    const ctx = { reply: vi.fn() };
+
+    await handleTopUpStart(ctx, "new-nus-user");
+
+    expect(ctx.reply).toHaveBeenCalledWith(
+      "🔌 Please enter your 8-digit Meter ID:",
+      expect.any(Object),
     );
   });
 

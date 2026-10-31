@@ -53,8 +53,8 @@ function getSutdHostelButton() {
   });
 }
 
-function getLegacyCp2HostelButton() {
-  return screen.getByRole("button", {
+function queryLegacyCp2HostelButton() {
+  return screen.queryByRole("button", {
     name: /^Legacy CP2 fallback$/i,
   });
 }
@@ -661,15 +661,15 @@ describe("HomePage › static rendering", () => {
     expect(screen.getByText(/Supported Systems/i)).toBeInTheDocument();
   });
 
-  test("renders cp2 legacy landing title", () => {
+  test("does not render the hidden cp2 legacy landing", () => {
     renderHomePage({ initialGroupId: "cp2" });
 
     expect(
-      screen.getByRole("heading", {
+      screen.queryByRole("heading", {
         name: /Legacy CP2 EVS Top Up/i,
       }),
-    ).toBeInTheDocument();
-    expect(getLegacyCp2HostelButton().className).toMatch(/Active/i);
+    ).not.toBeInTheDocument();
+    expect(queryLegacyCp2HostelButton()).not.toBeInTheDocument();
   });
 
   test("renders balance landing with balance mode selected", () => {
@@ -688,7 +688,7 @@ describe("HomePage › static rendering", () => {
     renderHomePage();
     expect(getPgprHostelButton()).toBeInTheDocument();
     expect(getUtownHostelButton()).toBeInTheDocument();
-    expect(getLegacyCp2HostelButton()).toBeInTheDocument();
+    expect(queryLegacyCp2HostelButton()).not.toBeInTheDocument();
   });
 
   test("renders meter ID input", () => {
@@ -1302,30 +1302,31 @@ describe("HomePage › submission", () => {
     );
   });
 
-  test("keeps legacy CP2 fallback on the root webapp URL", () => {
-    const assignSpy = vi.fn();
-    Object.defineProperty(window, "location", {
-      writable: true,
-      value: { ...window.location, href: "" },
-    });
-    Object.defineProperty(window.location, "href", {
-      set: assignSpy,
-      get: () => "",
-    });
+  // Legacy CP2 fallback is hidden from the UI.
+  // test("keeps legacy CP2 fallback on the root webapp URL", () => {
+  //   const assignSpy = vi.fn();
+  //   Object.defineProperty(window, "location", {
+  //     writable: true,
+  //     value: { ...window.location, href: "" },
+  //   });
+  //   Object.defineProperty(window.location, "href", {
+  //     set: assignSpy,
+  //     get: () => "",
+  //   });
 
-    renderHomePage();
-    fireEvent.click(getLegacyCp2HostelButton());
-    fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
-      target: { value: "12345678" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "$20" }));
-    fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
+  //   renderHomePage();
+  //   fireEvent.click(getLegacyCp2HostelButton());
+  //   fireEvent.change(screen.getByPlaceholderText(/8-digit meter ID/i), {
+  //     target: { value: "12345678" },
+  //   });
+  //   fireEvent.click(screen.getByRole("button", { name: "$20" }));
+  //   fireEvent.click(screen.getByRole("button", { name: /Continue/i }));
 
-    expect(assignSpy).toHaveBeenCalledWith(expect.stringContaining("/webapp?"));
-    expect(assignSpy).toHaveBeenCalledWith(
-      expect.not.stringContaining("cp2nus"),
-    );
-  });
+  //   expect(assignSpy).toHaveBeenCalledWith(expect.stringContaining("/webapp?"));
+  //   expect(assignSpy).toHaveBeenCalledWith(
+  //     expect.not.stringContaining("cp2nus"),
+  //   );
+  // });
 
   test("does not navigate when selected top-up system is disabled", () => {
     const assignSpy = vi.fn();
