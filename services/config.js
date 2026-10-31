@@ -2,10 +2,10 @@ const ORE_HEADERS = {
   Accept: "application/json, text/plain, */*",
   "Accept-Language": "en-US,en;q=0.9",
   "Content-Type": "application/json; charset=UTF-8",
-  Origin: "https://cp2.evs.com.sg",
-  Referer: "https://cp2.evs.com.sg/",
+  Origin: "https://cp2nus.evs.com.sg",
+  Referer: "https://cp2nus.evs.com.sg/",
   "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
   Authorization: "Bearer",
 };
 
@@ -15,7 +15,7 @@ const WEBPOS_HEADERS = {
     "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
   "Accept-Language": "en-US,en;q=0.9",
   "User-Agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
   "Upgrade-Insecure-Requests": "1",
 };
 
@@ -24,7 +24,7 @@ const DEFAULT_HEADERS = {
   "Accept-Language": "en-US,en;q=0.9",
   "User-Agent":
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
-    "(KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+    "(KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36",
 };
 
 const CP2_WEBPOS_BASE = "https://nus-utown.evs.com.sg";

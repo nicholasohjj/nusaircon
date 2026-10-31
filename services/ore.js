@@ -20,6 +20,15 @@ async function getMeterInfo(meterDisplayName) {
   const resp = await axios.post(
     "https://ore.evs.com.sg/cp/get_meter_info",
     {
+      svcClaimDto: {
+        username: meterId,
+        user_id: null,
+        svcName: "oresvc",
+        endpoint: "/cp/get_meter_info",
+        scope: "self",
+        target: "meter.info",
+        operation: "read",
+      },
       request: {
         meter_displayname: meterId,
       },
