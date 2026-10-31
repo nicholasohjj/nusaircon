@@ -51,6 +51,15 @@ async function getCreditBalance(meterDisplayName) {
   const resp = await axios.post(
     "https://ore.evs.com.sg/tcm/get_credit_balance",
     {
+      svcClaimDto: {
+        username: meterId,
+        user_id: null,
+        svcName: "oresvc",
+        endpoint: "/tcm/get_credit_balance",
+        scope: "self",
+        target: "meter.credit_balance",
+        operation: "read",
+      },
       request: {
         meter_displayname: meterId,
       },
@@ -96,6 +105,15 @@ async function getMeterUsage(meterDisplayName, days = 7) {
   const resp = await axios.post(
     "https://ore.evs.com.sg/get_history",
     {
+      svcClaimDto: {
+        username: meterId,
+        user_id: null,
+        svcName: "oresvc",
+        endpoint: "/get_history",
+        scope: "self",
+        target: "meter.reading",
+        operation: "list",
+      },
       request: {
         meter_displayname: meterId,
         history_type: "meter_reading_daily",
