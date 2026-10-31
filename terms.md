@@ -1,7 +1,7 @@
 # Terms of Use
 
 **EVS Meter Tools**
-Last updated: August 2026
+Last updated: October 2026
 
 Please read these Terms of Use ("Terms") carefully before using EVS Meter Tools ("the Service"). By using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.
 
@@ -49,7 +49,7 @@ Your card details are **RSA-encrypted in your browser** before transmission. The
 
 ## 5. Meter Identity and System Routing
 
-You are responsible for entering the correct 8-digit meter ID. Topping up the wrong meter is your sole responsibility. The Service includes a cross-system guard for cp2nus users that rejects meters belonging to the cp2 system before payment is initiated, but this check is not infallible. If you are unsure which system your meter belongs to, verify with your institution, residence operator, or EVS.
+You are responsible for entering the correct 8-digit meter ID. Topping up the wrong meter is your sole responsibility. The Service includes a cross-system guard that rejects NUS meters that have not been migrated to the supported NUS system before payment is initiated, but this check is not infallible. If you are unsure which system your meter belongs to, verify with your institution, residence operator, or EVS.
 
 **Meter ID not found.** If your meter ID cannot be located in the EVS system, the Service will not be able to proceed with a top-up. This may occur for newly assigned units, recently transferred residents, or due to delays in the EVS system. Verify your meter ID with your institution, residence operator, or EVS before retrying. The Service operator cannot manually look up, register, or resolve meter ID issues on your behalf.
 

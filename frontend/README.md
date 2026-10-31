@@ -6,12 +6,8 @@ React + Vite frontend for the EVS electricity top-up web app. Served at `/app/` 
 
 | Route             | Component         | Description                                             |
 | ----------------- | ----------------- | ------------------------------------------------------- |
-| `/`               | `HomePage`        | Hostel selection, meter ID, and amount entry            |
-| `/cp2`            | `HomePage`        | Legacy CP2 fallback entry point                         |
+| `/`               | `HomePage`        | System selection, meter ID, and amount entry            |
 | `/balance`        | `HomePage`        | Balance-check entry point                               |
-| `/loading`        | `LoadingPage`     | Calls `/webapp/bootstrap`; shows progress               |
-| `/pay`            | `CardPaymentPage` | RSA-encrypted card form; submits to `/webapp/enets_pay` |
-| `/result`         | `ResultPage`      | Payment outcome; reads from server session              |
 | `/cp2nus`         | `HomePage`        | Primary NUS CP2NUS entry point                          |
 | `/cp2nus/loading` | `LoadingPage`     | cp2nus variant                                          |
 | `/cp2nus/pay`     | `CardPaymentPage` | cp2nus variant                                          |
@@ -22,6 +18,8 @@ React + Vite frontend for the EVS electricity top-up web app. Served at `/app/` 
 | `/sutd/result`    | `ResultPage`      | SUTD variant                                            |
 | `/terms`          | `TermsPage`       | Terms of Use                                            |
 
+The legacy CP2 routes (`/cp2`, `/loading`, `/pay`, `/result`) and the "Legacy CP2 fallback" option on `HomePage` are commented out. The code is kept but no longer reachable from the UI.
+
 ## Structure
 
 ```
@@ -29,7 +27,7 @@ frontend/
 ├── src/
 │   ├── App.jsx                  # React Router route definitions
 │   ├── pages/
-│   │   ├── HomePage.jsx         # Hostel + meter ID + amount; amount presets
+│   │   ├── HomePage.jsx         # System + meter ID + amount; amount presets
 │   │   ├── LoadingPage.jsx      # Polling spinner; retry on failure
 │   │   ├── CardPaymentPage.jsx  # Card form with RSA encryption
 │   │   ├── ResultPage.jsx       # Success / failure with detail rows
@@ -54,7 +52,7 @@ frontend/
 
 **Amount input** — top-up amount validation accepts plain numbers and common currency prefixes such as `$10` or `S$ 10.00`, but rejects malformed mixed strings and decimals beyond cents.
 
-**cp2, cp2nus, and SUTD variants** — `LoadingPage`, `CardPaymentPage`, and `ResultPage` accept a `basePath` prop (`""` for legacy cp2, `"/cp2nus"` for the primary NUS cp2nus flow, `"/sutd"` for SUTD). All fetch calls are prefixed with `basePath` so the same components work for all payment flows.
+**cp2nus and SUTD variants** — `LoadingPage`, `CardPaymentPage`, and `ResultPage` accept a `basePath` prop (`"/cp2nus"` for the NUS cp2nus flow, `"/sutd"` for SUTD; `""` is the hidden legacy cp2 flow). All fetch calls are prefixed with `basePath` so the same components work for all payment flows.
 
 ## Development
 

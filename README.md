@@ -7,8 +7,9 @@ A Telegram bot and web app for supported EVS electricity meters. Supported NUS a
 | Hostel group                                          | EVS system          |
 | ----------------------------------------------------- | ------------------- |
 | NUS hostels, including PGPR, Houses @ PGP, Residential Colleges, NUS College, UTown Residences, RVRC, Valour House | `cp2nus.evs.com.sg` |
-| Legacy NUS fallback for meters not yet migrated       | `cp2.evs.com.sg`    |
 | SUTD                                                  | `SUTDMain` / `EVSSUTDWebPOS` |
+
+The legacy NUS CP2 fallback (`cp2.evs.com.sg`) is hidden from the web app and bot. Its backend routes and services are kept but are not linked from any UI; see [CP2 — legacy NUS fallback (hidden)](#cp2--legacy-nus-fallback-hidden).
 
 ## Features
 
@@ -17,8 +18,7 @@ A Telegram bot and web app for supported EVS electricity meters. Supported NUS a
 - Top up supported SUTD electricity meters via credit card (SGD $10-$50)
 - RSA-encrypted card entry — card details never leave the browser in plaintext
 - Works as a Telegram Mini App and as a standalone website
-- Cross-system guard: cp2nus bootstrap rejects meters that belong to the cp2 system before initiating payment
-- Cross-system guard: cp2 bootstrap rejects meters that appear to belong to the cp2nus system before initiating payment
+- Cross-system guard: cp2nus bootstrap rejects meters that belong to the legacy cp2 system before initiating payment
 - SUTD balance, top-up history, and top-up support
 - Analytics tracking and error capture throughout the flow
 
@@ -28,7 +28,7 @@ A Telegram bot and web app for supported EVS electricity meters. Supported NUS a
 Telegram Bot (telegraf)          Website (React, /app/)
     │                                │
     ├── /topup                       └── HomePage
-    ├── /balance                          └── hostel selection
+    ├── /balance                          └── system selection
     ├── /usage                                + meter ID + amount
     └── /topups
           │ webhook in production/Railway,       │
@@ -37,7 +37,7 @@ Telegram Bot (telegraf)          Website (React, /app/)
     Express (server.js)  ←────────────────────────────
           │
           ├── POST /telegram/webhook/* — Telegram webhook receivers
-          ├── GET  /webapp              — fetches meter summary, redirects to React
+          ├── GET  /webapp              — legacy CP2 (hidden from UI): fetches meter summary, redirects to React
           ├── GET  /webapp/bootstrap    — runs full payment init, returns token
           ├── GET  /webapp/session      — returns session data as JSON for React
           ├── GET  /webapp/pay          — redirects to React card entry page
@@ -46,12 +46,8 @@ Telegram Bot (telegraf)          Website (React, /app/)
           └── GET  /webapp/result       — redirects to React result page
 
     React Frontend (/app/)
-          ├── /                 — HomePage (hostel + meter ID + amount)
-          ├── /cp2              — HomePage preselected for legacy CP2 fallback
+          ├── /                 — HomePage (system + meter ID + amount)
           ├── /balance          — HomePage opened in balance-check mode
-          ├── /loading          — LoadingPage (calls /webapp/bootstrap)
-          ├── /pay              — CardPaymentPage (RSA encryption + submit)
-          ├── /result           — ResultPage (outcome from server session)
           ├── /cp2nus           — HomePage preselected for primary NUS CP2NUS flow
           ├── /cp2nus/loading   — cp2nus variant
           ├── /cp2nus/pay       — cp2nus variant
@@ -63,9 +59,11 @@ Telegram Bot (telegraf)          Website (React, /app/)
 
 ## Payment flows
 
-### CP2 — legacy NUS fallback
+### CP2 — legacy NUS fallback (hidden)
 
-Scrapes the legacy EVS WebPOS portal to create a transaction, then proxies through eNETS. Use this only for NUS meters that have not migrated to CP2NUS.
+> **Hidden.** This flow is no longer offered in the web app or bot. The `/app/cp2`, `/app/loading`, `/app/pay`, and `/app/result` React routes are commented out in `frontend/src/App.jsx`, `/app/cp2` is excluded from the sitemap and robots.txt, and the bot no longer shows a hostel picker. The backend routes and services below are kept for reference and possible reinstatement.
+
+Scrapes the legacy EVS WebPOS portal to create a transaction, then proxies through eNETS. It was used only for NUS meters that had not migrated to CP2NUS.
 
 1. **`/webapp`** — fetches meter address and balance from ORE, redirects to React loading page with address/balance in query params
 2. **Bootstrap** (`/webapp/bootstrap`) — runs `runPurchaseFlow` and `getMeterSummary` in parallel:
@@ -220,7 +218,7 @@ npm run lint
 | `/topups`   | Show recent top-ups               |
 | `/feedback` | Share feedback or report an issue |
 | `/cancel`   | Cancel the current flow           |
-| `/help`     | Show help and hostel information  |
+| `/help`     | Show help and supported systems   |
 | `/status`   | Owner-only live service health    |
 | `/stats`    | Owner-only runtime snapshot       |
 
@@ -230,8 +228,8 @@ Sessions are stored in-memory with a **15-minute TTL**. All messages for a given
 
 ```
 idle
-  → awaiting_hostel            (cp2nus primary / legacy cp2 inline keyboard)
-  → awaiting_meter_id          (8-digit ID; prefetches balance + 7-day usage)
+  → awaiting_meter_id          (8-digit ID; prefetches balance + 7-day usage;
+                                NUS always uses cp2nus, no hostel picker)
   → awaiting_amount            ($6–$50 SGD)
   → awaiting_payment           (WebApp Pay button; re-prompts on text)
   → idle                       (reset after WebApp closes)
@@ -268,12 +266,12 @@ Note: threading only follows the original notification message. If the owner rep
 ```
 ├── server.js                        # Express entry point; serves React at /app/
 ├── routes/
-│   ├── cp2.js                    # WebApp + API routes for cp2
+│   ├── cp2.js                    # WebApp + API routes for legacy cp2 (hidden from UI)
 │   ├── cp2nus.js                 # WebApp + API routes for cp2nus
 │   ├── sutd.js                   # WebApp + API routes for SUTD
 │   └── website.js                # Standalone website lookup + feedback API
 ├── services/
-│   ├── cp2Service.js             # Purchase flow: EVS WebPOS scraping + eNETS proxy
+│   ├── cp2Service.js             # Legacy cp2 purchase flow: EVS WebPOS scraping + eNETS proxy
 │   ├── cp2nusService.js          # Purchase flow: EVS JSON API + eNETS PP + NETS API
 │   ├── sutdService.js            # SUTD balance, history, and WebPOS purchase flow
 │   ├── ore.js                    # ORE API: meter summary, usage history, top-up history
@@ -295,7 +293,7 @@ Note: threading only follows the original notification message. If the owner rep
     ├── src/
     │   ├── App.jsx               # React Router routes
     │   ├── pages/
-    │   │   ├── HomePage.jsx      # Hostel selection + meter ID + amount entry
+    │   │   ├── HomePage.jsx      # System selection + meter ID + amount entry
     │   │   ├── LoadingPage.jsx   # Spinner; calls /webapp/bootstrap
     │   │   ├── CardPaymentPage.jsx  # RSA card form; calls /webapp/enets_pay
     │   │   ├── ResultPage.jsx    # Payment outcome

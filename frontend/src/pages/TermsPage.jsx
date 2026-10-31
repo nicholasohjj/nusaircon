@@ -49,7 +49,7 @@ export default function TermsPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Terms of Use</h1>
         <p className={styles.meta}>
-          EVS Meter Tools · Last updated: August 2026
+          EVS Meter Tools · Last updated: October 2026
         </p>
         <Para>
           Please read these Terms carefully before using EVS Meter Tools ("the
@@ -151,9 +151,9 @@ export default function TermsPage() {
         <Para>
           You are responsible for entering the correct 8-digit meter ID. Topping
           up the wrong meter is your sole responsibility. The Service includes a
-          cross-system guard for cp2nus users that rejects meters belonging to
-          the cp2 system before payment is initiated, but this check is not
-          infallible. If you are unsure which system your meter belongs to,
+          cross-system guard that rejects NUS meters that have not been migrated
+          to the supported NUS system before payment is initiated, but this check
+          is not infallible. If you are unsure which system your meter belongs to,
           verify with your institution, residence operator, or EVS.
         </Para>
         <SubHeading>Meter ID not found.</SubHeading>
