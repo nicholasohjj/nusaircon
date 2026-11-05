@@ -79,6 +79,7 @@ Telegram's Mini App buttons and hosted AI connectors need a public HTTPS address
 
 - **Low-balance alerts:** `.github/workflows/low-balance-check.yml` calls the public service's address. Change it to your own before you add `LOW_BALANCE_CRON_SECRET` to your fork, or your secret is sent to the wrong server. GitHub also leaves scheduled workflows off in forks until you enable them.
 - **Analytics:** these stay off unless you set your own `POSTHOG_API_KEY`.
+- **MCP registry:** `server.json` lists the public service. If you publish your copy to the MCP registry, change its name and address first.
 - **Running it for other people:** you become the operator of that service. The included terms describe the public service, so replace them with your own. Your MCP endpoint and lookup routes are also open to anyone who has the address.
 
 ## Building your own automation

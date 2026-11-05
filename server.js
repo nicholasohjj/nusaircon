@@ -14,6 +14,7 @@ const { router: alertRoutes } = require("./routes/alerts");
 const { captureException, shutdownAnalytics } = require("./services/analytics");
 const {
   buildGoogleVerificationFileContent,
+  buildLlmsTxt,
   buildRobotsTxt,
   buildSitemapXml,
   injectSeoHead,
@@ -133,6 +134,10 @@ function sendAppIndex(req, res, next) {
 
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain").send(buildRobotsTxt(getPublicBaseUrl(req)));
+});
+
+app.get("/llms.txt", (req, res) => {
+  res.type("text/plain").send(buildLlmsTxt(getPublicBaseUrl(req)));
 });
 
 app.get("/sitemap.xml", (req, res) => {

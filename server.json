@@ -1,0 +1,17 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.nicholasohjj/nusaircon",
+  "title": "EVS Meter Tools",
+  "description": "Check NUS and SUTD hostel EVS electricity meters and get top-up links. Unofficial.",
+  "repository": {
+    "url": "https://github.com/nicholasohjj/nusaircon",
+    "source": "github"
+  },
+  "version": "2.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://nusaircon-production.up.railway.app/mcp"
+    }
+  ]
+}

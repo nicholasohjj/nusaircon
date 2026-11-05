@@ -23,6 +23,38 @@ const topupAvailability = require("../services/topupAvailability");
 
 const ACCEPT = "application/json, text/event-stream";
 
+describe("discovery", () => {
+  test("llms.txt points agents to this server's MCP endpoint", async () => {
+    const res = await request(app).get("/llms.txt").expect(200);
+
+    expect(res.type).toBe("text/plain");
+    expect(res.text).toMatch(/^# EVS Meter Tools\n/);
+    expect(res.text).toContain("https://meters.example.com/mcp");
+    expect(res.text).toContain("cannot make payments");
+    expect(res.text).toContain("Never ask for card details");
+  });
+
+  test("server.json matches the server and the registry's limit", async () => {
+    const registryEntry = require("../server.json");
+    const { body } = await request(makeApp())
+      .post("/mcp")
+      .set("Accept", ACCEPT)
+      .send({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "test", version: "1.0.0" },
+        },
+      });
+
+    expect(registryEntry.version).toBe(body.result.serverInfo.version);
+    expect(registryEntry.description.length).toBeLessThanOrEqual(100);
+  });
+});
+
 function makeApp(options) {
   const testApp = express();
   testApp.use("/mcp", createMcpRouter(options));
