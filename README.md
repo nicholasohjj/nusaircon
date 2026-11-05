@@ -237,9 +237,27 @@ and work out how many days it will last from my recent usage. If it will last
 under 3 days, suggest a top-up amount and give me the top-up link.
 ```
 
-The server is stateless, so it works with Railway Serverless. Tool calls are limited to 120 per 5 minutes per IP address. Hosted clients share IP addresses, so that limit is higher than the website's lookup limit.
+The server is stateless, so it works with Railway Serverless. Tool calls are limited to 120 per 5 minutes per IP address, and can't be sent as a batch. Hosted clients share IP addresses, so that limit is higher than the website's lookup limit.
 
-To run your own copy, or build your own automation on top of it, see the [self-hosting guide](docs/self-hosting.md).
+Tool errors are JSON, so an agent can decide what to do next:
+
+```json
+{ "code": "METER_NOT_FOUND", "message": "EVS has no NUS meter with this ID. ...", "retryable": false }
+```
+
+| Code              | Retryable | Meaning                                                         |
+| ----------------- | --------- | --------------------------------------------------------------- |
+| `METER_NOT_FOUND` | No        | EVS doesn't recognise the meter on that system                  |
+| `INVALID_AMOUNT`  | No        | The amount is outside the system's top-up limits                |
+| `TOPUPS_PAUSED`   | No        | Top-ups are turned off for now                                  |
+| `EVS_UNAVAILABLE` | Yes       | EVS could not be reached or returned no details                 |
+| `RATE_LIMITED`    | Yes       | Too many calls from this IP address; includes `retryAfterSeconds` |
+
+`get_topup_link` checks the meter first. If EVS can't be reached, it still returns a link with `meterVerified: false`.
+
+Every tool declares an output schema and returns `structuredContent`, with the same JSON as text for clients that don't read it.
+
+To have an agent check your balance daily and send you a payment link when it runs low, see [scheduled balance check](docs/scheduled-balance-check.md). To run your own copy, or build your own automation on top of it, see the [self-hosting guide](docs/self-hosting.md).
 
 ## Bot commands
 

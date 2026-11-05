@@ -82,7 +82,7 @@ Telegram's Mini App buttons and hosted AI connectors need a public HTTPS address
 
 ## Building your own automation
 
-The usual design is for your AI assistant or a script to check the balance and then act when it runs low. The safest version stops at sending you a top-up link, using `get_topup_link`, so you still pay yourself.
+The usual design is for your AI assistant or a script to check the balance and then act when it runs low. The safest version stops at sending you a top-up link, using `get_topup_link`, so you still pay yourself. The [scheduled balance check](scheduled-balance-check.md) has ready-made prompts for this.
 
 Paying without you involves real risks that this project can't remove:
 

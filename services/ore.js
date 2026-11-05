@@ -44,11 +44,8 @@ async function getMeterInfo(meterDisplayName) {
   return resp.data?.meter_info || null;
 }
 
-async function getCreditBalance(meterDisplayName) {
-  const meterId = String(meterDisplayName || "").trim();
-  if (!meterId) return null;
-
-  const resp = await axios.post(
+function requestCreditBalance(meterId) {
+  return axios.post(
     "https://ore.evs.com.sg/tcm/get_credit_balance",
     {
       svcClaimDto: {
@@ -70,9 +67,35 @@ async function getCreditBalance(meterDisplayName) {
       timeout: AXIOS_TIMEOUT_MS,
     },
   );
+}
 
+async function getCreditBalance(meterDisplayName) {
+  const meterId = String(meterDisplayName || "").trim();
+  if (!meterId) return null;
+
+  const resp = await requestCreditBalance(meterId);
   if (resp.status !== 200) return null;
   return resp.data?.ref_bal ?? null;
+}
+
+/**
+ * Tells a meter EVS doesn't know apart from a failed request, which
+ * getMeterSummary reports the same way. Never rejects.
+ *
+ * @returns {Promise<"found"|"not_found"|"unavailable">}
+ */
+async function getMeterStatus(meterId) {
+  try {
+    const resp = await requestCreditBalance(meterId);
+    if (resp.status === 200) return "found";
+    // Requires EVS's own message, so a 404 from a proxy isn't taken as an answer.
+    if (resp.status === 404 && /not found/i.test(resp.data?.info)) {
+      return "not_found";
+    }
+    return "unavailable";
+  } catch {
+    return "unavailable";
+  }
 }
 
 async function getMeterSummary(meterDisplayName) {
@@ -536,6 +559,7 @@ async function formatUsageSummary(
 }
 
 module.exports = {
+  getMeterStatus,
   getMeterSummary,
   getMeterUsage,
   getRecentTopups,

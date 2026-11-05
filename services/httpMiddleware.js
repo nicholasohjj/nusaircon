@@ -89,7 +89,7 @@ const httpLogger = pinoHttp({
   },
 });
 
-function createJsonRateLimiter({ windowMs, limit, message }) {
+function createJsonRateLimiter({ windowMs, limit, message, handler }) {
   return rateLimit({
     windowMs,
     limit,
@@ -100,6 +100,7 @@ function createJsonRateLimiter({ windowMs, limit, message }) {
       code: "RATE_LIMITED",
       error: message,
     },
+    ...(handler && { handler }),
   });
 }
 

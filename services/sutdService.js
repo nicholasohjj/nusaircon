@@ -290,6 +290,12 @@ async function loginSutd(client, meterId) {
     }),
   );
 
+  if (isSutdLoginRejected(resp)) {
+    throw Object.assign(new Error("SUTD login invalid"), {
+      code: "METER_NOT_FOUND",
+    });
+  }
+
   if (resp.status !== 200) {
     throw new Error(`SUTD login returned HTTP ${resp.status}`);
   }
@@ -300,6 +306,20 @@ async function loginSutd(client, meterId) {
   }
 
   return resp;
+}
+
+// EVS answers an unknown meter by redirecting back to the login page with this
+// message, or by showing it on the page.
+function isSutdLoginRejected(resp) {
+  if (resp.status === 200) {
+    return /Invalid\s+Login\s+ID\s+or\s+Password/i.test(
+      String(resp.data || ""),
+    );
+  }
+  return (
+    resp.status === 302 &&
+    /Invalid(?:\s|\+|%20)+Login/i.test(String(resp.headers?.location || ""))
+  );
 }
 
 async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
@@ -648,6 +668,21 @@ async function getSutdMeterSummary(meterDisplayName) {
   return parseSutdMeterCredit(html);
 }
 
+/**
+ * Never rejects.
+ *
+ * @returns {Promise<"found"|"not_found"|"unavailable">}
+ */
+async function getSutdMeterStatus(meterId) {
+  try {
+    const { client } = createSutdClient();
+    await loginSutd(client, meterId);
+    return "found";
+  } catch (err) {
+    return err.code === "METER_NOT_FOUND" ? "not_found" : "unavailable";
+  }
+}
+
 async function fetchSutdRecentTopupsWithClient(
   client,
   meterId,
@@ -748,9 +783,11 @@ module.exports = {
   classifySutdLoginResponse,
   classifySutdWebposLoginResponse,
   classifySutdWebposSelectOfferResponse,
+  getSutdMeterStatus,
   getSutdMeterSummary,
   getSutdMeterSummaryAndRecentTopups,
   getSutdRecentTopups,
+  isSutdLoginRejected,
   isValidSutdAmount,
   parseSutdMeterCredit,
   parseSutdTransactionSummary,

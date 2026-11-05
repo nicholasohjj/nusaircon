@@ -1,5 +1,6 @@
 const {
   analyzeUsage,
+  getMeterStatus: getOreMeterStatus,
   getMeterSummary,
   getMeterUsage,
   getMonthToDateUsage,
@@ -7,6 +8,7 @@ const {
   getRecentUsageStat,
 } = require("./ore");
 const {
+  getSutdMeterStatus,
   getSutdMeterSummary,
   getSutdMeterSummaryAndRecentTopups,
   getSutdRecentTopups,
@@ -36,6 +38,7 @@ function normalizeUsageRecord(record = {}) {
   return {
     date:
       pickFirst(record, [
+        "reading_timestamp",
         "reading_datetime",
         "datetime",
         "date",
@@ -165,7 +168,14 @@ async function lookupMeter({ mode, meterId, hostel = "" }) {
   return response;
 }
 
+function getMeterStatus({ meterId, hostel }) {
+  return hostel === "sutd"
+    ? getSutdMeterStatus(meterId)
+    : getOreMeterStatus(meterId);
+}
+
 module.exports = {
+  getMeterStatus,
   lookupMeter,
   normalizeTopupRecord,
   normalizeUsageRecord,

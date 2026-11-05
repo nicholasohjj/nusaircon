@@ -19,7 +19,9 @@ const TOOL_CALL_WINDOW_MS = 5 * 60 * 1000;
 const SERVER_INSTRUCTIONS = `Read-only tools for EVS prepaid electricity meters at NUS and SUTD hostels.
 Ask for the user's 8-digit meter ID and whether it is an NUS or SUTD meter if you do not know them.
 Usage history is available for NUS meters only.
-You cannot make payments. To top up, use get_topup_link and give the user the link. Never ask for card details in the conversation.`;
+You cannot make payments. To top up, use get_topup_link and give the user the link. Never ask for card details in the conversation.
+Errors are JSON with a code, a message, and whether retrying can help. If retryable is false, ask the user instead of calling again.
+To confirm a payment, follow the steps in get_recent_topups. Never tell the user to pay again just because a top-up has not appeared yet.`;
 
 const SYSTEMS = {
   nus: {
@@ -46,12 +48,110 @@ const systemSchema = z
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
 
+const lookupOutput = {
+  meterId: z.string(),
+  system: systemSchema,
+  balanceSgd: z.number().nullable(),
+  checkedAt: z.string().describe("When this was checked, as an ISO 8601 time"),
+};
+
+const usageOutput = z.object({
+  requestedDays: z.number(),
+  daysWithData: z
+    .number()
+    .describe(
+      "How many days the averages are based on. Can be under requestedDays.",
+    ),
+  history: z.array(
+    z.object({
+      date: z.string(),
+      amountSgd: z.number().nullable(),
+    }),
+  ),
+  analysis: z.object({
+    avgDailySgd: z.number().nullable(),
+    totalSgd: z.number().nullable(),
+    lastDaySgd: z.number().nullable(),
+    zeroStreak: z.number(),
+    spike: z
+      .object({
+        lastDaySgd: z.number().nullable(),
+        avgDailySgd: z.number().nullable(),
+        factor: z.number(),
+      })
+      .nullable(),
+    warnings: z.array(z.string()),
+  }),
+  estimatedDaysLeft: z
+    .number()
+    .nullable()
+    .describe("Balance divided by average daily spending. Null if unknown."),
+  rank: z.record(z.string(), z.unknown()).nullable(),
+  monthToDateSgd: z.number().nullable(),
+});
+
+const topupsOutput = z.object({
+  lookbackDays: z.number().nullable(),
+  source: z.string(),
+  history: z.array(
+    z.object({
+      date: z.string(),
+      amountSgd: z.number().nullable(),
+      reference: z.string(),
+      status: z
+        .string()
+        .optional()
+        .describe("EVS's status for this top-up, when it gives one"),
+    }),
+  ),
+});
+
+const topupLinkOutput = {
+  url: z.string(),
+  meterId: z.string(),
+  system: systemSchema,
+  amountSgd: z.number(),
+  meterVerified: z.boolean(),
+  createdAt: z
+    .string()
+    .describe(
+      "When the link was made, as an ISO 8601 time. Used to confirm a payment.",
+    ),
+  note: z.string(),
+};
+
 function jsonResult(data) {
-  return { content: [{ type: "text", text: JSON.stringify(data) }] };
+  return {
+    content: [{ type: "text", text: JSON.stringify(data) }],
+    structuredContent: data,
+  };
 }
 
-function errorResult(message) {
-  return { content: [{ type: "text", text: message }], isError: true };
+function errorResult(code, message, { retryable = false, ...details } = {}) {
+  return {
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify({ code, message, retryable, ...details }),
+      },
+    ],
+    isError: true,
+  };
+}
+
+function meterNotFoundResult(system) {
+  return errorResult(
+    "METER_NOT_FOUND",
+    `EVS has no ${system.toUpperCase()} meter with this ID. Check the 8-digit ID, and whether the meter is NUS or SUTD, with the user.`,
+  );
+}
+
+function evsUnavailableResult() {
+  return errorResult(
+    "EVS_UNAVAILABLE",
+    "EVS could not be reached or returned no details. Try again in a few minutes.",
+    { retryable: true },
+  );
 }
 
 function getPublicBaseUrl(req) {
@@ -61,36 +161,100 @@ function getPublicBaseUrl(req) {
   return `${req.protocol}://${req.get("host")}`;
 }
 
+function toSgd(value) {
+  // Number("") and Number(null) are 0, which would read as an empty meter.
+  if (value === null || value === undefined || value === "") return null;
+  const amount = Number(value);
+  return Number.isFinite(amount) ? Math.round(amount * 100) / 100 : null;
+}
+
+function estimateDaysLeft(balanceSgd, avgDailySgd) {
+  if (balanceSgd === null || !(avgDailySgd > 0)) return null;
+  return Math.max(0, Math.round((balanceSgd / avgDailySgd) * 10) / 10);
+}
+
+function formatUsage(
+  { days, history, analysis, rank, monthToDate },
+  balanceSgd,
+) {
+  const monthToDateSgd = toSgd(monthToDate);
+  return {
+    requestedDays: days,
+    // EVS can return fewer readings than requested, and the averages use only
+    // the readings that came back.
+    daysWithData: history.filter(({ amount }) => amount !== null && amount >= 0)
+      .length,
+    history: history.map(({ date, amount }) => ({
+      date: String(date),
+      amountSgd: toSgd(amount),
+    })),
+    analysis: {
+      avgDailySgd: toSgd(analysis.avgDaily),
+      totalSgd: toSgd(analysis.total),
+      lastDaySgd: toSgd(analysis.lastDay),
+      zeroStreak: analysis.zeroStreak,
+      spike: analysis.spike && {
+        lastDaySgd: toSgd(analysis.spike.lastDay),
+        avgDailySgd: toSgd(analysis.spike.avgDaily),
+        factor: Math.round(analysis.spike.factor * 10) / 10,
+      },
+      warnings: analysis.warnings,
+    },
+    estimatedDaysLeft: estimateDaysLeft(balanceSgd, analysis.avgDaily),
+    rank,
+    // EVS reports this as a negative number. It is the amount spent.
+    monthToDateSgd: monthToDateSgd === null ? null : Math.abs(monthToDateSgd),
+  };
+}
+
+function formatTopups({ lookbackDays, source, history }) {
+  return {
+    lookbackDays,
+    source: String(source),
+    history: history.map(({ date, amount, reference, status }) => ({
+      date: String(date),
+      amountSgd: toSgd(amount),
+      reference: String(reference),
+      // NUS leaves this blank, but SUTD can use it to mark a failed payment.
+      ...(status && { status: String(status) }),
+    })),
+  };
+}
+
 // Picks fields explicitly: the room address stays out of MCP responses because
 // they are passed on to the user's AI provider.
 async function runLookup(tool, mode, { meter_id: meterId, system }) {
+  const { hostel } = SYSTEMS[system];
   try {
-    const result = await meterLookup.lookupMeter({
-      mode,
-      meterId,
-      hostel: SYSTEMS[system].hostel,
-    });
+    const result = await meterLookup.lookupMeter({ mode, meterId, hostel });
     // getMeterSummary reports a missing meter and a failed request the same
-    // way, by returning blank fields.
+    // way, by returning blank fields, so this asks EVS which one it was.
     if (result.balance === "" && !result.address) {
-      return errorResult(
-        "No details came back for this meter. The meter ID may be wrong, or EVS may be unavailable.",
-      );
+      const status = await meterLookup.getMeterStatus({ meterId, hostel });
+      return status === "not_found"
+        ? meterNotFoundResult(system)
+        : evsUnavailableResult();
     }
     track("mcp_lookup", { meterId, mode, system, tool });
+    const balanceSgd = toSgd(result.balance);
     return jsonResult({
       meterId,
       system,
-      balanceSgd: result.balance,
+      balanceSgd,
       checkedAt: result.checkedAt,
-      ...(result.usage && { usage: result.usage }),
-      ...(result.topups && { topups: result.topups }),
+      ...(result.usage && { usage: formatUsage(result.usage, balanceSgd) }),
+      ...(result.topups && { topups: formatTopups(result.topups) }),
     });
   } catch (err) {
+    // Usage history can fail for an unknown meter even after a blank summary.
+    const status =
+      err.code === "METER_NOT_FOUND"
+        ? "not_found"
+        : await meterLookup.getMeterStatus({ meterId, hostel });
+    if (status === "not_found") return meterNotFoundResult(system);
+
     captureException(err, meterId, { route: "mcp", tool, mode, system });
-    return errorResult(
-      "Unable to fetch meter details. Check the meter ID and system, then try again.",
-    );
+    return evsUnavailableResult();
   }
 }
 
@@ -106,6 +270,7 @@ function buildServer(baseUrl) {
       title: "Get meter balance",
       description: "Get the current prepaid credit balance of a meter, in SGD.",
       inputSchema: { meter_id: meterIdSchema, system: systemSchema },
+      outputSchema: lookupOutput,
       annotations: READ_ONLY,
     },
     (args) => runLookup("get_meter_balance", "balance", args),
@@ -116,8 +281,9 @@ function buildServer(baseUrl) {
     {
       title: "Get meter usage",
       description:
-        "Get the last 7 days of usage for an NUS meter, with spending analysis and month-to-date usage. Not available for SUTD meters.",
+        "Get up to 7 days of usage for an NUS meter, with spending analysis, month-to-date spending, and how long the balance may last. Amounts are in SGD. Dates are as EVS reports them, with no time zone, and recent days may be missing. Not available for SUTD meters.",
       inputSchema: { meter_id: meterIdSchema },
+      outputSchema: { ...lookupOutput, usage: usageOutput },
       annotations: READ_ONLY,
     },
     ({ meter_id }) =>
@@ -128,8 +294,10 @@ function buildServer(baseUrl) {
     "get_recent_topups",
     {
       title: "Get recent top-ups",
-      description: "Get up to 10 recent top-ups for a meter.",
+      description:
+        "Get up to 10 recent top-ups for a meter. To confirm a payment, look for a top-up with the same amount dated after the createdAt of its link, and with no status showing it failed. Earlier top-ups can have the same amount, so always check the date. Dates have no time zone and appear to be Singapore time (UTC+8), while createdAt is ISO 8601. If nothing matches, the payment may not be recorded yet or may have failed: check again later, and have the user check their card statement before paying again.",
       inputSchema: { meter_id: meterIdSchema, system: systemSchema },
+      outputSchema: { ...lookupOutput, topups: topupsOutput },
       annotations: READ_ONLY,
     },
     (args) => runLookup("get_recent_topups", "topups", args),
@@ -140,33 +308,46 @@ function buildServer(baseUrl) {
     {
       title: "Get top-up link",
       description:
-        "Create a link to the secure top-up page, for the user to open and pay by card themselves. Creating the link charges nothing. NUS allows $6-$50 and SUTD allows $10-$50.",
+        "Create a link to the secure top-up page, for the user to open and pay by card themselves. Creating the link charges nothing. Refuses a meter EVS doesn't recognise. If EVS can't be reached, meterVerified is false, so ask the user to check the meter on the page. NUS allows $6-$50 and SUTD allows $10-$50.",
       inputSchema: {
         meter_id: meterIdSchema,
         system: systemSchema,
         amount_sgd: z.number().describe("Top-up amount in SGD"),
       },
+      outputSchema: topupLinkOutput,
       annotations: READ_ONLY,
     },
-    ({ meter_id: meterId, system, amount_sgd: amount }) => {
+    async ({ meter_id: meterId, system, amount_sgd: amount }) => {
       const config = SYSTEMS[system];
       // Stringified so the check matches what the web route will validate,
       // which rejects amounts with more than two decimal places.
       const txtAmount = String(amount);
       if (!config.isValidAmount(txtAmount)) {
-        return errorResult(config.amountError);
+        return errorResult("INVALID_AMOUNT", config.amountError);
       }
 
       const availability = topupAvailability.getTopupAvailability(system);
-      if (availability.disabled) return errorResult(availability.message);
+      if (availability.disabled) {
+        return errorResult("TOPUPS_PAUSED", availability.message);
+      }
+
+      // An outage doesn't block the link: the page stops by itself if EVS is
+      // still down, and the page shows the meter for the user to check.
+      const status = await meterLookup.getMeterStatus({
+        meterId,
+        hostel: config.hostel,
+      });
+      if (status === "not_found") return meterNotFoundResult(system);
 
       const qs = new URLSearchParams({ txtMtrId: meterId, txtAmount });
-      track("mcp_topup_link_created", { meterId, system, amount });
+      track("mcp_topup_link_created", { meterId, system, amount, status });
       return jsonResult({
         url: `${baseUrl}${config.webappPath}?${qs}`,
         meterId,
         system,
         amountSgd: amount,
+        meterVerified: status === "found",
+        createdAt: new Date().toISOString(),
         note: "The user enters their card details on this page. Check that the page shows the right meter before paying.",
       });
     },
@@ -189,10 +370,38 @@ function createMcpRouter({ toolCallLimit = TOOL_CALL_LIMIT } = {}) {
   const toolCallLimiter = createJsonRateLimiter({
     windowMs: TOOL_CALL_WINDOW_MS,
     limit: toolCallLimit,
-    message: "Too many meter requests. Please wait a few minutes and try again.",
+    message:
+      "Too many meter requests. Please wait a few minutes and try again.",
+    // A tool error reaches the agent. Some clients show an HTTP 429 as a
+    // connection failure instead.
+    handler: (req, res, next, options) => {
+      const resetTime = req.rateLimit?.resetTime;
+      return res.json({
+        jsonrpc: "2.0",
+        id: req.body.id ?? null,
+        result: errorResult("RATE_LIMITED", options.message.error, {
+          retryable: true,
+          ...(resetTime && {
+            retryAfterSeconds: Math.ceil((resetTime - Date.now()) / 1000),
+          }),
+        }),
+      });
+    },
   });
 
   function limitToolCalls(req, res, next) {
+    // A batch would otherwise run many tool calls for one check of the limit.
+    if (
+      Array.isArray(req.body) &&
+      req.body.some((message) => message?.method === "tools/call")
+    ) {
+      return jsonRpcError(
+        res,
+        400,
+        -32600,
+        "Batched tool calls are not supported. Send them one at a time.",
+      );
+    }
     if (req.body?.method !== "tools/call") return next();
     return toolCallLimiter(req, res, next);
   }
