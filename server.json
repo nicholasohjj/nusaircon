@@ -7,7 +7,15 @@
     "url": "https://github.com/nicholasohjj/nusaircon",
     "source": "github"
   },
-  "version": "2.0.0",
+  "websiteUrl": "https://nusaircon-production.up.railway.app/app/",
+  "icons": [
+    {
+      "src": "https://nusaircon-production.up.railway.app/app/apple-touch-icon.png",
+      "mimeType": "image/png",
+      "sizes": ["180x180"]
+    }
+  ],
+  "version": "2.0.1",
   "remotes": [
     {
       "type": "streamable-http",

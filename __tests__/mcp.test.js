@@ -112,7 +112,7 @@ describe("MCP endpoint", () => {
     expect(res.status).toBe(200);
     expect(res.body.result.serverInfo).toMatchObject({
       name: "evs-meter-tools",
-      version: "2.0.0",
+      version: "2.0.1",
     });
     expect(res.body.result.instructions).toContain(
       "Never ask for card details",

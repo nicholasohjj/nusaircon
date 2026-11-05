@@ -267,7 +267,7 @@ async function runLookup(tool, mode, { meter_id: meterId, system }) {
 
 function buildServer(baseUrl) {
   const server = new McpServer(
-    { name: "evs-meter-tools", version: "2.0.0" },
+    { name: "evs-meter-tools", version: "2.0.1" },
     { instructions: SERVER_INSTRUCTIONS },
   );
 

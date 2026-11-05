@@ -55,12 +55,21 @@ const appSecurityHeaders = helmet({
 // retaining the rest of Helmet's headers.
 const docsSecurityHeaders = helmet({ contentSecurityPolicy: false });
 
+// server.json lists this icon, so registries and MCP clients must be able to
+// display it on their own sites.
+const CROSS_ORIGIN_ASSETS = new Set(["/app/apple-touch-icon.png"]);
+
 function securityHeaders(req, res, next) {
   if (req.path === "/api" || req.path.startsWith("/api/")) {
     return docsSecurityHeaders(req, res, next);
   }
 
-  return appSecurityHeaders(req, res, next);
+  return appSecurityHeaders(req, res, (err) => {
+    if (!err && CROSS_ORIGIN_ASSETS.has(req.path)) {
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    }
+    next(err);
+  });
 }
 
 const httpLogger = pinoHttp({

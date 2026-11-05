@@ -42,6 +42,19 @@ describe("http middleware", () => {
     expect(res.headers["content-security-policy"]).toBeUndefined();
   });
 
+  test("lets other sites display only the registry icon", async () => {
+    const app = express();
+    app.use(securityHeaders);
+    app.get("/app/*splat", (req, res) => res.send("ok"));
+
+    const icon = await request(app).get("/app/apple-touch-icon.png").expect(200);
+    const page = await request(app).get("/app/index.html").expect(200);
+
+    expect(icon.headers["cross-origin-resource-policy"]).toBe("cross-origin");
+    expect(icon.headers["x-content-type-options"]).toBe("nosniff");
+    expect(page.headers["cross-origin-resource-policy"]).toBe("same-origin");
+  });
+
   test("redacts sensitive query params from log URLs", () => {
     expect(
       sanitizeRequestUrl(
