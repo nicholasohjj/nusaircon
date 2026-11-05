@@ -235,7 +235,9 @@ export default function CardPaymentPage({ basePath = "" }) {
 
   const handleExpYrChange = useCallback((e) => {
     const raw = e.target.value.replace(/\D/g, "");
-    setFields((f) => ({ ...f, expYr: e.target.value }));
+    // Autofill may enter a 4-digit year, and the form works with 2 digits.
+    const expYr = raw.length === 4 ? raw.slice(2) : raw.slice(0, 2);
+    setFields((f) => ({ ...f, expYr }));
     setErrors((prev) => {
       if (!prev.expYr) return prev;
       const next = { ...prev };
@@ -455,7 +457,7 @@ export default function CardPaymentPage({ basePath = "" }) {
         </span>
         <span className={styles.summaryVal}>SGD {amtDisplay}</span>
       </div>
-      <form onSubmit={handleSubmit} autoComplete="off">
+      <form onSubmit={handleSubmit}>
         <Field id="name" label="Cardholder name" error={errors.name}>
           <Input
             id="name"
@@ -514,6 +516,7 @@ export default function CardPaymentPage({ basePath = "" }) {
               value={fields.expMth}
               placeholder="MM"
               maxLength={2}
+              autoComplete="cc-exp-month"
               inputMode="numeric"
               error={errors.expMth}
               inputRef={expMthRef}
@@ -528,7 +531,8 @@ export default function CardPaymentPage({ basePath = "" }) {
               type="tel"
               value={fields.expYr}
               placeholder="YY"
-              maxLength={2}
+              maxLength={4}
+              autoComplete="cc-exp-year"
               inputMode="numeric"
               error={errors.expYr}
               inputRef={expYrRef}
@@ -546,6 +550,7 @@ export default function CardPaymentPage({ basePath = "" }) {
                 value={fields.cvv}
                 placeholder="•••"
                 maxLength={4}
+                autoComplete="cc-csc"
                 inputMode="numeric"
                 error={errors.cvv}
                 inputRef={cvvRef}

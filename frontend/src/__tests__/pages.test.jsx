@@ -153,6 +153,50 @@ describe("CardPaymentPage", () => {
     vi.restoreAllMocks();
   });
 
+  async function renderCardForm() {
+    vi.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => SESSION,
+    });
+    renderWithRouter(<CardPaymentPage basePath="" />, TOKEN_PARAMS);
+    await waitFor(() => {
+      expect(document.querySelector('input[name="expYr"]')).toBeTruthy();
+    });
+  }
+
+  test("marks the card fields for browser autofill", async () => {
+    await renderCardForm();
+
+    expect(document.querySelector("form").getAttribute("autocomplete")).toBeNull();
+    const tokens = {
+      name: "cc-name",
+      cardNo: "cc-number",
+      expMth: "cc-exp-month",
+      expYr: "cc-exp-year",
+      cvv: "cc-csc",
+    };
+    for (const [name, token] of Object.entries(tokens)) {
+      expect(
+        document.querySelector(`input[name="${name}"]`).getAttribute("autocomplete"),
+      ).toBe(token);
+    }
+  });
+
+  test.each([
+    ["2027", "27"],
+    ["27", "27"],
+    ["271", "27"],
+    ["2", "2"],
+  ])("stores an entered year of %s as %s", async (entered, stored) => {
+    await renderCardForm();
+    const year = document.querySelector('input[name="expYr"]');
+
+    fireEvent.change(year, { target: { value: entered } });
+
+    expect(year.value).toBe(stored);
+  });
+
   test("shows spinner while session is loading", () => {
     vi.spyOn(global, "fetch").mockReturnValue(new Promise(() => {})); // never resolves
     renderWithRouter(<CardPaymentPage basePath="" />, TOKEN_PARAMS);
