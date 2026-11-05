@@ -1,7 +1,7 @@
 # Terms of Use
 
 **EVS Meter Tools**
-Last updated: October 2026
+Last updated: November 2026
 
 Please read these Terms of Use ("Terms") carefully before using EVS Meter Tools ("the Service"). By using the Service, you agree to be bound by these Terms. If you do not agree, do not use the Service.
 
@@ -9,7 +9,7 @@ Please read these Terms of Use ("Terms") carefully before using EVS Meter Tools 
 
 ## 1. Service Overview
 
-The Service is an unofficial, independently developed tool that enables users of supported EVS electricity meters to check meter balance, view supported top-up history, and, where enabled, top up meters via credit card through Telegram or the standalone web app. It is not affiliated with, endorsed by, or operated by NUS, SUTD, EVS, eNETS, or any payment network.
+The Service is an unofficial, independently developed tool that enables users of supported EVS electricity meters to check meter balance, view supported top-up history, and, where enabled, top up meters via credit card through Telegram or the standalone web app. You can also connect a compatible AI assistant to check meter information and get top-up links. It is not affiliated with, endorsed by, or operated by NUS, SUTD, EVS, eNETS, or any payment network.
 
 ---
 
@@ -45,6 +45,8 @@ You may use the Service only if you:
 
 Your card details are **RSA-encrypted in your browser** before transmission. The Service's server never receives or stores your plaintext card number or CVV. Despite this, you use this service at your own risk. We make no warranties about the security of third-party systems (eNETS, EVS) involved in processing your payment.
 
+**AI assistants.** You are responsible for the assistant you connect and the instructions you give it. The AI assistant tools cannot make payments. To top up, you open a link and enter your card details on the Service's payment page. Never give your card details to an AI assistant.
+
 ---
 
 ## 5. Meter Identity and System Routing
@@ -64,8 +66,9 @@ You are responsible for entering the correct 8-digit meter ID. Topping up the wr
 - **Receipt PDFs**, when available for cp2nus payments, may be cached temporarily and may become unavailable after expiry or service restart.
 - To support feedback replies, Telegram message-routing information is held in memory for up to **7 days** after a Bot feedback submission. This consists of Telegram message and chat identifiers.
 - Feedback content, ratings, and any contact details you provide may be recorded in service logs, sent to the Service operator through Telegram, and processed by our analytics and hosting providers to receive, respond to, and improve the Service. Do not include card details or other sensitive information in feedback.
+- If you connect an AI assistant to the Service, the meter ID and system you provide are used to fetch your results. The results, which may include balance, usage, top-up history, transaction references, and top-up links, are returned to that assistant and handled by its provider under the provider's own terms. We do not control how your provider stores or uses them. We do not include your room address in these results. Your assistant's requests are also covered by the analytics and request logs described below.
 - Basic analytics and request logs are captured to maintain service quality, troubleshoot errors, and limit abuse. These may include request path, response status, IP address, user agent, Telegram chat identifier, meter ID, top-up amount, transaction outcome, feedback-related event data, and error details, but never your plaintext card details. Sensitive URL fields such as payment tokens are redacted from structured request logs.
-- We disclose information only as needed to operate the Service: to Telegram for Bot communications; eNETS and EVS or relevant institutional systems to process lookups and payments; and hosting, logging, and analytics providers. These providers may process information outside Singapore.
+- We disclose information only as needed to operate the Service: to Telegram for Bot communications; eNETS and EVS or relevant institutional systems to process lookups and payments; hosting, logging, and analytics providers; and any AI assistant you choose to connect. These providers may process information outside Singapore.
 - By submitting feedback through the Bot or website, you consent to it being forwarded to the Service operator. If you provide contact details, they may be used to respond to your feedback.
 
 ---
@@ -84,6 +87,8 @@ The Service may apply rate limits to protect payment and lookup endpoints. If yo
 
 NUS balance and usage figures are fetched from the ORE API. SUTD balance, top-up history, and top-up setup are fetched from the SUTD EVS WebPOS portal. These values may not reflect real-time meter readings.
 
+AI assistants can make mistakes, including misreading results or suggesting the wrong meter or amount. Check the meter and amount on the payment page before you pay. We are not responsible for an assistant's output or advice.
+
 ---
 
 ## 9. Prohibited Use
@@ -91,6 +96,7 @@ NUS balance and usage figures are fetched from the ORE API. SUTD balance, top-up
 You must not:
 
 - Use the Service to top up a meter you are not authorised to pay for;
+- Look up a meter you are not authorised to access, including through an AI assistant or other automated means, or try to discover other people's meter IDs;
 - Attempt to reverse-engineer, scrape, abuse, or disrupt the Service or any connected system;
 - Submit false, fraudulent, or stolen payment credentials; or
 - Circumvent any security or validation measure in the Service.
