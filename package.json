@@ -2,6 +2,7 @@
   "name": "evs-telebot",
   "version": "1.0.0",
   "description": "EVS electricity top-up Telegram bot with eNETS payment WebApp",
+  "license": "MIT",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

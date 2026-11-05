@@ -122,7 +122,7 @@ Uses the SUTD EVS WebPOS pages and the SUTD credit payment bridge.
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 20.19+ (22.12+ on Node 22)
 - A Telegram bot token (from [@BotFather](https://t.me/BotFather))
 - A publicly accessible HTTPS server (required for Telegram WebApp buttons)
 
@@ -238,6 +238,8 @@ under 3 days, suggest a top-up amount and give me the top-up link.
 ```
 
 The server is stateless, so it works with Railway Serverless. Tool calls are limited to 120 per 5 minutes per IP address. Hosted clients share IP addresses, so that limit is higher than the website's lookup limit.
+
+To run your own copy, or build your own automation on top of it, see the [self-hosting guide](docs/self-hosting.md).
 
 ## Bot commands
 
@@ -364,3 +366,7 @@ Note: threading only follows the original notification message. If the owner rep
 - The website entry point (`/app/`) and the Telegram Mini App use the same Express routes and React pages — no separate codepaths.
 - Global maintenance mode can be enabled at runtime with `/maintenanceon` (owner command) or at startup with `MAINTENANCE_MODE=true`. Users see the global maintenance message across the app and bot; `/health` and Telegram webhooks remain available so the service stays reachable and the owner can run `/maintenanceoff`. Set `MAINTENANCE_MESSAGE` to customize the copy. `GLOBAL_MAINTENANCE=true` is accepted as a legacy alias.
 - Top-ups can be disabled at runtime with `/topupoff` (owner command) or at startup with `TOPUP_DISABLED=true`. Bot users in an active top-up session when the flag is set will have their session reset and see the maintenance message. Website payment start, loading, card, bootstrap, and card-submit routes also return the maintenance response while top-ups are disabled; lookup, terms, result, and feedback routes remain available.
+
+## Licence
+
+[MIT](LICENSE). This is an unofficial tool, not affiliated with NUS, SUTD, EVS or eNETS.
