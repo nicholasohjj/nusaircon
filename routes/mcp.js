@@ -70,6 +70,13 @@ async function runLookup(tool, mode, { meter_id: meterId, system }) {
       meterId,
       hostel: SYSTEMS[system].hostel,
     });
+    // getMeterSummary reports a missing meter and a failed request the same
+    // way, by returning blank fields.
+    if (result.balance === "" && !result.address) {
+      return errorResult(
+        "No details came back for this meter. The meter ID may be wrong, or EVS may be unavailable.",
+      );
+    }
     track("mcp_lookup", { meterId, mode, system, tool });
     return jsonResult({
       meterId,

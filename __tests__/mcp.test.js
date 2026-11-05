@@ -131,6 +131,18 @@ describe("MCP endpoint", () => {
     expect(lookup).not.toHaveBeenCalled();
   });
 
+  test("reports a meter with no details as an error", async () => {
+    lookup.mockResolvedValue({ address: "", balance: "", checkedAt: "now" });
+
+    const result = await callTool(makeApp(), "get_meter_balance", {
+      meter_id: "10010388",
+      system: "nus",
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain("meter ID may be wrong");
+  });
+
   test("hides upstream error details", async () => {
     lookup.mockRejectedValue(new Error("secret upstream detail"));
 
