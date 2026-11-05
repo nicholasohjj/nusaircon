@@ -156,11 +156,11 @@ paths:
               type: object
       responses:
         "200":
-          description: JSON-RPC response
+          description: JSON-RPC response. Tool errors, including the rate limit, are returned here with isError set.
         "400":
-          description: Malformed JSON or invalid MCP request
-        "429":
-          description: Too many tool calls
+          description: Malformed JSON, invalid MCP request, or batched tool calls
+        "403":
+          description: The request's Origin header is not allowed
 
   /internal/low-balance-check:
     post:

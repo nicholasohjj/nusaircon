@@ -16,6 +16,9 @@ const { isValidSutdAmount } = require("../services/sutdService");
 const TOOL_CALL_LIMIT = 120;
 const TOOL_CALL_WINDOW_MS = 5 * 60 * 1000;
 
+const DEFAULT_ALLOWED_ORIGINS = ["https://claude.ai", "https://claude.com"];
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 const SERVER_INSTRUCTIONS = `Read-only tools for EVS prepaid electricity meters at NUS and SUTD hostels.
 Ask for the user's 8-digit meter ID and whether it is an NUS or SUTD meter if you do not know them.
 Usage history is available for NUS meters only.
@@ -46,7 +49,11 @@ const systemSchema = z
   .enum(["nus", "sutd"])
   .describe("The institution the meter belongs to");
 
-const READ_ONLY = { readOnlyHint: true, openWorldHint: true };
+const READ_ONLY = {
+  readOnlyHint: true,
+  idempotentHint: true,
+  openWorldHint: true,
+};
 
 const lookupOutput = {
   meterId: z.string(),
@@ -260,7 +267,7 @@ async function runLookup(tool, mode, { meter_id: meterId, system }) {
 
 function buildServer(baseUrl) {
   const server = new McpServer(
-    { name: "evs-meter-tools", version: "1.0.0" },
+    { name: "evs-meter-tools", version: "2.0.0" },
     { instructions: SERVER_INSTRUCTIONS },
   );
 
@@ -364,8 +371,49 @@ function jsonRpcError(res, status, code, message) {
   });
 }
 
+function configuredOrigins() {
+  const { SERVER_URL, RAILWAY_PUBLIC_DOMAIN, MCP_ALLOWED_ORIGINS } =
+    process.env;
+  const origins = [
+    ...DEFAULT_ALLOWED_ORIGINS,
+    SERVER_URL,
+    RAILWAY_PUBLIC_DOMAIN && `https://${RAILWAY_PUBLIC_DOMAIN}`,
+    ...String(MCP_ALLOWED_ORIGINS || "").split(","),
+  ];
+  return origins.flatMap((value) => {
+    if (!value?.trim()) return [];
+    try {
+      return [new URL(value.trim()).origin];
+    } catch {
+      return [];
+    }
+  });
+}
+
+function isAllowedOrigin(origin) {
+  // Browsers always send Origin on a POST. Other clients normally don't.
+  if (!origin) return true;
+  try {
+    const url = new URL(origin);
+    return (
+      LOCAL_HOSTNAMES.has(url.hostname) ||
+      configuredOrigins().includes(url.origin)
+    );
+  } catch {
+    return false;
+  }
+}
+
+// Blocks DNS rebinding, as the MCP spec requires. This can't compare Origin with
+// the Host header, because a rebinding attack controls both.
+function validateOrigin(req, res, next) {
+  if (isAllowedOrigin(req.get("origin"))) return next();
+  return jsonRpcError(res, 403, -32000, "Origin not allowed.");
+}
+
 function createMcpRouter({ toolCallLimit = TOOL_CALL_LIMIT } = {}) {
   const router = express.Router();
+  router.use(validateOrigin);
 
   const toolCallLimiter = createJsonRateLimiter({
     windowMs: TOOL_CALL_WINDOW_MS,

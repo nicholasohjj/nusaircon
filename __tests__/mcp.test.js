@@ -78,7 +78,10 @@ describe("MCP endpoint", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(res.body.result.serverInfo.name).toBe("evs-meter-tools");
+    expect(res.body.result.serverInfo).toMatchObject({
+      name: "evs-meter-tools",
+      version: "2.0.0",
+    });
     expect(res.body.result.instructions).toContain(
       "Never ask for card details",
     );
@@ -95,6 +98,7 @@ describe("MCP endpoint", () => {
       "get_topup_link",
     ]);
     expect(tools.every((tool) => tool.annotations.readOnlyHint)).toBe(true);
+    expect(tools.every((tool) => tool.annotations.idempotentHint)).toBe(true);
   });
 
   test("returns the balance without the room address", async () => {
@@ -660,6 +664,79 @@ describe("MCP endpoint", () => {
     expect(lookup).toHaveBeenCalledTimes(1);
 
     expect((await rpc(testApp, "tools/list", {})).status).toBe(200);
+  });
+
+  describe("Origin header", () => {
+    const send = (origin, host) => {
+      const req = request(makeApp()).post("/mcp").set("Accept", ACCEPT);
+      if (origin) req.set("Origin", origin);
+      if (host) req.set("Host", host);
+      return req.send({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "tools/call",
+        params: {
+          name: "get_meter_balance",
+          arguments: { meter_id: "12345678", system: "nus" },
+        },
+      });
+    };
+
+    afterEach(() => {
+      delete process.env.MCP_ALLOWED_ORIGINS;
+      delete process.env.RAILWAY_PUBLIC_DOMAIN;
+    });
+
+    test.each([
+      ["no Origin", undefined],
+      ["the server's own address", "https://meters.example.com"],
+      ["Claude", "https://claude.ai"],
+      ["localhost", "http://localhost:6274"],
+      ["127.0.0.1", "http://127.0.0.1:3000"],
+      ["IPv6 localhost", "http://[::1]:3000"],
+    ])("allows %s", async (_name, origin) => {
+      expect((await send(origin)).status).toBe(200);
+      expect(lookup).toHaveBeenCalledTimes(1);
+    });
+
+    test.each([
+      ["another site", "https://evil.example"],
+      ["a lookalike of an allowed site", "https://claude.ai.evil.example"],
+      ["the right host on the wrong scheme", "http://meters.example.com"],
+      ["a sandboxed page", "null"],
+      ["a malformed value", "not a url"],
+    ])("rejects %s", async (_name, origin) => {
+      const res = await send(origin);
+
+      expect(res.status).toBe(403);
+      expect(res.body.error.message).toBe("Origin not allowed.");
+      expect(lookup).not.toHaveBeenCalled();
+    });
+
+    test("rejects a rebinding attack where Origin matches Host", async () => {
+      const res = await send("http://evil.example:3000", "evil.example:3000");
+
+      expect(res.status).toBe(403);
+    });
+
+    test("allows the Railway domain and configured origins", async () => {
+      process.env.RAILWAY_PUBLIC_DOMAIN = "app.up.railway.app";
+      process.env.MCP_ALLOWED_ORIGINS =
+        "https://one.example, https://two.example/, not a url";
+
+      expect((await send("https://app.up.railway.app")).status).toBe(200);
+      expect((await send("https://one.example")).status).toBe(200);
+      expect((await send("https://two.example")).status).toBe(200);
+      expect((await send("https://three.example")).status).toBe(403);
+    });
+
+    test("covers other methods too", async () => {
+      const res = await request(makeApp())
+        .get("/mcp")
+        .set("Origin", "https://evil.example");
+
+      expect(res.status).toBe(403);
+    });
   });
 
   test("rejects batched tool calls so they can't skip the limit", async () => {

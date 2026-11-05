@@ -73,6 +73,7 @@ Telegram's Mini App buttons and hosted AI connectors need a public HTTPS address
 - Set `SERVER_URL` to your public HTTPS address, because top-up links are built from it.
 - Keep `DB_DIR` on persistent storage, or saved meters are lost when the server restarts.
 - Keep `PAYMENT_SESSION_SECRET` the same between deploys, so payments in progress survive a restart.
+- Browser-based MCP clients on other sites get a 403 until you add their address to `MCP_ALLOWED_ORIGINS`. Your own domain, localhost and Claude's sites are already allowed, and clients that don't run in a browser aren't affected.
 
 ### What changes in a fork
 

@@ -155,6 +155,7 @@ DB_DIR=.                              # local SQLite dir; use /data on Railway w
 TELEGRAM_BOT_MODE=                    # production/Railway defaults to webhook; dev defaults to polling
 TELEGRAM_BOT_AUDIENCE=nus             # legacy single-bot mode: "nus" or "sutd"
 LOW_BALANCE_CRON_SECRET=              # optional, enables the low-balance check endpoint
+MCP_ALLOWED_ORIGINS=                  # optional, comma-separated extra browser origins allowed to call /mcp
 GOOGLE_SITE_VERIFICATION_FILE=        # optional Search Console HTML file name, e.g. googleabc123.html
 GOOGLE_SITE_VERIFICATION_CONTENT=     # optional exact file body if Google provides non-default content
 ```
