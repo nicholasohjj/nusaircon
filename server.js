@@ -9,6 +9,7 @@ const cp2nus = require("./routes/cp2nus");
 const cp2 = require("./routes/cp2");
 const sutd = require("./routes/sutd");
 const { router: websiteRoutes } = require("./routes/website");
+const { createMcpRouter } = require("./routes/mcp");
 const { captureException, shutdownAnalytics } = require("./services/analytics");
 const {
   buildGoogleVerificationFileContent,
@@ -183,6 +184,7 @@ if (process.env.NODE_ENV !== "production") {
   app.get("/debug", (req, res) => res.send("cp2nus prefix reachable"));
 }
 app.use("/website", websiteRoutes);
+app.use("/mcp", createMcpRouter());
 app.get(openapiJsonPath, (req, res) => {
   setNoStoreHeaders(res);
   res.type("application/json").end(JSON.stringify(openapiSpec));

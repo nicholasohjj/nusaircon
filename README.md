@@ -21,6 +21,7 @@ The legacy NUS CP2 fallback (`cp2.evs.com.sg`) is hidden from the web app and bo
 - Cross-system guard: cp2nus bootstrap rejects meters that belong to the legacy cp2 system before initiating payment
 - SUTD balance, top-up history, and top-up support
 - Analytics tracking and error capture throughout the flow
+- Read-only [MCP server](#connect-your-own-claude-mcp), so people can connect their own Claude and set their own instructions
 
 ## Architecture
 
@@ -207,6 +208,35 @@ cd frontend && npm test
 npm run lint
 ```
 
+## Connect your own Claude (MCP)
+
+The service exposes a public, read-only [MCP](https://modelcontextprotocol.io) server at `POST /mcp`, so people can connect their own AI assistant and decide how it behaves. No account or API key is needed.
+
+| Tool                | What it does                                                 |
+| ------------------- | ------------------------------------------------------------ |
+| `get_meter_balance` | Current balance (NUS and SUTD)                               |
+| `get_meter_usage`   | Last 7 days of usage and analysis (NUS only)                 |
+| `get_recent_topups` | Up to 10 recent top-ups (NUS and SUTD)                       |
+| `get_topup_link`    | Link to the top-up page, where the user pays by card themselves |
+
+The tools cannot make payments and never receive card details. Responses leave out the room address, because they are passed on to the user's AI provider.
+
+To connect, add `https://<your-domain>/mcp` as a custom connector in Claude's settings. In Claude Code, run:
+
+```bash
+claude mcp add --transport http evs-meter https://<your-domain>/mcp
+```
+
+Each person writes their own instructions in their assistant, for example in a Claude Project:
+
+```text
+My NUS meter ID is 12345678. When I ask about aircon credit, check the balance
+and work out how many days it will last from my recent usage. If it will last
+under 3 days, suggest a top-up amount and give me the top-up link.
+```
+
+The server is stateless, so it works with Railway Serverless. Tool calls are limited to 120 per 5 minutes per IP address. Hosted clients share IP addresses, so that limit is higher than the website's lookup limit.
+
 ## Bot commands
 
 | Command     | Description                       |
@@ -269,12 +299,14 @@ Note: threading only follows the original notification message. If the owner rep
 │   ├── cp2.js                    # WebApp + API routes for legacy cp2 (hidden from UI)
 │   ├── cp2nus.js                 # WebApp + API routes for cp2nus
 │   ├── sutd.js                   # WebApp + API routes for SUTD
+│   ├── mcp.js                    # Read-only MCP server for AI assistants
 │   └── website.js                # Standalone website lookup + feedback API
 ├── services/
 │   ├── cp2Service.js             # Legacy cp2 purchase flow: EVS WebPOS scraping + eNETS proxy
 │   ├── cp2nusService.js          # Purchase flow: EVS JSON API + eNETS PP + NETS API
 │   ├── sutdService.js            # SUTD balance, history, and WebPOS purchase flow
 │   ├── ore.js                    # ORE API: meter summary, usage history, top-up history
+│   ├── meterLookup.js            # Balance, usage, and top-up lookups shared by the website and MCP
 │   ├── paymentSession.js         # Sealed payment/result tokens and receipt cache
 │   ├── paymentNotification.js    # Telegram payment result notification helper
 │   ├── paymentSubmitLock.js      # Short-lived duplicate payment submit guard

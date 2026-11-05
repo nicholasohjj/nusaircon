@@ -13,6 +13,8 @@ tags:
     description: Static app and service metadata
   - name: Website
     description: Standalone website lookup and feedback API
+  - name: MCP
+    description: Read-only Model Context Protocol server for AI assistants
   - name: CP2
     description: Legacy CP2 payment flow for NUS meters that have not migrated
   - name: CP2NUS
@@ -140,6 +142,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TopupStatusResponse"
+
+  /mcp:
+    post:
+      tags: [MCP]
+      summary: Stateless MCP endpoint (Streamable HTTP, JSON-RPC 2.0)
+      description: Offers get_meter_balance, get_meter_usage, get_recent_topups, and get_topup_link. Use an MCP client rather than calling it directly.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: JSON-RPC response
+        "400":
+          description: Malformed JSON or invalid MCP request
+        "429":
+          description: Too many tool calls
 
   /webapp:
     get:
