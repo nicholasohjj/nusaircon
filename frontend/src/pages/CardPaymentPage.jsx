@@ -16,6 +16,14 @@ function useTelegram() {
   }, []);
 }
 
+// Telegram's script also defines WebApp in normal browsers, where the platform
+// is "unknown".
+function getTelegramLinkOpener() {
+  const tg = window.Telegram?.WebApp;
+  if (!tg || !tg.platform || tg.platform === "unknown") return null;
+  return typeof tg.openLink === "function" ? tg : null;
+}
+
 function safeRestartUrl(value) {
   const fallback = "/app/";
   if (!value) return fallback;
@@ -436,6 +444,7 @@ export default function CardPaymentPage({ basePath = "" }) {
   }
 
   const amtDisplay = Number(session.txtAmount).toFixed(2);
+  const telegramLinkOpener = getTelegramLinkOpener();
 
   return (
     <Card align="left">
@@ -567,6 +576,15 @@ export default function CardPaymentPage({ basePath = "" }) {
         <button type="submit" className={styles.btn} disabled={submitting}>
           {btnLabel}
         </button>
+        {telegramLinkOpener && (
+          <button
+            type="button"
+            className={styles.browserLink}
+            onClick={() => telegramLinkOpener.openLink(window.location.href)}
+          >
+            Want to use a saved card? Open in browser
+          </button>
+        )}
         <p className={styles.lock}>
           🔒 eNETS RSA-encrypted · Powered by eNETS ·{" "}
           <a href="/app/terms">Terms</a>

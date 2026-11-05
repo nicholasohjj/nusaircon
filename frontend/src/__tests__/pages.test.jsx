@@ -165,6 +165,47 @@ describe("CardPaymentPage", () => {
     });
   }
 
+  describe("open in browser link", () => {
+    const LINK = { name: /Open in browser/i };
+
+    afterEach(() => {
+      delete window.Telegram;
+    });
+
+    test("reopens this payment page from inside Telegram", async () => {
+      const openLink = vi.fn();
+      window.Telegram = {
+        WebApp: { platform: "ios", ready: vi.fn(), expand: vi.fn(), openLink },
+      };
+      await renderCardForm();
+
+      fireEvent.click(screen.getByRole("button", LINK));
+
+      expect(openLink).toHaveBeenCalledWith(window.location.href);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    test("is hidden in a normal browser with Telegram's script loaded", async () => {
+      window.Telegram = {
+        WebApp: {
+          platform: "unknown",
+          ready: vi.fn(),
+          expand: vi.fn(),
+          openLink: vi.fn(),
+        },
+      };
+      await renderCardForm();
+
+      expect(screen.queryByRole("button", LINK)).toBeNull();
+    });
+
+    test("is hidden without Telegram's script", async () => {
+      await renderCardForm();
+
+      expect(screen.queryByRole("button", LINK)).toBeNull();
+    });
+  });
+
   test("marks the card fields for browser autofill", async () => {
     await renderCardForm();
 
