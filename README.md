@@ -21,6 +21,7 @@ The legacy NUS CP2 fallback (`cp2.evs.com.sg`) is hidden from the web app and bo
 - Cross-system guard: cp2nus bootstrap rejects meters that belong to the legacy cp2 system before initiating payment
 - SUTD balance, top-up history, and top-up support
 - Analytics tracking and error capture throughout the flow
+- Opt-in low-balance alerts on Telegram, with a button to start a top-up
 - Read-only [MCP server](#connect-your-own-claude-mcp), so people can connect their own Claude and set their own instructions
 
 ## Architecture
@@ -153,6 +154,7 @@ TOPUP_DISABLED=false                  # set to "true" to show maintenance messag
 DB_DIR=.                              # local SQLite dir; use /data on Railway with a mounted volume
 TELEGRAM_BOT_MODE=                    # production/Railway defaults to webhook; dev defaults to polling
 TELEGRAM_BOT_AUDIENCE=nus             # legacy single-bot mode: "nus" or "sutd"
+LOW_BALANCE_CRON_SECRET=              # optional, enables the low-balance check endpoint
 GOOGLE_SITE_VERIFICATION_FILE=        # optional Search Console HTML file name, e.g. googleabc123.html
 GOOGLE_SITE_VERIFICATION_CONTENT=     # optional exact file body if Google provides non-default content
 ```
@@ -246,11 +248,26 @@ The server is stateless, so it works with Railway Serverless. Tool calls are lim
 | `/balance`  | Check meter balance               |
 | `/usage`    | Show last 7 days of usage         |
 | `/topups`   | Show recent top-ups               |
+| `/alerts`   | Show or change low-balance alerts |
 | `/feedback` | Share feedback or report an issue |
 | `/cancel`   | Cancel the current flow           |
 | `/help`     | Show help and supported systems   |
 | `/status`   | Owner-only live service health    |
 | `/stats`    | Owner-only runtime snapshot       |
+
+## Low-balance alerts
+
+People opt in with `/alerts on`, which covers the saved meters on that bot. Meters are saved when someone starts a top-up in the bot. Once a day, each opted-in meter is checked and its chat gets a message if the balance is below SGD 5. The message has a button that starts the bot's normal top-up flow, so the person still chooses the amount and pays by card.
+
+Each meter gets one alert per low-balance episode, and can alert again once a check sees the balance back at SGD 5 or more. A failed lookup is skipped and never counts as a zero balance. Alerts stop if someone blocks the bot, and `/forget` removes them along with the meter.
+
+To turn on the daily check:
+
+1. Generate a secret with `openssl rand -hex 32`.
+2. Set it as `LOW_BALANCE_CRON_SECRET` on Railway.
+3. Add the same value as a repository secret with the same name on GitHub.
+
+`.github/workflows/low-balance-check.yml` then calls `POST /internal/low-balance-check` at 09:00 Singapore time, which also wakes the service if Railway Serverless has put it to sleep. To test it, run the workflow manually from the GitHub Actions tab. GitHub can delay scheduled runs, and it disables them after 60 days without repository activity.
 
 ## Bot session flow
 
@@ -300,6 +317,7 @@ Note: threading only follows the original notification message. If the owner rep
 │   ├── cp2nus.js                 # WebApp + API routes for cp2nus
 │   ├── sutd.js                   # WebApp + API routes for SUTD
 │   ├── mcp.js                    # Read-only MCP server for AI assistants
+│   ├── alerts.js                 # Secret-protected trigger for the low-balance check
 │   └── website.js                # Standalone website lookup + feedback API
 ├── services/
 │   ├── cp2Service.js             # Legacy cp2 purchase flow: EVS WebPOS scraping + eNETS proxy

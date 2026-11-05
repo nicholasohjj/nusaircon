@@ -162,6 +162,19 @@ paths:
         "429":
           description: Too many tool calls
 
+  /internal/low-balance-check:
+    post:
+      tags: [App]
+      summary: Start the daily low-balance check
+      description: Called by the scheduled job with a bearer token matching LOW_BALANCE_CRON_SECRET. Returns 404 when that variable is not set.
+      responses:
+        "202":
+          description: Accepted. `started` is false if a check is already running.
+        "401":
+          description: Missing or wrong secret
+        "404":
+          description: The check is not configured
+
   /webapp:
     get:
       tags: [CP2]

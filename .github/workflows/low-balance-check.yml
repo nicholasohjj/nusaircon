@@ -1,0 +1,27 @@
+name: Low-balance check
+
+on:
+  schedule:
+    - cron: "0 1 * * *" # 09:00 Singapore time
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Start the check
+        env:
+          LOW_BALANCE_CRON_SECRET: ${{ secrets.LOW_BALANCE_CRON_SECRET }}
+        run: |
+          if [ -z "$LOW_BALANCE_CRON_SECRET" ]; then
+            echo "::notice::LOW_BALANCE_CRON_SECRET is not set, so no check ran."
+            exit 0
+          fi
+
+          # Retries cover the 502 Railway can return while the service wakes.
+          curl --fail --silent --show-error \
+            --retry 4 --retry-all-errors --retry-delay 30 --max-time 60 \
+            --request POST \
+            --header "Authorization: Bearer $LOW_BALANCE_CRON_SECRET" \
+            https://nusaircon-production.up.railway.app/internal/low-balance-check

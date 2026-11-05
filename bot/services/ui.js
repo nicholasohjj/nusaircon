@@ -19,6 +19,7 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
       `• /topup — start a new SUTD top-up\n` +
       `• /balance — check SUTD meter balance\n` +
       `• /topups — show SUTD top-up history\n` +
+      `• /alerts — get a message when your balance is low\n` +
       `• /feedback — share feedback or report an issue\n` +
       `• /forget — clear your saved meters\n` +
       `• /cancel — cancel the current flow\n` +
@@ -50,6 +51,7 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
     `• /usage — show last 7 days of daily consumption,\n` +
     `  estimated days remaining, and current balance\n` +
     `• /topups — show recent top-ups from the last 90 days\n` +
+    `• /alerts — get a message when your balance is low\n` +
     `• /feedback — share feedback or report an issue\n` +
     `• /forget — clear your saved meters\n` +
     `• /cancel — cancel the current flow\n` +
@@ -111,6 +113,7 @@ async function setupTelegramUi(bot, config = DEFAULT_BOT_CONFIG) {
         ? [{ command: "topup", description: "Start electricity top-up" }]
         : []),
       ...lookupCommands,
+      { command: "alerts", description: "Get low-balance alerts" },
       { command: "forget", description: "Clear saved meters" },
       { command: "feedback", description: "Share feedback or report an issue" },
       { command: "help", description: "Show help and usage" },

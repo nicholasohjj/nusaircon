@@ -22,11 +22,12 @@ const {
   STAGES,
   cancelKeyboard,
   DEFAULT_BOT_CONFIG,
+  LOW_BALANCE_THRESHOLD_SGD,
 } = require("../constants");
 
 function lowBalanceWarning(bal) {
   const n = Number(bal);
-  if (!Number.isFinite(n) || n >= 5) return null;
+  if (!Number.isFinite(n) || n >= LOW_BALANCE_THRESHOLD_SGD) return null;
   return `⚠️ <b>Low balance:</b> Your balance is SGD ${n.toFixed(2)}. Consider topping up soon.`;
 }
 

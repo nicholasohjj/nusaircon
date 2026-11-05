@@ -8,6 +8,7 @@ const {
   handleTopUpStart,
   getHostelLabel,
 } = require("../services/topup");
+const { handleAlertsCommand } = require("../services/lowBalanceAlerts");
 const { sendHelp, SERVER_URL } = require("../services/ui");
 const {
   STAGES,
@@ -202,6 +203,13 @@ function registerTopups(bot, runtime) {
   });
 }
 
+// ── /alerts ───────────────────────────────────────────────────────────────────
+function registerAlerts(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
+  bot.command("alerts", (ctx) => handleAlertsCommand(ctx, config));
+}
+
 // ── /forget ───────────────────────────────────────────────────────────────────
 function registerForget(bot, runtime) {
   const { config } = runtimeParts(runtime);
@@ -286,6 +294,7 @@ function registerUserCommands(bot, runtime) {
   registerBalance(bot, runtime);
   registerUsage(bot, runtime);
   registerTopups(bot, runtime);
+  registerAlerts(bot, runtime);
   registerForget(bot, runtime);
   registerFeedback(bot, runtime);
   registerHelp(bot, runtime);

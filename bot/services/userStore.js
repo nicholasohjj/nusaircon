@@ -75,6 +75,9 @@ db.exec(`
   FROM users
 `);
 
+ensureColumn("user_meters", "low_balance_alerts", "INTEGER NOT NULL DEFAULT 0");
+ensureColumn("user_meters", "alert_sent_at", "INTEGER NOT NULL DEFAULT 0");
+
 function defaultLabel(meterId) {
   return `Meter ${String(meterId).slice(-4)}`;
 }
@@ -239,7 +242,7 @@ function getSavedMeters(chatId) {
   return db
     .prepare(
       `
-      SELECT meter_id, hostel, label, saved_at, last_used
+      SELECT meter_id, hostel, label, saved_at, last_used, low_balance_alerts
       FROM user_meters
       WHERE chat_id = ?
       ORDER BY last_used DESC, saved_at DESC, rowid DESC
@@ -252,7 +255,61 @@ function getSavedMeters(chatId) {
       label: row.label,
       savedAt: row.saved_at,
       lastUsed: row.last_used,
+      lowBalanceAlerts: Boolean(row.low_balance_alerts),
     }));
+}
+
+/**
+ * Turn low-balance alerts on or off for a chat's saved meters. Turning them on
+ * also clears any earlier alert, so a meter that is already low gets one.
+ * @returns {number} how many meters changed
+ */
+function setLowBalanceAlerts(chatId, hostels, enabled) {
+  const placeholders = hostels.map(() => "?").join(", ");
+  return db
+    .prepare(
+      `
+      UPDATE user_meters
+      SET low_balance_alerts = ?, alert_sent_at = 0
+      WHERE chat_id = ? AND hostel IN (${placeholders})
+    `,
+    )
+    .run(enabled ? 1 : 0, String(chatId), ...hostels).changes;
+}
+
+function getLowBalanceAlertMeters() {
+  return db
+    .prepare(
+      `
+      SELECT chat_id, meter_id, hostel, label, alert_sent_at
+      FROM user_meters
+      WHERE low_balance_alerts = 1
+    `,
+    )
+    .all()
+    .map((row) => ({
+      chatId: row.chat_id,
+      meterId: row.meter_id,
+      hostel: row.hostel,
+      label: row.label,
+      alertSentAt: row.alert_sent_at,
+    }));
+}
+
+function setLowBalanceAlertSentAt(chatId, meterId, hostel, sentAt) {
+  db.prepare(
+    `
+    UPDATE user_meters
+    SET alert_sent_at = ?
+    WHERE chat_id = ? AND meter_id = ? AND hostel = ?
+  `,
+  ).run(sentAt, String(chatId), meterId, hostel);
+}
+
+function disableLowBalanceAlertsForChat(chatId) {
+  db.prepare(
+    "UPDATE user_meters SET low_balance_alerts = 0 WHERE chat_id = ?",
+  ).run(String(chatId));
 }
 
 function setActiveSavedMeter(chatId, meterId, hostel) {
@@ -323,4 +380,8 @@ module.exports = {
   getActiveChatIds,
   getUserStats,
   touchUser,
+  setLowBalanceAlerts,
+  getLowBalanceAlertMeters,
+  setLowBalanceAlertSentAt,
+  disableLowBalanceAlertsForChat,
 };

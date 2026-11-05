@@ -65,6 +65,7 @@ function parseSavedMeterCallback(data) {
 
 module.exports = {
   MODE_LABELS,
+  savedMeterCallbackData,
   savedMeterPickerKeyboard,
   savedMeterPickerText,
   parseSavedMeterCallback,

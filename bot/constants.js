@@ -83,6 +83,7 @@ const BOT_ALLOWED_HOSTELS = DEFAULT_BOT_CONFIG.allowedHostels;
 const BOT_DEFAULT_LOOKUP_HOSTEL = DEFAULT_BOT_CONFIG.defaultLookupHostel;
 
 // ── TTLs ──────────────────────────────────────────────────────────────────────
+const LOW_BALANCE_THRESHOLD_SGD = 5;
 const SESSION_TTL_MS = 15 * 60 * 1000; // 15 minutes
 const PENDING_REPLY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
@@ -135,6 +136,7 @@ module.exports = {
   BOT_SUPPORTS_USAGE,
   BOT_ALLOWED_HOSTELS,
   BOT_DEFAULT_LOOKUP_HOSTEL,
+  LOW_BALANCE_THRESHOLD_SGD,
   SESSION_TTL_MS,
   PENDING_REPLY_TTL_MS,
   mainKeyboard,

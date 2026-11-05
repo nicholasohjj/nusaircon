@@ -60,6 +60,7 @@ You are responsible for entering the correct 8-digit meter ID. Topping up the wr
 ## 6. Session and Data Handling
 
 - When you use the Bot, your **Telegram chat identifier, meter ID(s), selected EVS system, meter label, and saved/last-used timestamps** are stored in a service-operated database so you do not need to re-enter them on future top-ups or lookups. You can remove saved meter records with the `/forget` command. This does not remove information already held in operational, security, or analytics logs, where retention may be necessary for those purposes.
+- If you turn on low-balance alerts, your alert setting and the time of your last alert are stored with your saved meter, and the Service checks that meter's balance about once a day. You can stop alerts with the `/alerts off` command, and `/forget` removes them along with your saved meters.
 - **Bot sessions** (conversation state, current top-up stage) are held in memory only and expire after 15 minutes of inactivity. They are not written to disk and are lost on service restart.
 - **Pending payment tokens** are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, Telegram chat identifier if the flow was started from Telegram, and eNETS gateway fields required to complete the payment. They expire after approximately 10 minutes.
 - **Completed result tokens** are encrypted and time-limited. They may contain the meter ID, top-up amount, address, balance, transaction outcome, transaction reference, and Telegram chat identifier if available. They expire after approximately 24 hours.
@@ -86,6 +87,8 @@ The Service depends on third-party systems (EVS WebPOS, EVS JSON API, eNETS) tha
 The Service may apply rate limits to protect payment and lookup endpoints. If you exceed those limits, you may need to wait before retrying.
 
 NUS balance and usage figures are fetched from the ORE API. SUTD balance, top-up history, and top-up setup are fetched from the SUTD EVS WebPOS portal. These values may not reflect real-time meter readings.
+
+Low-balance alerts are a convenience. They can be late, missed, or based on out-of-date figures, so do not rely on them to keep your electricity on.
 
 AI assistants can make mistakes, including misreading results or suggesting the wrong meter or amount. Check the meter and amount on the payment page before you pay. We are not responsible for an assistant's output or advice.
 
