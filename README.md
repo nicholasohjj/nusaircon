@@ -1,5 +1,7 @@
 # EVS Meter Tools
 
+[![EVS Meter Tools MCP server](https://mcprush.com/badge/evs-meter-tools-mcp/card.svg)](https://mcprush.com/to/evs-meter-tools-mcp?ref=badge)
+
 A Telegram bot and web app for supported EVS electricity meters. Supported NUS and SUTD meters can be topped up by credit card, and supported lookup flows show balance, usage, and top-up history where available.
 
 ## Supported systems
