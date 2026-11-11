@@ -29,6 +29,12 @@ jobs:
         run: npm ci
         working-directory: frontend
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Audit backend production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Run backend tests
         run: npm test
 

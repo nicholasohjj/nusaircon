@@ -74,10 +74,11 @@ Telegram's Mini App buttons and hosted AI connectors need a public HTTPS address
 - Keep `DB_DIR` on persistent storage, or saved meters are lost when the server restarts.
 - Keep `PAYMENT_SESSION_SECRET` the same between deploys, so payments in progress survive a restart.
 - Browser-based MCP clients on other sites get a 403 until you add their address to `MCP_ALLOWED_ORIGINS`. Your own domain, localhost and Claude's sites are already allowed, and clients that don't run in a browser aren't affected.
+- Run exactly one instance (replica). Payment submit locks, receipts, rate limits and the low-balance check live in the process's memory, so a second instance wouldn't see them and duplicate-payment protection would stop working.
 
 ### What changes in a fork
 
-- **Low-balance alerts:** `.github/workflows/low-balance-check.yml` calls the public service's address. Change it to your own before you add `LOW_BALANCE_CRON_SECRET` to your fork, or your secret is sent to the wrong server. GitHub also leaves scheduled workflows off in forks until you enable them.
+- **Low-balance alerts:** `.github/workflows/low-balance-check.yml` calls the public service's address unless the `LOW_BALANCE_CHECK_URL` repository variable is set. Set that variable to your own deployment before you add `LOW_BALANCE_CRON_SECRET` to your fork, or your secret is sent to the wrong server. GitHub also leaves scheduled workflows off in forks until you enable them.
 - **Analytics:** these stay off unless you set your own `POSTHOG_API_KEY`.
 - **MCP registry:** `server.json` lists the public service. If you publish your copy to the MCP registry, change its name and address first.
 - **Running it for other people:** you become the operator of that service. The included terms describe the public service, so replace them with your own. Your MCP endpoint and lookup routes are also open to anyone who has the address.

@@ -13,6 +13,9 @@ jobs:
       - name: Start the check
         env:
           LOW_BALANCE_CRON_SECRET: ${{ secrets.LOW_BALANCE_CRON_SECRET }}
+          # Forks: set the LOW_BALANCE_CHECK_URL repository variable to your
+          # own deployment so the secret is never sent to the public service.
+          CHECK_URL: ${{ vars.LOW_BALANCE_CHECK_URL || 'https://nusaircon-production.up.railway.app' }}
         run: |
           if [ -z "$LOW_BALANCE_CRON_SECRET" ]; then
             echo "::notice::LOW_BALANCE_CRON_SECRET is not set, so no check ran."
@@ -24,4 +27,4 @@ jobs:
             --retry 4 --retry-all-errors --retry-delay 30 --max-time 60 \
             --request POST \
             --header "Authorization: Bearer $LOW_BALANCE_CRON_SECRET" \
-            https://nusaircon-production.up.railway.app/internal/low-balance-check
+            "$CHECK_URL/internal/low-balance-check"

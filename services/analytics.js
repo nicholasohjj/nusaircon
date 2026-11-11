@@ -1,3 +1,4 @@
+const { createHash } = require("crypto");
 const { PostHog } = require("posthog-node");
 const { recordPaymentFailure } = require("./paymentMetrics");
 
@@ -15,6 +16,13 @@ const posthog =
       })
     : null;
 
+// Host log retention keeps every line, so console output carries only a
+// stable hash of the meter ID; the raw ID still goes to PostHog.
+function hashForLog(value) {
+  if (value === null || value === undefined || value === "") return value;
+  return createHash("sha256").update(String(value)).digest("hex").slice(0, 12);
+}
+
 function track(event, data = {}) {
   const { distinctId, chatId, meterId, ...properties } = data;
 
@@ -27,6 +35,7 @@ function track(event, data = {}) {
       ts: new Date().toISOString(),
       event,
       ...data,
+      meterId: hashForLog(meterId),
       analyticsSkipped: !posthog,
     }),
   );
