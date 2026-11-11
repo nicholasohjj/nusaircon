@@ -4,6 +4,8 @@ const {
   EVS_API_BASE,
   ENETS_PP_HOST,
   NETS_API_HOST,
+  UPSTREAM_TIMEOUT_MS,
+  PAYMENT_SUBMIT_TIMEOUT_MS,
 } = require("./config");
 const { extractHiddenField } = require("./utils");
 const { isCp2Meter } = require("./cp2Service");
@@ -13,16 +15,19 @@ const {
   parsePaymentAmount,
 } = require("./validators");
 const { getMeterSummary } = require("./ore");
-const FIXED_USER_ID = "5771";
+// The init_pay `username` field is the originating portal tag (the EVS2
+// `dest_portal` value), NOT the meter. The meter goes in `meter_displayname`.
+const PORTAL_NAME = "evs2cp";
+const FIXED_USER_ID = "0";
 
-async function requestInitPay({ username, amount }) {
+async function requestInitPay({ meterId, amount }) {
   return axios.post(
     `${EVS_API_BASE}/enets/init_pay`,
     {
       amount: String(amount),
-      username: String(username),
+      username: PORTAL_NAME,
       user_id: FIXED_USER_ID,
-      meter_displayname: String(username),
+      meter_displayname: String(meterId),
     },
     {
       headers: {
@@ -32,13 +37,14 @@ async function requestInitPay({ username, amount }) {
         Origin: "https://cp2nus.evs.com.sg",
         Referer: "https://cp2nus.evs.com.sg/",
       },
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
     },
   );
 }
 
-async function initPay({ username, amount }) {
-  const resp = await requestInitPay({ username, amount });
+async function initPay({ meterId, amount }) {
+  const resp = await requestInitPay({ meterId, amount });
 
   if (resp.status !== 200)
     throw new Error(`init_pay returned HTTP ${resp.status}`);
@@ -61,10 +67,9 @@ async function isCp2nusMeter(meterId, txtAmount = 6) {
   }
 
   const parsedAmount = parsePaymentAmount(txtAmount);
-  const amount = parsedAmount !== null && isValidAmount(parsedAmount)
-    ? parsedAmount
-    : 6;
-  const resp = await requestInitPay({ username: meterId, amount });
+  const amount =
+    parsedAmount !== null && isValidAmount(parsedAmount) ? parsedAmount : 6;
+  const resp = await requestInitPay({ meterId, amount });
 
   if (resp.status !== 200) {
     return {
@@ -104,10 +109,11 @@ function buildPayDisplayAddress(meterInfo) {
   return `${head}, ${tail}`.trim();
 }
 
-function buildEnetsPayUrl({ req, sign, username, amount, address }) {
+function buildEnetsPayUrl({ req, sign, meterId, amount, address }) {
   const amtDisplay = Number(amount).toFixed(2);
 
-  const m = Buffer.from(String(username)).toString("base64");
+  // `m` is the meter shown on the eNETS payment page — the meter, not the portal.
+  const m = Buffer.from(String(meterId)).toString("base64");
   const a = Buffer.from(amtDisplay).toString("base64");
   const d = Buffer.from(String(address || "")).toString("base64");
 
@@ -129,6 +135,7 @@ async function fetchEnvJsp() {
         "Sec-Fetch-Dest": "script",
         Referer: ENETS_PP_HOST + "/",
       },
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
     },
   );
@@ -138,8 +145,8 @@ async function fetchEnvJsp() {
   return sessionMatch ? sessionMatch[1] : null;
 }
 
-async function fetchNetsFields({ req, sign, username, amount, address }) {
-  const payUrl = buildEnetsPayUrl({ req, sign, username, amount, address });
+async function fetchNetsFields({ req, sign, meterId, amount, address }) {
+  const payUrl = buildEnetsPayUrl({ req, sign, meterId, amount, address });
 
   const ppResp = await axios.get(payUrl, {
     headers: {
@@ -152,6 +159,7 @@ async function fetchNetsFields({ req, sign, username, amount, address }) {
       "Sec-Fetch-User": "?1",
       "Sec-Fetch-Dest": "document",
     },
+    timeout: UPSTREAM_TIMEOUT_MS,
     validateStatus: () => true,
     maxRedirects: 5,
   });
@@ -195,6 +203,7 @@ async function callTxnReqListener({ txnReq, keyId, hmac }) {
         Origin: ENETS_PP_HOST,
         Referer: ENETS_PP_HOST + "/",
       },
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
     },
   );
@@ -286,13 +295,13 @@ async function runBootstrap({ txtMtrId, txtAmount }) {
         ...debug,
         code: "WRONG_SYSTEM",
         error:
-          "This meter belongs to the CP2 system and cannot be topped up here. " +
-          "Please use the CP2 portal instead.",
+          "This meter is on an older EVS system that is not supported here. " +
+          "Please check your meter ID, or contact your residence office or EVS to top up this meter.",
       };
     }
 
     debug.stage = "init_pay";
-    const initResp = await initPay({ username: txtMtrId, amount });
+    const initResp = await initPay({ meterId: txtMtrId, amount });
     debug.step1Status = 200;
 
     const { req, sign, txn_identifier } = initResp;
@@ -312,7 +321,7 @@ async function runBootstrap({ txtMtrId, txtAmount }) {
     const { txnReq, keyId, hmac } = await fetchNetsFields({
       req,
       sign,
-      username: txtMtrId,
+      meterId: txtMtrId,
       amount,
       address: payAddress,
     });
@@ -342,7 +351,7 @@ async function runBootstrap({ txtMtrId, txtAmount }) {
 }
 
 async function callCreditInit({ txnRand, keyId, hmac, jsessionId }) {
-  const sessionPath = jsessionId ? `;jsessionid=${jsessionId}` : ""; // ← add this
+  const sessionPath = jsessionId ? `;jsessionid=${jsessionId}` : "";
 
   const body = new URLSearchParams({
     txnRand,
@@ -371,6 +380,7 @@ async function callCreditInit({ txnRand, keyId, hmac, jsessionId }) {
         Keyid: keyId,
         ...(jsessionId ? { Cookie: `JSESSIONID=${jsessionId}` } : {}),
       },
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
       maxRedirects: 0,
     },
@@ -495,6 +505,7 @@ async function submitPanForm({
         Referer: ENETS_PP_HOST + "/",
         ...(jsessionId ? { Cookie: `JSESSIONID=${jsessionId}` } : {}),
       },
+      timeout: PAYMENT_SUBMIT_TIMEOUT_MS,
       validateStatus: () => true,
       maxRedirects: 5,
     },
@@ -578,6 +589,7 @@ async function postToB2s({ action, message, hmac, keyId, jsessionId }) {
       "Sec-Fetch-Dest": "document",
       ...(jsessionId ? { Cookie: `JSESSIONID=${jsessionId}` } : {}),
     },
+    timeout: PAYMENT_SUBMIT_TIMEOUT_MS,
     validateStatus: () => true,
     maxRedirects: 0,
   });

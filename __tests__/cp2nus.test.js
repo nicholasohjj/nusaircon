@@ -79,7 +79,7 @@ describe("buildEnetsPayUrl", () => {
   const BASE_ARGS = {
     req: "test-req-token",
     sign: "test-sign-token",
-    username: "12345678",
+    meterId: "12345678",
     amount: 20,
     address: "Blk 12, 03-45 Sheares Hall",
   };
@@ -108,12 +108,12 @@ describe("buildEnetsPayUrl", () => {
     expect(inner).toContain("test-sign-token");
   });
 
-  test("encodes username into the p parameter", () => {
+  test("encodes meterId into the p parameter", () => {
     const url = buildEnetsPayUrl(BASE_ARGS);
     const parsed = new URL(url);
     const p = parsed.searchParams.get("p");
     const inner = Buffer.from(p, "base64").toString("utf8");
-    // m= is base64 of username
+    // m= is base64 of the meter id
     const mMatch = inner.match(/m=([^&]+)/);
     expect(mMatch).toBeTruthy();
     expect(Buffer.from(mMatch[1], "base64").toString("utf8")).toBe("12345678");
@@ -154,9 +154,9 @@ describe("buildEnetsPayUrl", () => {
     expect(url1).not.toBe(url2);
   });
 
-  test("produces different URLs for different usernames", () => {
-    const url1 = buildEnetsPayUrl({ ...BASE_ARGS, username: "11111111" });
-    const url2 = buildEnetsPayUrl({ ...BASE_ARGS, username: "22222222" });
+  test("produces different URLs for different meter ids", () => {
+    const url1 = buildEnetsPayUrl({ ...BASE_ARGS, meterId: "11111111" });
+    const url2 = buildEnetsPayUrl({ ...BASE_ARGS, meterId: "22222222" });
     expect(url1).not.toBe(url2);
   });
 });

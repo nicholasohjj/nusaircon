@@ -35,6 +35,12 @@ const NETS_API_HOST = "https://api.nets.com.sg";
 const CP2NUS_BASE_PATH = "/cp2nus";
 const CP2_BASE_PATH = "/cp2";
 
+// Upstream requests must never hang a payment handler (and its submit lock)
+// indefinitely. Card submissions get a longer budget because eNETS can take
+// tens of seconds to authorise.
+const UPSTREAM_TIMEOUT_MS = 15_000;
+const PAYMENT_SUBMIT_TIMEOUT_MS = 60_000;
+
 module.exports = {
   ORE_HEADERS,
   WEBPOS_HEADERS,
@@ -45,4 +51,6 @@ module.exports = {
   NETS_API_HOST,
   CP2NUS_BASE_PATH,
   CP2_BASE_PATH,
+  UPSTREAM_TIMEOUT_MS,
+  PAYMENT_SUBMIT_TIMEOUT_MS,
 };
