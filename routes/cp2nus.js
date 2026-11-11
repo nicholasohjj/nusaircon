@@ -18,6 +18,7 @@ const {
   getPaymentSubmitLockKey,
 } = require("../services/paymentSubmitLock");
 const { DEFAULT_HEADERS, CP2NUS_BASE_PATH } = require("../services/config");
+const { notifyLimiter } = require("../services/httpMiddleware");
 const { errorPage } = require("../views/errorPage");
 const {
   fetchEnvJsp,
@@ -257,26 +258,31 @@ router.get("/webapp/receipt", (req, res) => {
   return res.send(receiptPdf);
 });
 
-router.post("/webapp/notify", express.json(), async (req, res) => {
-  try {
-    const { token } = req.body;
-    const session = getPaymentSession(token);
-    if (!session || !session.chatId) return res.json({ ok: true });
-    if (session.notifiedAt) return res.json({ ok: true });
-    if (session.status === "pending") return res.json({ ok: true });
+router.post(
+  "/webapp/notify",
+  notifyLimiter,
+  express.json(),
+  async (req, res) => {
+    try {
+      const { token } = req.body;
+      const session = getPaymentSession(token);
+      if (!session || !session.chatId) return res.json({ ok: true });
+      if (session.notifiedAt) return res.json({ ok: true });
+      if (session.status === "pending") return res.json({ ok: true });
 
-    await sendPaymentNotification(getPaymentBot("nus"), session);
-  } catch (err) {
-    console.error("notify error", err);
-  }
-  res.json({ ok: true });
-});
+      await sendPaymentNotification(getPaymentBot("nus"), session);
+    } catch (err) {
+      console.error("notify error", err);
+    }
+    res.json({ ok: true });
+  },
+);
 
 // ── eNETS pay proxy ───────────────────────────────────────────────────────────
 
 router.post(
   "/webapp/enets_pay",
-  express.urlencoded({ extended: false, limit: "10mb" }),
+  express.urlencoded({ extended: false, limit: "64kb" }),
   async (req, res) => {
     let session = null;
     let releaseSubmitLock = null;

@@ -90,7 +90,10 @@ function getPublicBaseUrl(req) {
 }
 
 const app = express();
-if (process.env.RAILWAY_PUBLIC_DOMAIN || process.env.NODE_ENV === "production") {
+if (
+  process.env.RAILWAY_PUBLIC_DOMAIN ||
+  process.env.NODE_ENV === "production"
+) {
   app.set("trust proxy", 1);
 }
 
@@ -116,9 +119,11 @@ function sendAppIndex(req, res, next) {
   fs.readFile(appIndexPath, "utf8", (err, html) => {
     if (err) return next(err);
 
-    const runtimeConfigScript = `<script>window.__EVS_RUNTIME_CONFIG__=${JSON.stringify({
-      topup: getWebsiteTopupStatus(),
-    }).replace(/</g, "\\u003c")};</script>`;
+    const runtimeConfigScript = `<script>window.__EVS_RUNTIME_CONFIG__=${JSON.stringify(
+      {
+        topup: getWebsiteTopupStatus(),
+      },
+    ).replace(/</g, "\\u003c")};</script>`;
     const htmlWithRuntimeConfig = html.replace(
       "</head>",
       `${runtimeConfigScript}</head>`,
@@ -172,10 +177,7 @@ app.get(/^\/app$/, (req, res) => {
 });
 
 app.get(/^\/app\/(?:loading|pay)\/?$/, requireTopupEnabledPage("nus"));
-app.get(
-  /^\/app\/cp2nus\/(?:loading|pay)\/?$/,
-  requireTopupEnabledPage("nus"),
-);
+app.get(/^\/app\/cp2nus\/(?:loading|pay)\/?$/, requireTopupEnabledPage("nus"));
 app.get(/^\/app\/sutd\/(?:loading|pay)\/?$/, requireTopupEnabledPage("sutd"));
 
 app.get(/^\/app\/.*$/, sendAppIndex);
@@ -252,6 +254,10 @@ function startServer() {
 
 async function shutdown(signal) {
   console.log(`${signal} received, shutting down...`);
+  // Keep-alive connections can stall server.close indefinitely; exit before
+  // the host escalates to SIGKILL. unref keeps the timer from holding the
+  // process open on its own.
+  setTimeout(() => process.exit(1), 10_000).unref();
   server.close(async () => {
     await stopBot(signal);
     await shutdownAnalytics();

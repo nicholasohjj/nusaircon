@@ -1,7 +1,11 @@
 const axios = require("axios");
 const { wrapper } = require("axios-cookiejar-support");
 const { CookieJar } = require("tough-cookie");
-const { CP2_WEBPOS_BASE, DEFAULT_HEADERS } = require("./config");
+const {
+  CP2_WEBPOS_BASE,
+  DEFAULT_HEADERS,
+  UPSTREAM_TIMEOUT_MS,
+} = require("./config");
 const {
   extractHiddenField,
   extractMerchantTxnRef,
@@ -15,7 +19,7 @@ const SUTD_WEBPOS_PATH = "/EVSSUTDWebPOS";
 const SUTD_WEBPOS_BASE_URL = `${CP2_WEBPOS_BASE}${SUTD_WEBPOS_PATH}`;
 const SUTD_CREDITPAYMENT_URL =
   "http://120.50.44.233/payment_sutd_credit/creditpayment.jsp";
-const AXIOS_TIMEOUT_MS = 15_000;
+const AXIOS_TIMEOUT_MS = UPSTREAM_TIMEOUT_MS;
 const SUTD_TRANSIENT_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 const SUTD_RETRY_DELAY_MS = 350;
 
@@ -128,12 +132,12 @@ function parseSutdMeterCredit(html) {
   const text = stripHtml(html);
   const meterId = text.match(/\bMeter ID:\s*(\d{8})\b/i)?.[1] || null;
   const creditBal =
-    text.match(/\bTotal Balance:\s*S\$\s*([+-]?\d+(?:\.\d+)?)\b/i)?.[1] ||
-    null;
+    text.match(/\bTotal Balance:\s*S\$\s*([+-]?\d+(?:\.\d+)?)\b/i)?.[1] || null;
   const packageId = text.match(/\bPackage ID:\s*([A-Z0-9-]+)/i)?.[1] || null;
   const lastRecordedCredit =
-    text.match(/\bLast Recorded Credit:\s*S\$\s*([+-]?\d+(?:\.\d+)?)\b/i)?.[1] ||
-    null;
+    text.match(
+      /\bLast Recorded Credit:\s*S\$\s*([+-]?\d+(?:\.\d+)?)\b/i,
+    )?.[1] || null;
   const lastRecordedTimestamp =
     text.match(
       /\bLast Recorded Timestamp:\s*(\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}(?::\d{2})?)/i,
@@ -493,6 +497,7 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
       ...DEFAULT_HEADERS,
       "Content-Type": "application/x-www-form-urlencoded",
     },
+    timeout: AXIOS_TIMEOUT_MS,
     validateStatus: () => true,
   });
 
@@ -525,6 +530,7 @@ async function runSutdPurchaseFlow({ txtMtrId, txtAmount }) {
         Referer: "http://120.50.44.233/",
         "Content-Type": "application/x-www-form-urlencoded",
       },
+      timeout: AXIOS_TIMEOUT_MS,
       validateStatus: () => true,
     },
   );
@@ -601,6 +607,7 @@ async function postSutdResultToEvs({ status, id, message, jsessionid }) {
     new URLSearchParams({ message: String(message) }).toString(),
     {
       headers,
+      timeout: AXIOS_TIMEOUT_MS,
       validateStatus: () => true,
       maxRedirects: 0,
     },
@@ -834,7 +841,10 @@ function parseSutdTransactionSummary(html) {
   const hasTransactionSummary =
     /Transaction Summary/i.test(parsed.title || body) &&
     Boolean(
-      parsed.merchantTxnRef || parsed.meterId || parsed.address || parsed.amount,
+      parsed.merchantTxnRef ||
+      parsed.meterId ||
+      parsed.address ||
+      parsed.amount,
     );
   const status = isFailure
     ? "failure"

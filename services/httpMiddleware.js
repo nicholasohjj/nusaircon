@@ -125,9 +125,17 @@ const paymentSubmitLimiter = createJsonRateLimiter({
   message: "Too many payment submissions. Please wait before trying again.",
 });
 
+// Shared across the three /webapp/notify routes, so one IP gets one budget.
+const notifyLimiter = createJsonRateLimiter({
+  windowMs: 10 * 60 * 1000,
+  limit: 10,
+  message: "Too many notification requests. Please wait before trying again.",
+});
+
 module.exports = {
   createJsonRateLimiter,
   httpLogger,
+  notifyLimiter,
   paymentBootstrapLimiter,
   paymentSubmitLimiter,
   sanitizeRequestUrl,

@@ -29,8 +29,12 @@ const {
   acquirePaymentSubmitLock,
   getPaymentSubmitLockKey,
 } = require("../services/paymentSubmitLock");
-const { DEFAULT_HEADERS } = require("../services/config");
+const {
+  DEFAULT_HEADERS,
+  PAYMENT_SUBMIT_TIMEOUT_MS,
+} = require("../services/config");
 const { errorPage } = require("../views/errorPage");
+const { notifyLimiter } = require("../services/httpMiddleware");
 
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
@@ -76,20 +80,25 @@ function buildRestartUrl(session) {
   return `/sutd/webapp?${params.toString()}`;
 }
 
-router.post("/webapp/notify", express.json(), async (req, res) => {
-  try {
-    const { token } = req.body;
-    const session = getPaymentSession(token);
-    if (!session || !session.chatId) return res.json({ ok: true });
-    if (session.notifiedAt) return res.json({ ok: true });
-    if (session.status === "pending") return res.json({ ok: true });
+router.post(
+  "/webapp/notify",
+  notifyLimiter,
+  express.json(),
+  async (req, res) => {
+    try {
+      const { token } = req.body;
+      const session = getPaymentSession(token);
+      if (!session || !session.chatId) return res.json({ ok: true });
+      if (session.notifiedAt) return res.json({ ok: true });
+      if (session.status === "pending") return res.json({ ok: true });
 
-    await sendPaymentNotification(getPaymentBot("sutd"), session);
-  } catch (err) {
-    console.error("notify error", err);
-  }
-  return res.json({ ok: true });
-});
+      await sendPaymentNotification(getPaymentBot("sutd"), session);
+    } catch (err) {
+      console.error("notify error", err);
+    }
+    return res.json({ ok: true });
+  },
+);
 
 router.get("/webapp", async (req, res) => {
   const { txtMtrId, txtAmount, chatId } = req.query;
@@ -345,7 +354,7 @@ router.get("/webapp/balance", async (req, res) => {
 
 router.post(
   "/webapp/enets_pay",
-  express.urlencoded({ extended: false, limit: "10mb" }),
+  express.urlencoded({ extended: false, limit: "64kb" }),
   async (req, res) => {
     let meterId;
     let releaseSubmitLock = null;
@@ -417,6 +426,7 @@ router.post(
             Origin: "https://www.enets.sg",
             Referer: "https://www.enets.sg/enets2/PaymentListener.do",
           },
+          timeout: PAYMENT_SUBMIT_TIMEOUT_MS,
           validateStatus: () => true,
           maxRedirects: 5,
         },
@@ -512,7 +522,9 @@ router.post(
       });
 
       track(
-        normalized.status === "success" ? "payment_completed" : "payment_failed",
+        normalized.status === "success"
+          ? "payment_completed"
+          : "payment_failed",
         {
           route: "sutd",
           meterId,

@@ -61,8 +61,12 @@ function seal(data, ttlMs) {
   ]);
   const tag = cipher.getAuthTag();
 
-  return [TOKEN_VERSION, base64url(iv), base64url(ciphertext), base64url(tag)]
-    .join(".");
+  return [
+    TOKEN_VERSION,
+    base64url(iv),
+    base64url(ciphertext),
+    base64url(tag),
+  ].join(".");
 }
 
 function unseal(token) {
@@ -111,8 +115,7 @@ function createPaymentResultSession(session, updates = {}) {
       balance: session.balance ?? "",
       status: updates.status || session.status || "unknown",
       reason: updates.reason ?? session.reason ?? "",
-      merchantTxnRef:
-        updates.merchantTxnRef ?? session.merchantTxnRef ?? "",
+      merchantTxnRef: updates.merchantTxnRef ?? session.merchantTxnRef ?? "",
       source: updates.source ?? session.source ?? "",
       completedAt: updates.completedAt || session.completedAt || Date.now(),
       notifiedAt: updates.notifiedAt || session.notifiedAt || null,
@@ -122,18 +125,10 @@ function createPaymentResultSession(session, updates = {}) {
   );
 }
 
-function consumePaymentSession(token) {
-  return getPaymentSession(token);
-}
-
 function getPaymentSession(token, expectedKind = null) {
   const session = unseal(token);
   if (!session) return null;
-  if (
-    expectedKind &&
-    session.tokenKind &&
-    session.tokenKind !== expectedKind
-  ) {
+  if (expectedKind && session.tokenKind && session.tokenKind !== expectedKind) {
     return null;
   }
   return session;
@@ -177,7 +172,6 @@ module.exports = {
   RESULT_TTL_MS,
   createPaymentSession,
   createPaymentResultSession,
-  consumePaymentSession,
   getPaymentSession,
   storeReceiptPdf,
   getReceiptPdf,

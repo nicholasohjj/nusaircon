@@ -31,8 +31,14 @@ const {
   acquirePaymentSubmitLock,
   getPaymentSubmitLockKey,
 } = require("../services/paymentSubmitLock");
-const { DEFAULT_HEADERS, CP2_WEBPOS_BASE } = require("../services/config");
+const {
+  DEFAULT_HEADERS,
+  CP2_WEBPOS_BASE,
+  UPSTREAM_TIMEOUT_MS,
+  PAYMENT_SUBMIT_TIMEOUT_MS,
+} = require("../services/config");
 const { guardCp2PaymentSystem } = require("../services/meterSystemGuard");
+const { notifyLimiter } = require("../services/httpMiddleware");
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
 
@@ -65,20 +71,25 @@ function buildRestartUrl(session) {
 
 // ── Existing routes ───────────────────────────────────────────────────────────
 
-router.post("/webapp/notify", express.json(), async (req, res) => {
-  try {
-    const { token } = req.body;
-    const session = getPaymentSession(token);
-    if (!session || !session.chatId) return res.json({ ok: true });
-    if (session.notifiedAt) return res.json({ ok: true });
-    if (session.status === "pending") return res.json({ ok: true });
+router.post(
+  "/webapp/notify",
+  notifyLimiter,
+  express.json(),
+  async (req, res) => {
+    try {
+      const { token } = req.body;
+      const session = getPaymentSession(token);
+      if (!session || !session.chatId) return res.json({ ok: true });
+      if (session.notifiedAt) return res.json({ ok: true });
+      if (session.status === "pending") return res.json({ ok: true });
 
-    await sendPaymentNotification(getPaymentBot("nus"), session);
-  } catch (err) {
-    console.error("notify error", err);
-  }
-  res.json({ ok: true });
-});
+      await sendPaymentNotification(getPaymentBot("nus"), session);
+    } catch (err) {
+      console.error("notify error", err);
+    }
+    res.json({ ok: true });
+  },
+);
 
 router.post("/purchase_flow", async (req, res) => {
   try {
@@ -302,6 +313,7 @@ router.get("/evs/merchant_txn_ref", async (req, res) => {
           ...(cookieHeader ? { Cookie: cookieHeader } : {}),
           Referer: `${CP2_WEBPOS_BASE}/EVSWebPOS/selectOfferServlet`,
         },
+        timeout: UPSTREAM_TIMEOUT_MS,
         validateStatus: () => true,
         maxRedirects: 5,
       },
@@ -333,7 +345,7 @@ router.get("/evs/merchant_txn_ref", async (req, res) => {
 
 router.post(
   "/webapp/enets_pay",
-  express.urlencoded({ extended: false, limit: "10mb" }),
+  express.urlencoded({ extended: false, limit: "64kb" }),
   async (req, res) => {
     let meterId; // hoisted
     let releaseSubmitLock = null;
@@ -400,6 +412,7 @@ router.post(
             Origin: "https://www.enets.sg",
             Referer: "https://www.enets.sg/enets2/PaymentListener.do",
           },
+          timeout: PAYMENT_SUBMIT_TIMEOUT_MS,
           validateStatus: () => true,
           maxRedirects: 5,
         },
@@ -580,6 +593,7 @@ router.post("/evs/creditpayment", async (req, res) => {
           ...(cookieHeader ? { Cookie: cookieHeader } : {}),
           Referer: `${CP2_WEBPOS_BASE}/EVSWebPOS/selectOfferServlet`,
         },
+        timeout: UPSTREAM_TIMEOUT_MS,
         validateStatus: () => true,
         maxRedirects: 5,
       },
@@ -617,6 +631,7 @@ router.post("/evs/creditpayment", async (req, res) => {
           ...DEFAULT_HEADERS,
           "Content-Type": "application/x-www-form-urlencoded",
         },
+        timeout: UPSTREAM_TIMEOUT_MS,
         validateStatus: () => true,
       },
     );
@@ -742,6 +757,7 @@ router.post(
             Referer: "https://www.enets.sg/",
             "Content-Type": "application/x-www-form-urlencoded",
           },
+          timeout: UPSTREAM_TIMEOUT_MS,
           validateStatus: () => true,
         },
       );

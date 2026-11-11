@@ -4,7 +4,7 @@ if (!process.env.SERVER_URL && process.env.RAILWAY_PUBLIC_DOMAIN) {
 }
 const { createHash } = require("crypto");
 const { bot, botContexts } = require("./bot");
-const { captureException, shutdownAnalytics } = require("../services/analytics");
+const { captureException } = require("../services/analytics");
 const { PENDING_REPLY_TTL_MS } = require("./constants");
 const { shouldUseWebhook } = require("./runtimeMode");
 const { resetSession } = require("./services/session");
@@ -100,11 +100,16 @@ function normalizeWebhookPath(value, context) {
 }
 
 function getWebhookPath(context) {
-  return normalizeWebhookPath(envFor(context, "TELEGRAM_WEBHOOK_PATH"), context);
+  return normalizeWebhookPath(
+    envFor(context, "TELEGRAM_WEBHOOK_PATH"),
+    context,
+  );
 }
 
 function getWebhookSecret(context) {
-  return envFor(context, "TELEGRAM_WEBHOOK_SECRET") || defaultWebhookSecret(context);
+  return (
+    envFor(context, "TELEGRAM_WEBHOOK_SECRET") || defaultWebhookSecret(context)
+  );
 }
 
 function getWebhookUrl(context) {
@@ -204,8 +209,8 @@ async function startBot() {
 }
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
+// Analytics shutdown belongs to the server's shutdown path, not here.
 async function stopBot(reason = "unspecified") {
-  await shutdownAnalytics();
   if (runtimeMode !== "polling") return;
   for (const context of botContexts) context.bot.stop(reason);
 }

@@ -18,6 +18,7 @@ const {
   WEBPOS_HEADERS,
   CP2_WEBPOS_BASE,
   DEFAULT_HEADERS,
+  UPSTREAM_TIMEOUT_MS,
 } = require("./config");
 const axios = require("axios");
 const { wrapper } = require("axios-cookiejar-support");
@@ -39,7 +40,7 @@ async function isCp2Meter(meterId) {
         Origin: CP2_WEBPOS_BASE,
         Referer: `${CP2_WEBPOS_BASE}/EVSWebPOS/`,
       },
-      timeout: 15000,
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
     },
   );
@@ -219,6 +220,7 @@ async function runPurchaseFlow({ txtMtrId, txtAmount }) {
         ...DEFAULT_HEADERS,
         "Content-Type": "application/x-www-form-urlencoded",
       },
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
     },
   );
@@ -255,6 +257,7 @@ async function runPurchaseFlow({ txtMtrId, txtAmount }) {
         Referer: "http://120.50.44.233/",
         "Content-Type": "application/x-www-form-urlencoded",
       },
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
     },
   );
@@ -289,6 +292,7 @@ async function createClient() {
       validateStatus: () => true,
       maxRedirects: 0,
       headers: DEFAULT_HEADERS,
+      timeout: UPSTREAM_TIMEOUT_MS,
     }),
   );
   return { client, jar };
@@ -345,6 +349,7 @@ async function postResultToEvs({ status, id, message, jsessionid }) {
     formBody,
     {
       headers,
+      timeout: UPSTREAM_TIMEOUT_MS,
       validateStatus: () => true,
       maxRedirects: 0,
     },
