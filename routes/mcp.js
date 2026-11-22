@@ -411,8 +411,21 @@ function validateOrigin(req, res, next) {
   return jsonRpcError(res, 403, -32000, "Origin not allowed.");
 }
 
+// Directory crawlers probe /mcp every few minutes, which keeps a serverless
+// deployment from ever sleeping. glimind's SentinelOracle permanently stops
+// probing a server that answers 403 with this header
+// (https://glimind.com/opt-out).
+function declineOptedOutProbes(req, res, next) {
+  if (/SentinelOracle/i.test(req.get("user-agent") || "")) {
+    res.set("X-Sentinel-OptOut", "1");
+    return res.status(403).end();
+  }
+  return next();
+}
+
 function createMcpRouter({ toolCallLimit = TOOL_CALL_LIMIT } = {}) {
   const router = express.Router();
+  router.use(declineOptedOutProbes);
   router.use(validateOrigin);
 
   const toolCallLimiter = createJsonRateLimiter({

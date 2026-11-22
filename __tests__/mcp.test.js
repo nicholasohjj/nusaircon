@@ -24,14 +24,26 @@ const topupAvailability = require("../services/topupAvailability");
 const ACCEPT = "application/json, text/event-stream";
 
 describe("discovery", () => {
-  test("llms.txt points agents to this server's MCP endpoint", async () => {
+  test("llms.txt gives agents the payment rules without advertising MCP", async () => {
     const res = await request(app).get("/llms.txt").expect(200);
 
     expect(res.type).toBe("text/plain");
     expect(res.text).toMatch(/^# EVS Meter Tools\n/);
-    expect(res.text).toContain("https://meters.example.com/mcp");
+    expect(res.text).not.toContain("/mcp");
+    expect(res.text).toContain("https://meters.example.com/app/");
     expect(res.text).toContain("cannot make payments");
     expect(res.text).toContain("Never ask for card details");
+  });
+
+  test("declines SentinelOracle probes with its opt-out header", async () => {
+    const res = await request(makeApp())
+      .post("/mcp")
+      .set("User-Agent", "SentinelOracle/0.1 (+https://glimind.com/opt-out)")
+      .set("Accept", ACCEPT)
+      .send({ jsonrpc: "2.0", id: 1, method: "tools/list" })
+      .expect(403);
+
+    expect(res.headers["x-sentinel-optout"]).toBe("1");
   });
 
   test("server.json matches the server and the registry's limit", async () => {

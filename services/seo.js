@@ -342,19 +342,12 @@ function buildLlmsTxt(baseUrl = "") {
 
 > An unofficial tool for checking EVS prepaid electricity meters at NUS and SUTD hostels, and topping them up by card. It is not affiliated with NUS, SUTD, EVS or eNETS.
 
-AI agents should use the MCP server rather than the website. It needs no account or API key.
-
-- MCP endpoint (Streamable HTTP): ${base}/mcp
-- Tools: get_meter_balance, get_meter_usage (NUS only), get_recent_topups, get_topup_link
-
-Agents cannot make payments here. get_topup_link returns a link for the user to open and pay by card themselves. Never ask for card details, and never fill in the payment page for the user.
+Agents cannot make payments here. Send the user to ${base}/app/ to top up and pay by card themselves. Never ask for card details, and never fill in the payment page for the user.
 
 Only look up a meter the user is authorised to access.
 
 ## Docs
 
-- [Connect an AI assistant](${docs}/README.md#connect-your-own-claude-mcp): tools, error codes and rate limits
-- [Scheduled balance check](${docs}/docs/scheduled-balance-check.md): prompts for a daily check that ends with a payment link
 - [Self-hosting](${docs}/docs/self-hosting.md): run your own copy
 - [Terms](${base}/app/terms): rules for using the service
 `;
