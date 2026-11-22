@@ -74,6 +74,16 @@ function createBotConfig(audienceValue = process.env.TELEGRAM_BOT_AUDIENCE) {
   };
 }
 
+/**
+ * Hostels whose saved meters belong to this bot. The NUS bot also owns saved
+ * legacy CP2 meters, which are hidden from allowedHostels but still stored.
+ */
+function botOwnedHostels(config) {
+  return config.audience === "sutd"
+    ? [...config.allowedHostels]
+    : [...config.allowedHostels, HOSTELS.CP2];
+}
+
 const DEFAULT_BOT_CONFIG = createBotConfig();
 const BOT_AUDIENCE = DEFAULT_BOT_CONFIG.audience;
 const BOT_DISPLAY_NAME = DEFAULT_BOT_CONFIG.displayName;
@@ -129,6 +139,7 @@ module.exports = {
   TOPUP_SUPPORTED_HOSTELS,
   normalizeBotAudience,
   createBotConfig,
+  botOwnedHostels,
   DEFAULT_BOT_CONFIG,
   BOT_AUDIENCE,
   BOT_DISPLAY_NAME,

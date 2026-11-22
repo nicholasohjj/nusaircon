@@ -7,6 +7,7 @@ const {
   forgetUser,
 } = require("../services/userStore");
 const { inferRuntimeMode } = require("../runtimeMode");
+const { botOwnedHostels, DEFAULT_BOT_CONFIG } = require("../constants");
 const { track } = require("../../services/analytics");
 const { getSessionStats } = require("../services/session");
 const { getPaymentSubmitLockStats } = require("../../services/paymentSubmitLock");
@@ -87,39 +88,54 @@ function buildOwnerStatsMessage({
   ].join("\n");
 }
 
-// ── /broadcast ────────────────────────────────────────────────────────────────
-function registerBroadcast(bot) {
+// ── /broadcast / /announce ───────────────────────────────────────────────────
+// Each bot only messages users with a saved meter on its own system. Telegram
+// rejects messages to users who never started this bot, and a 403 forgets the
+// user's meters, so sending to the other bot's users would wipe them.
+async function sendToUsers(bot, chatIds, message, hostels) {
+  let sent = 0;
+  let failed = 0;
+
+  for (const chatId of chatIds) {
+    try {
+      await bot.telegram.sendMessage(
+        chatId,
+        `📢 <b>Message from the developer:</b>\n\n${escHtml(message)}`,
+        { parse_mode: "HTML" },
+      );
+      sent++;
+    } catch (err) {
+      // Only drop this bot's meters; the user may still use the other bot.
+      if (err.response?.error_code === 403) forgetUser(chatId, hostels);
+      failed++;
+    }
+    await new Promise((res) => setTimeout(res, 50));
+  }
+
+  return { sent, failed };
+}
+
+function registerBroadcast(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("broadcast", async (ctx) => {
     if (!isOwner(ctx)) return;
 
     const message = ctx.message?.text?.replace(/^\/broadcast\s*/, "").trim();
     if (!message) return ctx.reply("Usage: /broadcast <message>");
 
-    const chatIds = getAllChatIds();
+    const hostels = botOwnedHostels(config);
+    const chatIds = getAllChatIds(hostels);
     if (!chatIds.length) return ctx.reply("No known users to broadcast to.");
 
-    await ctx.reply(`📡 Broadcasting to ${chatIds.length} user(s)…`);
-
-    let sent = 0;
-    let failed = 0;
-
-    for (const chatId of chatIds) {
-      try {
-        await bot.telegram.sendMessage(
-          chatId,
-          `📢 <b>Message from the developer:</b>\n\n${escHtml(message)}`,
-          { parse_mode: "HTML" },
-        );
-        sent++;
-      } catch (err) {
-        if (err.response?.error_code === 403) forgetUser(chatId);
-        failed++;
-      }
-      await new Promise((res) => setTimeout(res, 50));
-    }
+    await ctx.reply(
+      `📡 Broadcasting to ${chatIds.length} ${config.displayName} user(s)…`,
+    );
+    const { sent, failed } = await sendToUsers(bot, chatIds, message, hostels);
 
     track("broadcast_sent", {
       chatId: ctx.chat?.id,
+      audience: config.audience,
       total: chatIds.length,
       sent,
       failed,
@@ -131,39 +147,28 @@ function registerBroadcast(bot) {
   });
 }
 
-function registerAnnounce(bot) {
+function registerAnnounce(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
   bot.command("announce", async (ctx) => {
     if (!isOwner(ctx)) return;
 
     const message = ctx.message?.text?.replace(/^\/announce\s*/, "").trim();
     if (!message) return ctx.reply("Usage: /announce <message>");
 
-    const chatIds = getActiveChatIds(); // last 30 days
+    const hostels = botOwnedHostels(config);
+    const chatIds = getActiveChatIds(undefined, hostels); // last 30 days
     if (!chatIds.length)
       return ctx.reply("No active users in the last 30 days.");
 
-    await ctx.reply(`📡 Announcing to ${chatIds.length} active user(s)…`);
-
-    let sent = 0;
-    let failed = 0;
-
-    for (const chatId of chatIds) {
-      try {
-        await bot.telegram.sendMessage(
-          chatId,
-          `📢 <b>Message from the developer:</b>\n\n${escHtml(message)}`,
-          { parse_mode: "HTML" },
-        );
-        sent++;
-      } catch (err) {
-        if (err.response?.error_code === 403) forgetUser(chatId);
-        failed++;
-      }
-      await new Promise((res) => setTimeout(res, 50));
-    }
+    await ctx.reply(
+      `📡 Announcing to ${chatIds.length} active ${config.displayName} user(s)…`,
+    );
+    const { sent, failed } = await sendToUsers(bot, chatIds, message, hostels);
 
     track("announce_sent", {
       chatId: ctx.chat?.id,
+      audience: config.audience,
       total: chatIds.length,
       sent,
       failed,
@@ -220,6 +225,7 @@ const fallbackState = {
 function runtimeParts(runtime = {}) {
   return {
     state: runtime.state || fallbackState,
+    config: runtime.config || DEFAULT_BOT_CONFIG,
     pendingReplies: runtime.pendingReplies || new Map(),
   };
 }
@@ -310,8 +316,8 @@ function registerStatus(bot, runtime) {
 }
 
 function registerOwnerCommands(bot, runtime) {
-  registerBroadcast(bot);
-  registerAnnounce(bot);
+  registerBroadcast(bot, runtime);
+  registerAnnounce(bot, runtime);
   registerMaintenanceToggle(bot);
   registerTopupToggle(bot, runtime);
   registerStats(bot, runtime);

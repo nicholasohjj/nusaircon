@@ -13,6 +13,7 @@ const { sendHelp, SERVER_URL } = require("../services/ui");
 const {
   STAGES,
   HOSTELS,
+  botOwnedHostels,
   DEFAULT_BOT_CONFIG,
   cancelKeyboard,
   ratingKeyboard,
@@ -219,12 +220,7 @@ function registerForget(bot, runtime) {
     if (!chatId) return;
 
     track("forget_command", { chatId });
-    // Also clear saved legacy CP2 meters, which are hidden from allowedHostels.
-    const hostels =
-      config.audience === "sutd"
-        ? config.allowedHostels
-        : [...config.allowedHostels, HOSTELS.CP2];
-    const deleted = forgetUser(chatId, hostels);
+    const deleted = forgetUser(chatId, botOwnedHostels(config));
     resetSession(chatId, config.sessionKey);
 
     return ctx.reply(

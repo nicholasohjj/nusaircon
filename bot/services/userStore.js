@@ -174,10 +174,29 @@ function touchUser(chatId) {
   ).run(Date.now(), String(chatId));
 }
 
-function getAllChatIds() {
+// Restricts a users query to chats with a saved meter on one of these hostels.
+function hostelFilter(hostels) {
+  if (!hostels) return { sql: "", params: [] };
+  if (!hostels.length) return { sql: "AND 0", params: [] };
+  return {
+    sql: `AND EXISTS (
+      SELECT 1 FROM user_meters
+      WHERE user_meters.chat_id = users.chat_id
+        AND user_meters.hostel IN (${hostels.map(() => "?").join(", ")})
+    )`,
+    params: hostels,
+  };
+}
+
+/**
+ * @param {string[]|null} hostels only chats with a saved meter on one of
+ *   these hostels; null means every saved user
+ */
+function getAllChatIds(hostels = null) {
+  const filter = hostelFilter(hostels);
   return db
-    .prepare("SELECT chat_id FROM users")
-    .all()
+    .prepare(`SELECT chat_id FROM users WHERE 1 ${filter.sql}`)
+    .all(...filter.params)
     .map((r) => r.chat_id);
 }
 
@@ -193,11 +212,14 @@ const ACTIVE_USER_FILTER = `
   )
 `;
 
-function getActiveChatIds(windowMs = 30 * 24 * 60 * 60 * 1000) {
+function getActiveChatIds(windowMs = 30 * 24 * 60 * 60 * 1000, hostels = null) {
   const cutoff = Date.now() - windowMs;
+  const filter = hostelFilter(hostels);
   return db
-    .prepare(`SELECT chat_id FROM users WHERE ${ACTIVE_USER_FILTER}`)
-    .all({ cutoff })
+    .prepare(
+      `SELECT chat_id FROM users WHERE (${ACTIVE_USER_FILTER}) ${filter.sql}`,
+    )
+    .all({ cutoff }, ...filter.params)
     .map((r) => r.chat_id);
 }
 
