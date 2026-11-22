@@ -181,11 +181,23 @@ function getAllChatIds() {
     .map((r) => r.chat_id);
 }
 
+// A user counts as active if they paid through the Mini App (last_seen) or
+// used one of their saved meters (last_used) within the window. last_seen alone
+// is only set by Mini App sendData, which rarely fires, so it undercounts.
+const ACTIVE_USER_FILTER = `
+  users.last_seen >= @cutoff
+  OR EXISTS (
+    SELECT 1 FROM user_meters
+    WHERE user_meters.chat_id = users.chat_id
+      AND user_meters.last_used >= @cutoff
+  )
+`;
+
 function getActiveChatIds(windowMs = 30 * 24 * 60 * 60 * 1000) {
   const cutoff = Date.now() - windowMs;
   return db
-    .prepare("SELECT chat_id FROM users WHERE last_seen >= ?")
-    .all(cutoff)
+    .prepare(`SELECT chat_id FROM users WHERE ${ACTIVE_USER_FILTER}`)
+    .all({ cutoff })
     .map((r) => r.chat_id);
 }
 
@@ -193,8 +205,10 @@ function getUserStats(windowMs = 30 * 24 * 60 * 60 * 1000) {
   const cutoff = Date.now() - windowMs;
   const total = db.prepare("SELECT COUNT(*) AS count FROM users").get().count;
   const active = db
-    .prepare("SELECT COUNT(*) AS count FROM users WHERE last_seen >= ?")
-    .get(cutoff).count;
+    .prepare(
+      `SELECT COUNT(*) AS count FROM users WHERE ${ACTIVE_USER_FILTER}`,
+    )
+    .get({ cutoff }).count;
 
   return { total, active };
 }
@@ -296,6 +310,41 @@ function getLowBalanceAlertMeters() {
     }));
 }
 
+/**
+ * Counts for the owner's /stats: who has low-balance alerts on, and how many
+ * of those meters are currently below the threshold and have been alerted.
+ */
+function getLowBalanceAlertStats() {
+  const totals = db
+    .prepare(
+      `
+      SELECT
+        COUNT(DISTINCT chat_id) AS users,
+        COUNT(*) AS meters,
+        COALESCE(SUM(alert_sent_at > 0), 0) AS alerted
+      FROM user_meters
+      WHERE low_balance_alerts = 1
+    `,
+    )
+    .get();
+
+  const byHostel = {};
+  for (const row of db
+    .prepare(
+      `
+      SELECT hostel, COUNT(*) AS count
+      FROM user_meters
+      WHERE low_balance_alerts = 1
+      GROUP BY hostel
+    `,
+    )
+    .all()) {
+    byHostel[row.hostel] = row.count;
+  }
+
+  return { ...totals, byHostel };
+}
+
 function setLowBalanceAlertSentAt(chatId, meterId, hostel, sentAt) {
   db.prepare(
     `
@@ -382,6 +431,7 @@ module.exports = {
   touchUser,
   setLowBalanceAlerts,
   getLowBalanceAlertMeters,
+  getLowBalanceAlertStats,
   setLowBalanceAlertSentAt,
   disableLowBalanceAlertsForChat,
 };

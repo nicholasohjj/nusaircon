@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -89,5 +89,58 @@ describe("userStore saved meters", () => {
         lastUsed: 1000,
       }),
     ]);
+  });
+
+  describe("owner stats", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    test("counts users active by saved-meter use, not only last_seen", () => {
+      const { getActiveChatIds, getUserStats, saveUser } = loadUserStore();
+      const DAY = 24 * 60 * 60 * 1000;
+      const now = Date.now();
+
+      vi.spyOn(Date, "now").mockReturnValue(now - 60 * DAY);
+      saveUser("stale", "11111111", HOSTELS.CP2NUS);
+
+      vi.spyOn(Date, "now").mockReturnValue(now - DAY);
+      saveUser("recent", "22222222", HOSTELS.CP2NUS);
+
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      expect(getUserStats()).toEqual({ total: 2, active: 1 });
+      expect(getActiveChatIds()).toEqual(["recent"]);
+    });
+
+    test("summarises low-balance alert subscriptions", () => {
+      const {
+        getLowBalanceAlertStats,
+        saveUser,
+        setLowBalanceAlertSentAt,
+        setLowBalanceAlerts,
+      } = loadUserStore();
+
+      expect(getLowBalanceAlertStats()).toEqual({
+        users: 0,
+        meters: 0,
+        alerted: 0,
+        byHostel: {},
+      });
+
+      saveUser("a", "11111111", HOSTELS.CP2NUS);
+      saveUser("a", "22222222", HOSTELS.SUTD);
+      saveUser("b", "33333333", HOSTELS.CP2NUS);
+      saveUser("c", "44444444", HOSTELS.CP2NUS);
+      setLowBalanceAlerts("a", [HOSTELS.CP2NUS, HOSTELS.SUTD], true);
+      setLowBalanceAlerts("b", [HOSTELS.CP2NUS], true);
+      setLowBalanceAlertSentAt("b", "33333333", HOSTELS.CP2NUS, 1000);
+
+      expect(getLowBalanceAlertStats()).toEqual({
+        users: 2,
+        meters: 3,
+        alerted: 1,
+        byHostel: { [HOSTELS.CP2NUS]: 2, [HOSTELS.SUTD]: 1 },
+      });
+    });
   });
 });

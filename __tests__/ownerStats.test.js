@@ -44,6 +44,12 @@ describe("owner stats formatting", () => {
         startedAt: 1_000,
       },
       userStats: { total: 12, active: 7 },
+      alertStats: {
+        users: 2,
+        meters: 3,
+        alerted: 1,
+        byHostel: { sutd: 1, cp2nus: 2 },
+      },
       sessionStats: {
         total: 3,
         byStage: { idle: 2, awaiting_payment: 1 },
@@ -59,6 +65,9 @@ describe("owner stats formatting", () => {
     expect(message).toContain("Runtime: webhook");
     expect(message).toContain("Saved users: 12");
     expect(message).toContain("Active users (30d): 7");
+    expect(message).toContain("Low-balance alerts: 2 user(s), 3 meter(s)");
+    expect(message).toContain("Alerts by system: cp2nus: 2, sutd: 1");
+    expect(message).toContain("Currently alerted (still low): 1");
     expect(message).toContain("Bot sessions: 3");
     expect(message).toContain("Pending owner replies: 2");
     expect(message).toContain("Active payment submit locks: 1");

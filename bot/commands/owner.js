@@ -3,6 +3,7 @@ const {
   getAllChatIds,
   getActiveChatIds,
   getUserStats,
+  getLowBalanceAlertStats,
   forgetUser,
 } = require("../services/userStore");
 const { inferRuntimeMode } = require("../runtimeMode");
@@ -45,6 +46,7 @@ function formatStageCounts(byStage = {}) {
 function buildOwnerStatsMessage({
   state: runtimeState,
   userStats,
+  alertStats = { users: 0, meters: 0, alerted: 0, byHostel: {} },
   sessionStats,
   pendingReplyCount,
   submitLockStats,
@@ -70,6 +72,10 @@ function buildOwnerStatsMessage({
     "",
     `Saved users: ${userStats.total}`,
     `Active users (30d): ${userStats.active}`,
+    "",
+    `Low-balance alerts: ${alertStats.users} user(s), ${alertStats.meters} meter(s)`,
+    `Alerts by system: ${formatStageCounts(alertStats.byHostel)}`,
+    `Currently alerted (still low): ${alertStats.alerted}`,
     "",
     `Bot sessions: ${sessionStats.total}`,
     `Session stages: ${formatStageCounts(sessionStats.byStage)}`,
@@ -261,11 +267,13 @@ function registerStats(bot, runtime) {
     if (!isOwner(ctx)) return;
 
     const userStats = getUserStats();
+    const alertStats = getLowBalanceAlertStats();
     const sessionStats = getSessionStats();
     const submitLockStats = getPaymentSubmitLockStats();
     const message = buildOwnerStatsMessage({
       state,
       userStats,
+      alertStats,
       sessionStats,
       pendingReplyCount: pendingReplies.size,
       submitLockStats,
@@ -275,6 +283,7 @@ function registerStats(bot, runtime) {
       chatId: ctx.chat?.id,
       savedUsers: userStats.total,
       activeUsers: userStats.active,
+      alertUsers: alertStats.users,
     });
 
     return ctx.reply(message);
