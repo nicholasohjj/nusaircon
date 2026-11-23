@@ -61,6 +61,7 @@ async function createNotifiedResultToken(session, updates) {
     const notifiedAt = await sendPaymentNotification(
       getPaymentBot("sutd"),
       resultSession,
+      { audience: "sutd" },
     );
     if (notifiedAt) resultSession.notifiedAt = notifiedAt;
   } catch (err) {
@@ -92,7 +93,9 @@ router.post(
       if (session.notifiedAt) return res.json({ ok: true });
       if (session.status === "pending") return res.json({ ok: true });
 
-      await sendPaymentNotification(getPaymentBot("sutd"), session);
+      await sendPaymentNotification(getPaymentBot("sutd"), session, {
+        audience: "sutd",
+      });
     } catch (err) {
       console.error("notify error", err);
     }

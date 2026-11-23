@@ -10,6 +10,7 @@ const {
 } = require("../services/topup");
 const { handleAlertsCommand } = require("../services/lowBalanceAlerts");
 const { sendTopupAdvice } = require("../services/balanceReset");
+const { parseMeterStartPayload } = require("../services/roommateShare");
 const { sendHelp, SERVER_URL } = require("../services/ui");
 const {
   STAGES,
@@ -47,7 +48,10 @@ function registerStart(bot, runtime) {
     if (
       config.supportsTopup &&
       state.topupDisabled &&
-      (isValidMeterId(payload) || /^(?:nus|sutd)_\d{8}$/.test(payload))
+      (isValidMeterId(payload) ||
+        parseMeterStartPayload(payload, "(?:nus|sutd)", {
+          prefixOptional: true,
+        }))
     ) {
       track("topup_disabled_deeplink", { chatId, payload });
       return ctx.reply(
@@ -57,13 +61,16 @@ function registerStart(bot, runtime) {
     }
 
     if (config.audience === "sutd") {
-      const sutdMatch = payload.match(/^(?:sutd_)?(\d{8})$/);
+      const sutdMatch = parseMeterStartPayload(payload, "sutd", {
+        prefixOptional: true,
+      });
       if (sutdMatch) {
-        const meterId = sutdMatch[1];
+        const { meterId, shared } = sutdMatch;
         track("bot_start_deeplink", {
           chatId,
           meterId,
           hostel: HOSTELS.SUTD,
+          source: shared ? "roommate_share" : "link",
         });
 
         const session = getSession(chatId, config.sessionKey);
@@ -88,10 +95,15 @@ function registerStart(bot, runtime) {
       }
     } else {
       // cp2nus deep link: /start nus_12345678
-      const cp2nusMatch = payload.match(/^nus_(\d{8})$/);
+      const cp2nusMatch = parseMeterStartPayload(payload, "nus");
       if (cp2nusMatch) {
-        const meterId = cp2nusMatch[1];
-        track("bot_start_deeplink", { chatId, meterId, hostel: "cp2nus" });
+        const { meterId, shared } = cp2nusMatch;
+        track("bot_start_deeplink", {
+          chatId,
+          meterId,
+          hostel: "cp2nus",
+          source: shared ? "roommate_share" : "link",
+        });
 
         const session = getSession(chatId, config.sessionKey);
         session.stage = STAGES.AWAITING_AMOUNT;

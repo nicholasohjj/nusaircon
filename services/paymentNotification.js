@@ -1,3 +1,5 @@
+const { roommateShareKeyboard } = require("../bot/services/roommateShare");
+
 function buildPaymentNotificationLines(session) {
   const {
     status,
@@ -40,7 +42,15 @@ function notificationDedupeKey(session) {
   ].join(":");
 }
 
-async function sendPaymentNotification(bot, session) {
+/**
+ * @param {{ audience?: "nus" | "sutd" }} options which bot this is, so a
+ *   successful top-up's share link opens the right flow
+ */
+async function sendPaymentNotification(
+  bot,
+  session,
+  { audience = "nus" } = {},
+) {
   if (!session?.chatId || session.notifiedAt) return null;
 
   const key = notificationDedupeKey(session);
@@ -51,11 +61,16 @@ async function sendPaymentNotification(bot, session) {
   sentNotifications.set(key, Date.now() + NOTIFY_DEDUPE_TTL_MS);
 
   try {
+    const shareKeyboard =
+      session.status === "success"
+        ? await roommateShareKeyboard(bot, audience, session.txtMtrId)
+        : null;
     await bot.telegram.sendMessage(
       session.chatId,
       buildPaymentNotificationLines(session).join("\n"),
       {
         parse_mode: "Markdown",
+        ...(shareKeyboard || {}),
       },
     );
   } catch (err) {
