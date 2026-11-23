@@ -262,25 +262,33 @@ To have an agent check your balance daily and send you a payment link when it ru
 
 ## Bot commands
 
-| Command     | Description                       |
-| ----------- | --------------------------------- |
-| `/start`    | Show the main menu                |
-| `/topup`    | Start an electricity top-up       |
-| `/balance`  | Check meter balance               |
-| `/usage`    | Show last 7 days of usage         |
-| `/topups`   | Show recent top-ups               |
-| `/alerts`   | Show or change low-balance alerts |
-| `/feedback` | Share feedback or report an issue |
-| `/cancel`   | Cancel the current flow           |
-| `/help`     | Show help and supported systems   |
-| `/status`   | Owner-only live service health    |
-| `/stats`    | Owner-only runtime snapshot       |
+| Command      | Description                                     |
+| ------------ | ----------------------------------------------- |
+| `/start`     | Show the main menu                              |
+| `/topup`     | Start an electricity top-up                     |
+| `/balance`   | Check meter balance                             |
+| `/usage`     | Show last 7 days of usage                       |
+| `/topups`    | Show recent top-ups                             |
+| `/alerts`    | Show or change low-balance alerts               |
+| `/feedback`  | Share feedback or report an issue               |
+| `/cancel`    | Cancel the current flow                         |
+| `/help`      | Show help and supported systems                 |
+| `/status`    | Owner-only live service health                  |
+| `/stats`     | Owner-only runtime snapshot                     |
+| `/resetdate` | Owner-only: set the days balances are forfeited |
 
 ## Low-balance alerts
 
 People opt in with `/alerts on`, which covers the saved meters on that bot. Meters are saved when someone starts a top-up in the bot. Once a day, each opted-in meter is checked and its chat gets a message if the balance is below SGD 5. The message has a button that starts the bot's normal top-up flow, so the person still chooses the amount and pays by card.
 
 Each meter gets one alert per low-balance episode, and can alert again once a check sees the balance back at SGD 5 or more. A failed lookup is skipped and never counts as a zero balance. Alerts stop if someone blocks the bot, and `/forget` removes them along with the meter.
+
+## End-of-semester balance reset
+
+Hostel meters lose any credit left at the end of the semester. The owner sets those days per bot with `/resetdate YYYY-MM-DD [YYYY-MM-DD …]`, for example `/resetdate 2026-12-06 2027-05-09` for both semesters at once. Each call replaces the saved list, `/resetdate` shows it, and `/resetdate off` clears it. The dates are stored in the database, so they survive restarts, and the NUS and SUTD bots each keep their own. Everything below follows the next date still to come, moves on to the following one once it passes, and stays off when no dates are left. NUS check-out dates are listed on the [OSA check-in/out page](https://osa.nus.edu.sg/accommodation/hostel-application/application-guide-undergraduate/official-check-in-out-dates/).
+
+- **Before a top-up:** from 28 days before the reset, the bot adds a note after the amount prompt. For NUS meters it uses the last 7 days of usage to estimate what's needed until the reset and suggests topping up only the shortfall. SUTD has no usage history, so SUTD users see the date and their balance.
+- **Reminders:** people with `/alerts on` get a message 14 days and 3 days before the reset if about SGD 2 or more is projected to be left over. These are sent by the same daily check as low-balance alerts, once per stage for each meter.
 
 To turn on the daily check:
 

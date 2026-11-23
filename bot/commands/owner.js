@@ -12,6 +12,7 @@ const { track } = require("../../services/analytics");
 const { getSessionStats } = require("../services/session");
 const { getPaymentSubmitLockStats } = require("../../services/paymentSubmitLock");
 const { buildOwnerStatus } = require("../services/ownerStatus");
+const balanceReset = require("../services/balanceReset");
 const {
   getGlobalMaintenanceStatus,
   setGlobalMaintenanceEnabled,
@@ -315,6 +316,89 @@ function registerStatus(bot, runtime) {
   });
 }
 
+// ── /resetdate ───────────────────────────────────────────────────────────────
+// The days this bot's meters lose their credit. Each bot keeps its own dates,
+// so NUS and SUTD can differ. Notes and reminders follow the next date to come.
+const RESET_DATE_USAGE =
+  "Usage: /resetdate YYYY-MM-DD [YYYY-MM-DD …] to set the days balances are forfeited (this replaces the saved dates), or /resetdate off to clear them.";
+
+function describeDays(days) {
+  if (days === 0) return "today";
+  return days === 1 ? "in 1 day" : `in ${days} days`;
+}
+
+function resetDateStatus(audience, store) {
+  const upcoming = balanceReset
+    .getResetDates(audience, store)
+    .filter((date) => balanceReset.daysUntil(date) >= 0);
+  if (!upcoming.length) {
+    return "No upcoming reset dates, so reset notes and reminders are off.";
+  }
+  const lines = upcoming.map(
+    (date, i) =>
+      `${i === 0 ? "▶️" : "•"} ${date} (${describeDays(balanceReset.daysUntil(date))})`,
+  );
+  return `Reset dates:\n${lines.join("\n")}`;
+}
+
+async function handleResetDateCommand(ctx, config, store) {
+  const args = String(ctx.message?.text || "")
+    .trim()
+    .split(/[\s,]+/)
+    .slice(1)
+    .filter(Boolean);
+
+  if (!args.length) {
+    return ctx.reply(
+      `${resetDateStatus(config.audience, store)}\n\n${RESET_DATE_USAGE}`,
+    );
+  }
+
+  if (args.length === 1 && args[0].toLowerCase() === "off") {
+    balanceReset.setResetDates(config.audience, [], store);
+    track("reset_date_changed", {
+      chatId: ctx.chat?.id,
+      audience: config.audience,
+      dates: "",
+    });
+    return ctx.reply("Reset dates cleared. Reset notes and reminders are off.");
+  }
+
+  const invalid = args.filter((arg) => !balanceReset.parseResetDate(arg));
+  if (invalid.length) {
+    return ctx.reply(
+      `Not a valid date: ${invalid.join(", ")}\n\n${RESET_DATE_USAGE}`,
+    );
+  }
+  const past = args.filter((date) => balanceReset.daysUntil(date) < 0);
+  if (past.length) {
+    return ctx.reply(
+      `Already past: ${past.join(", ")}. Only set dates that are still to come.`,
+    );
+  }
+
+  balanceReset.setResetDates(config.audience, args, store);
+  track("reset_date_changed", {
+    chatId: ctx.chat?.id,
+    audience: config.audience,
+    dates: balanceReset.getResetDates(config.audience, store).join(","),
+  });
+  return ctx.reply(
+    `${resetDateStatus(config.audience, store)}\n\n` +
+      `${config.displayName} shows a note before top-ups from ${balanceReset.ADVICE_WINDOW_DAYS} days before the next date, ` +
+      "and users with /alerts on get a reminder 14 and 3 days before it.",
+  );
+}
+
+function registerResetDate(bot, runtime, store) {
+  const { config } = runtimeParts(runtime);
+
+  bot.command("resetdate", async (ctx) => {
+    if (!isOwner(ctx)) return;
+    return handleResetDateCommand(ctx, config, store);
+  });
+}
+
 function registerOwnerCommands(bot, runtime) {
   registerBroadcast(bot, runtime);
   registerAnnounce(bot, runtime);
@@ -322,12 +406,14 @@ function registerOwnerCommands(bot, runtime) {
   registerTopupToggle(bot, runtime);
   registerStats(bot, runtime);
   registerStatus(bot, runtime);
+  registerResetDate(bot, runtime);
 }
 
 module.exports = {
   buildOwnerStatsMessage,
   formatStageCounts,
   formatUptime,
+  handleResetDateCommand,
   registerOwnerCommands,
   isOwner,
 };

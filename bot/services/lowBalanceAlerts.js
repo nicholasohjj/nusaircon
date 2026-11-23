@@ -7,6 +7,7 @@ const { track, captureException } = require("../../services/analytics");
 const { getMeterSummary } = require("../../services/ore");
 const { getSutdMeterSummary } = require("../../services/sutdService");
 const { escHtml } = require("../../services/utils");
+const balanceReset = require("./balanceReset");
 
 const THRESHOLD_TEXT = `SGD ${LOW_BALANCE_THRESHOLD_SGD.toFixed(2)}`;
 
@@ -60,9 +61,76 @@ async function runLowBalanceCheck({
   store = userStore,
   contexts = botContexts,
   fetchBalance = fetchMeterBalance,
+  fetchAverage = balanceReset.fetchAverageDaily,
+  now = Date.now(),
 } = {}) {
-  const summary = { checked: 0, alerted: 0, recovered: 0, failed: 0 };
+  const summary = {
+    checked: 0,
+    alerted: 0,
+    recovered: 0,
+    failed: 0,
+    resetReminded: 0,
+  };
   const balances = new Map();
+  const averages = new Map();
+
+  function lookupAverage(meter) {
+    const key = `${meter.hostel}:${meter.meterId}`;
+    if (!averages.has(key)) {
+      averages.set(
+        key,
+        Promise.resolve()
+          .then(() => fetchAverage(meter.meterId))
+          .catch(() => null),
+      );
+    }
+    return averages.get(key);
+  }
+
+  // Warns that credit will be lost at the reset. Each stage (14 and 3 days
+  // before) is sent once per meter per reset date.
+  async function maybeSendResetReminder(meter, context, balance) {
+    const resetDate = balanceReset.getResetDate(
+      context.config.audience,
+      store,
+      now,
+    );
+    if (!resetDate) return;
+    const daysLeft = balanceReset.daysUntil(resetDate, now);
+    const stage = balanceReset.dueReminderStage(daysLeft);
+    if (stage === null) return;
+    const marker = `${resetDate}:${stage}`;
+    if (meter.resetReminder === marker) return;
+    if (balance < balanceReset.MIN_LOSS_SGD) return;
+
+    const avgDaily =
+      meter.hostel === HOSTELS.SUTD || daysLeft === 0
+        ? null
+        : await lookupAverage(meter);
+    const text = balanceReset.buildReminder({
+      meter,
+      resetDate,
+      daysLeft,
+      balance,
+      avgDaily,
+    });
+    if (!text) return;
+
+    try {
+      await context.bot.telegram.sendMessage(meter.chatId, text, {
+        parse_mode: "HTML",
+      });
+      store.setResetReminder(meter.chatId, meter.meterId, meter.hostel, marker);
+      summary.resetReminded += 1;
+    } catch (err) {
+      summary.failed += 1;
+      if (isBlockedByUser(err)) {
+        store.disableLowBalanceAlertsForChat(meter.chatId);
+      } else {
+        captureException(err, meter.chatId, { route: "reset_reminder" });
+      }
+    }
+  }
 
   // Sharing a lookup means roommates on one meter cost one EVS request.
   function lookupBalance(meter) {
@@ -93,6 +161,8 @@ async function runLowBalanceCheck({
       summary.failed += 1;
       continue;
     }
+
+    await maybeSendResetReminder(meter, context, balance);
 
     if (balance >= LOW_BALANCE_THRESHOLD_SGD) {
       if (meter.alertSentAt) {
@@ -192,6 +262,7 @@ async function handleAlertsCommand(ctx, config, store = userStore) {
 }
 
 module.exports = {
+  fetchMeterBalance,
   handleAlertsCommand,
   parseBalance,
   runLowBalanceCheck,

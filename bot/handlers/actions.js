@@ -11,6 +11,7 @@ const {
   getHostelLabel,
   promptForTopUpMeterId,
 } = require("../services/topup");
+const { sendTopupAdvice } = require("../services/balanceReset");
 const {
   STAGES,
   HOSTELS,
@@ -120,12 +121,18 @@ async function handleSavedMeterAction(ctx, runtime) {
       parsed.hostel === HOSTELS.CP2 ? HOSTELS.CP2NUS : parsed.hostel;
     session.txtMtrId = parsed.meterId;
 
-    return ctx.reply(
+    const prompt = await ctx.reply(
       `🔌 Meter ID: <code>${parsed.meterId}</code>\n` +
         `🏠 Hostel: <b>${getHostelLabel(session.hostel)}</b>\n\n` +
         `Enter the amount in SGD (${getAmountPrompt(session.hostel)}), or tap ❌ Cancel to start over.`,
       { parse_mode: "HTML", ...cancelKeyboard },
     );
+    await sendTopupAdvice(ctx, {
+      meterId: parsed.meterId,
+      hostel: session.hostel,
+      config,
+    });
+    return prompt;
   }
 
   return handleMeterIdLookup(ctx, chatId, parsed.meterId, parsed.mode, {
@@ -159,10 +166,16 @@ function makeHostelHandler(hostel, runtime = {}) {
 
     if (session.txtMtrId) {
       session.stage = STAGES.AWAITING_AMOUNT;
-      return ctx.replyWithMarkdown(
+      const prompt = await ctx.replyWithMarkdown(
         `🔌 Meter ID: \`${session.txtMtrId}\`\n\nEnter the *amount in SGD* (e.g. \`20\`, ${getAmountPrompt(session.hostel)}):`,
         cancelKeyboard,
       );
+      await sendTopupAdvice(ctx, {
+        meterId: session.txtMtrId,
+        hostel: session.hostel,
+        config,
+      });
+      return prompt;
     }
 
     session.stage = STAGES.AWAITING_METER_ID;

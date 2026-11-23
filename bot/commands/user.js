@@ -9,6 +9,7 @@ const {
   getHostelLabel,
 } = require("../services/topup");
 const { handleAlertsCommand } = require("../services/lowBalanceAlerts");
+const { sendTopupAdvice } = require("../services/balanceReset");
 const { sendHelp, SERVER_URL } = require("../services/ui");
 const {
   STAGES,
@@ -70,7 +71,7 @@ function registerStart(bot, runtime) {
         session.hostel = HOSTELS.SUTD;
         session.txtMtrId = meterId;
 
-        return ctx.reply(
+        const prompt = await ctx.reply(
           `⚡ ${config.displayName}\n\n` +
             `🏠 System: <b>${getHostelLabel(HOSTELS.SUTD)}</b>\n` +
             `🔌 Meter ID: <code>${meterId}</code>\n\n` +
@@ -78,6 +79,12 @@ function registerStart(bot, runtime) {
             `📄 By using this bot, you agree to our <a href="${SERVER_URL}/app/terms">Terms of Use</a>.`,
           { parse_mode: "HTML", reply_markup: cancelKeyboard.reply_markup },
         );
+        await sendTopupAdvice(ctx, {
+          meterId,
+          hostel: HOSTELS.SUTD,
+          config,
+        });
+        return prompt;
       }
     } else {
       // cp2nus deep link: /start nus_12345678
@@ -91,7 +98,7 @@ function registerStart(bot, runtime) {
         session.hostel = HOSTELS.CP2NUS;
         session.txtMtrId = meterId;
 
-        return ctx.reply(
+        const prompt = await ctx.reply(
           `⚡ ${config.displayName}\n\n` +
             `🏠 Hostel: <b>${getHostelLabel(HOSTELS.CP2NUS)}</b>\n` +
             `🔌 Meter ID: <code>${meterId}</code>\n\n` +
@@ -99,6 +106,12 @@ function registerStart(bot, runtime) {
             `📄 By using this bot, you agree to our <a href="${SERVER_URL}/app/terms">Terms of Use</a>.`,
           { parse_mode: "HTML", reply_markup: cancelKeyboard.reply_markup },
         );
+        await sendTopupAdvice(ctx, {
+          meterId,
+          hostel: HOSTELS.CP2NUS,
+          config,
+        });
+        return prompt;
       }
 
       // cp2 deep link: /start 12345678

@@ -77,6 +77,37 @@ db.exec(`
 
 ensureColumn("user_meters", "low_balance_alerts", "INTEGER NOT NULL DEFAULT 0");
 ensureColumn("user_meters", "alert_sent_at", "INTEGER NOT NULL DEFAULT 0");
+// "<reset date>:<days-before stage>" of the last balance-reset reminder sent.
+ensureColumn("user_meters", "reset_reminder", "TEXT NOT NULL DEFAULT ''");
+
+// Small owner-set values that must survive a restart, such as reset dates.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )
+`);
+
+function getSetting(key) {
+  return (
+    db.prepare("SELECT value FROM settings WHERE key = ?").get(key)?.value ??
+    null
+  );
+}
+
+/** Saves a setting; null or "" removes it. */
+function setSetting(key, value) {
+  if (value === null || value === undefined || value === "") {
+    db.prepare("DELETE FROM settings WHERE key = ?").run(key);
+    return;
+  }
+  db.prepare(
+    `
+    INSERT INTO settings (key, value) VALUES (?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+  `,
+  ).run(key, String(value));
+}
 
 function defaultLabel(meterId) {
   return `Meter ${String(meterId).slice(-4)}`;
@@ -317,7 +348,7 @@ function getLowBalanceAlertMeters() {
   return db
     .prepare(
       `
-      SELECT chat_id, meter_id, hostel, label, alert_sent_at
+      SELECT chat_id, meter_id, hostel, label, alert_sent_at, reset_reminder
       FROM user_meters
       WHERE low_balance_alerts = 1
     `,
@@ -329,6 +360,7 @@ function getLowBalanceAlertMeters() {
       hostel: row.hostel,
       label: row.label,
       alertSentAt: row.alert_sent_at,
+      resetReminder: row.reset_reminder,
     }));
 }
 
@@ -375,6 +407,16 @@ function setLowBalanceAlertSentAt(chatId, meterId, hostel, sentAt) {
     WHERE chat_id = ? AND meter_id = ? AND hostel = ?
   `,
   ).run(sentAt, String(chatId), meterId, hostel);
+}
+
+function setResetReminder(chatId, meterId, hostel, marker) {
+  db.prepare(
+    `
+    UPDATE user_meters
+    SET reset_reminder = ?
+    WHERE chat_id = ? AND meter_id = ? AND hostel = ?
+  `,
+  ).run(String(marker || ""), String(chatId), meterId, hostel);
 }
 
 function disableLowBalanceAlertsForChat(chatId) {
@@ -455,5 +497,8 @@ module.exports = {
   getLowBalanceAlertMeters,
   getLowBalanceAlertStats,
   setLowBalanceAlertSentAt,
+  setResetReminder,
   disableLowBalanceAlertsForChat,
+  getSetting,
+  setSetting,
 };

@@ -13,6 +13,7 @@ const {
   savedMeterPickerKeyboard,
   savedMeterPickerText,
 } = require("./savedMeterPicker");
+const { sendTopupAdvice } = require("./balanceReset");
 
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
 
@@ -112,13 +113,19 @@ async function handleTopUpStart(
   const session = startTopUp(chatId, savedInSession, config);
 
   if (session.stage === STAGES.AWAITING_AMOUNT) {
-    return ctx.reply(
+    const prompt = await ctx.reply(
       `🔌 Using saved Meter ID: <code>${session.txtMtrId}</code>\n` +
         `🏠 Hostel: <b>${getHostelLabel(session.hostel)}</b>\n\n` +
         `Enter the amount in SGD (${getAmountPrompt(session.hostel)}), or tap ❌ Cancel to start over.\n\n` +
         `💡 Use /forget to clear your saved details.`,
       { parse_mode: "HTML", ...cancelKeyboard },
     );
+    await sendTopupAdvice(ctx, {
+      meterId: session.txtMtrId,
+      hostel: session.hostel,
+      config,
+    });
+    return prompt;
   }
 
   return promptForTopUpMeterId(ctx, config);

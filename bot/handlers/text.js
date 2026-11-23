@@ -4,7 +4,9 @@ const {
   getMeterSummary,
   getMeterUsage,
   formatUsageSummary,
+  analyzeUsage,
 } = require("../../services/ore");
+const { sendTopupAdvice } = require("../services/balanceReset");
 const {
   getSutdMeterSummary,
   isValidSutdAmount,
@@ -219,6 +221,15 @@ async function handleAwaitingMeterId(ctx, chatId, text, session, config) {
       .catch(async () =>
         ctx.reply(lines.join("\n"), { parse_mode: "HTML", ...cancelKeyboard }),
       );
+
+    const avgDaily = usage ? analyzeUsage(usage.history).avgDaily : null;
+    await sendTopupAdvice(ctx, {
+      meterId: text,
+      hostel: session.hostel,
+      config,
+      balance: Number.isFinite(bal) && summary.credit_bal != null ? bal : null,
+      avgDaily: avgDaily > 0 ? avgDaily : null,
+    });
   } catch (err) {
     const timedOut = err.code === "ECONNABORTED";
     track("prefill_usage_error", {
