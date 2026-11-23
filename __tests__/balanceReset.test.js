@@ -362,3 +362,35 @@ describe("multiple reset dates", () => {
     expect(sendMessage.mock.calls[1][1]).toContain("9 May");
   });
 });
+
+describe("vacation note", () => {
+  const base = {
+    resetDate: "2026-12-06",
+    daysLeft: 13,
+    hostel: HOSTELS.CP2NUS,
+  };
+
+  test("appears in every top-up note and in reminders", () => {
+    const variants = [
+      { balance: 4, avgDaily: 0.8 },
+      { balance: 15, avgDaily: 0.8 },
+      { balance: 4, avgDaily: null },
+      { balance: null, avgDaily: null },
+      { balance: 4, avgDaily: 0.8, daysLeft: 0 },
+    ];
+    for (const variant of variants) {
+      expect(balanceReset.buildTopupAdvice({ ...base, ...variant })).toContain(
+        balanceReset.VACATION_NOTE,
+      );
+    }
+
+    const reminder = balanceReset.buildReminder({
+      meter: { label: "Room", meterId: "12345678" },
+      resetDate: "2026-12-06",
+      daysLeft: 13,
+      balance: 20,
+      avgDaily: 0.8,
+    });
+    expect(reminder).toContain(balanceReset.VACATION_NOTE);
+  });
+});

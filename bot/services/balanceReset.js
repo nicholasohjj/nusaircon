@@ -11,6 +11,10 @@ const REMINDER_STAGES = [14, 3];
 const MIN_LOSS_SGD = 2;
 const USAGE_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
+// Residents staying over the vacation don't check out on the reset date, and
+// the bot can't tell who they are.
+const VACATION_NOTE =
+  "🏖️ <i>Staying for the vacation? This may not apply to you. Check with your hostel office.</i>";
 
 function settingKey(audience) {
   return `reset_date:${audience}`;
@@ -118,7 +122,7 @@ function buildTopupAdvice({ resetDate, daysLeft, hostel, balance, avgDaily }) {
   avgDaily = usable(avgDaily);
 
   if (daysLeft === 0) {
-    lines.push("", "A top-up now will most likely be lost.");
+    lines.push("", "A top-up now will most likely be lost.", "", VACATION_NOTE);
     return lines.join("\n");
   }
 
@@ -128,6 +132,8 @@ function buildTopupAdvice({ resetDate, daysLeft, hostel, balance, avgDaily }) {
       balance === null
         ? "Only top up what you'll use before then."
         : `You have ${sgd(balance)}. Only top up what you'll use before then.`,
+      "",
+      VACATION_NOTE,
     );
     return lines.join("\n");
   }
@@ -152,7 +158,11 @@ function buildTopupAdvice({ resetDate, daysLeft, hostel, balance, avgDaily }) {
     );
   }
 
-  lines.push("", `<i>Estimated from the last ${USAGE_DAYS} days of usage.</i>`);
+  lines.push(
+    "",
+    `<i>Estimated from the last ${USAGE_DAYS} days of usage.</i>`,
+    VACATION_NOTE,
+  );
   return lines.join("\n");
 }
 
@@ -233,7 +243,8 @@ function buildReminder({ meter, resetDate, daysLeft, balance, avgDaily }) {
     `📅 <b>Balance reset ${daysText(daysLeft)}</b>\n\n` +
     `🔌 ${escHtml(meter.label)} (<code>${meter.meterId}</code>)\n` +
     `💰 ${sgd(balance)} now. ${projection}\n\n` +
-    `You likely don't need to top up before then. ` +
+    `You likely don't need to top up before then.\n\n` +
+    `${VACATION_NOTE}\n\n` +
     `Use /alerts off to stop these messages.`
   );
 }
@@ -241,6 +252,7 @@ function buildReminder({ meter, resetDate, daysLeft, balance, avgDaily }) {
 module.exports = {
   ADVICE_WINDOW_DAYS,
   MIN_LOSS_SGD,
+  VACATION_NOTE,
   buildReminder,
   buildTopupAdvice,
   daysUntil,
