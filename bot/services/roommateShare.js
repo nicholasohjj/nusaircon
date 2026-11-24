@@ -1,9 +1,10 @@
 const { Markup } = require("telegraf");
 
 // Added to deep links so /start can tell where a link carrying a meter ID came
-// from: a roommate share, a room group chat, or an inline balance card.
+// from: a roommate share, a room group chat, an inline balance card, or a QR
+// sticker on the meter.
 const SHARE_SUFFIX = "share";
-const LINK_SOURCES = [SHARE_SUFFIX, "group", "card"];
+const LINK_SOURCES = [SHARE_SUFFIX, "group", "card", "qr"];
 
 const SHARE_TEXT =
   "Top up our room's aircon credit in Telegram. The meter is already filled in:";
@@ -80,8 +81,20 @@ function parseMeterStartPayload(
   return { meterId: match[1], shared: source === SHARE_SUFFIX, source };
 }
 
+/**
+ * Reads a campaign link such as "src_qr_rvrc", used on posters and posts to
+ * see which ones bring people in. Telegram allows A-Z, a-z, 0-9, _ and - in
+ * a start payload, up to 64 characters.
+ * @returns {string|null} the tag after "src_", lowercased
+ */
+function parseCampaignPayload(payload) {
+  const match = String(payload || "").match(/^src_([A-Za-z0-9_-]{1,60})$/);
+  return match ? match[1].toLowerCase() : null;
+}
+
 module.exports = {
   buildShareUrl,
+  parseCampaignPayload,
   getBotUsername,
   parseMeterStartPayload,
   roommateShareKeyboard,

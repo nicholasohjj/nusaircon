@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const {
   buildShareUrl,
+  parseCampaignPayload,
   parseMeterStartPayload,
   roommateShareKeyboard,
 } = require("../bot/services/roommateShare");
@@ -49,6 +50,31 @@ describe("parseMeterStartPayload", () => {
     expect(parseMeterStartPayload("sutd_12345678", "nus")).toBeNull();
     expect(parseMeterStartPayload("nus_12345678_other", "nus")).toBeNull();
     expect(parseMeterStartPayload("", "nus")).toBeNull();
+  });
+});
+
+describe("meter QR links", () => {
+  test("read like other meter links", () => {
+    expect(parseMeterStartPayload("nus_12345678_qr", "nus")).toEqual({
+      meterId: "12345678",
+      shared: false,
+      source: "qr",
+    });
+  });
+});
+
+describe("parseCampaignPayload", () => {
+  test("reads the tag after src_", () => {
+    expect(parseCampaignPayload("src_qr_rvrc")).toBe("qr_rvrc");
+    expect(parseCampaignPayload("src_Reddit-Jan")).toBe("reddit-jan");
+  });
+
+  test("ignores other payloads", () => {
+    expect(parseCampaignPayload("src_")).toBeNull();
+    expect(parseCampaignPayload("nus_12345678")).toBeNull();
+    expect(parseCampaignPayload("src_bad tag")).toBeNull();
+    expect(parseCampaignPayload(`src_${"a".repeat(61)}`)).toBeNull();
+    expect(parseCampaignPayload(undefined)).toBeNull();
   });
 });
 

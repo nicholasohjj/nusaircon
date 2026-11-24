@@ -10,7 +10,10 @@ const {
 } = require("../services/topup");
 const { handleAlertsCommand } = require("../services/lowBalanceAlerts");
 const { sendTopupAdvice } = require("../services/balanceReset");
-const { parseMeterStartPayload } = require("../services/roommateShare");
+const {
+  parseCampaignPayload,
+  parseMeterStartPayload,
+} = require("../services/roommateShare");
 const { buildPrivatePaidText } = require("../services/whoPaid");
 const { sendHelp, SERVER_URL } = require("../services/ui");
 const {
@@ -28,6 +31,7 @@ const LINK_SOURCE_LABELS = {
   share: "roommate_share",
   group: "group",
   card: "inline_card",
+  qr: "meter_qr",
 };
 
 function linkSourceLabel(source) {
@@ -51,10 +55,11 @@ function registerStart(bot, runtime) {
 
   bot.start(async (ctx) => {
     const chatId = ctx.chat?.id;
-    track("bot_start", { chatId });
-    if (chatId) resetSession(chatId, config.sessionKey);
-
     const payload = ctx.startPayload?.trim() ?? "";
+    // Campaign links (src_<tag>) open the normal menu; only the tag is new.
+    const campaign = parseCampaignPayload(payload);
+    track("bot_start", campaign ? { chatId, campaign } : { chatId });
+    if (chatId) resetSession(chatId, config.sessionKey);
 
     // Deep link while top-ups are disabled
     if (

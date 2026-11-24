@@ -293,7 +293,11 @@ Roommates usually share one meter, so the bot has three ways to reach them.
 - **Inline balance cards:** typing the bot's `@username` and a meter ID in any chat posts a card with the balance and a Top up button. With nothing after the username, it offers the person's saved meters.
 - **`/paid`:** totals each person's successful top-ups through the bot since the last reset date, or over the last 120 days if none has passed. In a private chat it shows you and an anonymous total for everyone else. In a linked group it names payers who are members and combines everyone else into one line. Top-ups made outside the bot are not counted, and `/forget` deletes that chat's records.
 
-Links from these places end in `_share`, `_group` or `_card`, and `bot_start_deeplink` records them as `source` in PostHog.
+Links from these places end in `_share`, `_group` or `_card`, and `bot_start_deeplink` records them as `source` in PostHog. A QR sticker on a meter can use `https://t.me/<bot>?start=nus_12345678_qr`, which opens the amount prompt for that meter and is recorded as `meter_qr`.
+
+## Campaign links
+
+Posters, QR codes and posts can link to `https://t.me/<bot>?start=src_<tag>`, for example `src_qr_rvrc` or `src_reddit`. The bot opens its normal menu and adds the tag, lowercased, as `campaign` on the `bot_start` event, so PostHog can show which ones bring people in. Tags can use letters, numbers, `_` and `-`, up to 60 characters.
 
 Inline mode is off until you turn it on in @BotFather: send `/setinline`, pick each bot, and set the placeholder to `Meter ID`. Leave group privacy on, since the bot only needs commands.
 
