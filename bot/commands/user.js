@@ -11,6 +11,7 @@ const {
 const { handleAlertsCommand } = require("../services/lowBalanceAlerts");
 const { sendTopupAdvice } = require("../services/balanceReset");
 const { parseMeterStartPayload } = require("../services/roommateShare");
+const { buildPrivatePaidText } = require("../services/whoPaid");
 const { sendHelp, SERVER_URL } = require("../services/ui");
 const {
   STAGES,
@@ -21,6 +22,17 @@ const {
   ratingKeyboard,
   TOPUP_DISABLED_MESSAGE,
 } = require("../constants");
+
+// How /start deep links are labelled in analytics, by their suffix.
+const LINK_SOURCE_LABELS = {
+  share: "roommate_share",
+  group: "group",
+  card: "inline_card",
+};
+
+function linkSourceLabel(source) {
+  return LINK_SOURCE_LABELS[source] || "link";
+}
 
 const fallbackState = {
   topupDisabled: process.env.TOPUP_DISABLED === "true",
@@ -65,12 +77,12 @@ function registerStart(bot, runtime) {
         prefixOptional: true,
       });
       if (sutdMatch) {
-        const { meterId, shared } = sutdMatch;
+        const { meterId, source } = sutdMatch;
         track("bot_start_deeplink", {
           chatId,
           meterId,
           hostel: HOSTELS.SUTD,
-          source: shared ? "roommate_share" : "link",
+          source: linkSourceLabel(source),
         });
 
         const session = getSession(chatId, config.sessionKey);
@@ -97,12 +109,12 @@ function registerStart(bot, runtime) {
       // cp2nus deep link: /start nus_12345678
       const cp2nusMatch = parseMeterStartPayload(payload, "nus");
       if (cp2nusMatch) {
-        const { meterId, shared } = cp2nusMatch;
+        const { meterId, source } = cp2nusMatch;
         track("bot_start_deeplink", {
           chatId,
           meterId,
           hostel: "cp2nus",
-          source: shared ? "roommate_share" : "link",
+          source: linkSourceLabel(source),
         });
 
         const session = getSession(chatId, config.sessionKey);
@@ -308,6 +320,23 @@ function registerCancel(bot, runtime) {
   });
 }
 
+// ── /paid ─────────────────────────────────────────────────────────────────────
+function registerPaid(bot, runtime) {
+  const { config } = runtimeParts(runtime);
+
+  bot.command("paid", async (ctx) => {
+    const chatId = ctx.chat?.id;
+    if (!chatId) return;
+
+    track("paid_command", { chatId });
+    resetSession(chatId, config.sessionKey);
+    return ctx.reply(buildPrivatePaidText(chatId, config), {
+      parse_mode: "HTML",
+      ...config.mainKeyboard,
+    });
+  });
+}
+
 // ── Register all user commands ────────────────────────────────────────────────
 function registerUserCommands(bot, runtime) {
   registerStart(bot, runtime);
@@ -316,6 +345,7 @@ function registerUserCommands(bot, runtime) {
   registerUsage(bot, runtime);
   registerTopups(bot, runtime);
   registerAlerts(bot, runtime);
+  registerPaid(bot, runtime);
   registerForget(bot, runtime);
   registerFeedback(bot, runtime);
   registerHelp(bot, runtime);

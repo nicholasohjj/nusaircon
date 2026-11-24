@@ -18,6 +18,9 @@ function registerHandlers(context) {
     telegramBot,
     context,
   );
+  // Group chats are handled entirely here and never reach the private flows.
+  require("./services/groupChat").registerGroupChat(telegramBot, context);
+  require("./services/inlineCards").registerInlineCards(telegramBot, context);
   require("./commands/user").registerUserCommands(telegramBot, context);
   require("./commands/owner").registerOwnerCommands(telegramBot, context);
   require("./handlers/buttons").registerButtonHandlers(telegramBot, context);

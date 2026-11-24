@@ -42,8 +42,27 @@ function getResetDates(audience, store = userStore) {
   return [...new Set(dates)].sort();
 }
 
+function lastResetKey(audience) {
+  return `last_reset:${audience}`;
+}
+
+/**
+ * The most recent reset date that has passed, or null. Kept even after the
+ * owner replaces the list, so /paid knows when the current semester began.
+ */
+function getLastResetDate(audience, store = userStore, now = Date.now()) {
+  const candidates = [
+    ...getResetDates(audience, store),
+    parseResetDate(store.getSetting(lastResetKey(audience))),
+  ].filter((date) => date && daysUntil(date, now) < 0);
+  return candidates.sort().pop() ?? null;
+}
+
 /** Replaces a bot's reset dates; an empty list clears them. */
-function setResetDates(audience, dates, store = userStore) {
+function setResetDates(audience, dates, store = userStore, now = Date.now()) {
+  const lastReset = getLastResetDate(audience, store, now);
+  if (lastReset) store.setSetting(lastResetKey(audience), lastReset);
+
   const clean = [...new Set((dates || []).map(parseResetDate))]
     .filter(Boolean)
     .sort();
@@ -259,6 +278,7 @@ module.exports = {
   dueReminderStage,
   fetchAverageDaily,
   formatResetDate,
+  getLastResetDate,
   getResetDate,
   getResetDates,
   parseResetDate,

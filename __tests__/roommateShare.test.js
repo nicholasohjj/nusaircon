@@ -26,10 +26,12 @@ describe("parseMeterStartPayload", () => {
     expect(parseMeterStartPayload("nus_12345678", "nus")).toEqual({
       meterId: "12345678",
       shared: false,
+      source: null,
     });
     expect(parseMeterStartPayload("nus_12345678_share", "nus")).toEqual({
       meterId: "12345678",
       shared: true,
+      source: "share",
     });
   });
 
@@ -39,7 +41,7 @@ describe("parseMeterStartPayload", () => {
       parseMeterStartPayload("12345678_share", "sutd", {
         prefixOptional: true,
       }),
-    ).toEqual({ meterId: "12345678", shared: true });
+    ).toEqual({ meterId: "12345678", shared: true, source: "share" });
   });
 
   test("rejects anything else", () => {

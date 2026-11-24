@@ -1,8 +1,9 @@
 const { Markup } = require("telegraf");
 
-// Added to the deep link so /start can tell a roommate share apart from other
-// links that carry a meter ID.
+// Added to deep links so /start can tell where a link carrying a meter ID came
+// from: a roommate share, a room group chat, or an inline balance card.
 const SHARE_SUFFIX = "share";
+const LINK_SOURCES = [SHARE_SUFFIX, "group", "card"];
 
 const SHARE_TEXT =
   "Top up our room's aircon credit in Telegram. The meter is already filled in:";
@@ -23,13 +24,22 @@ async function getBotUsername(bot) {
   }
 }
 
-function shareStartPayload(audience, meterId) {
+function meterStartPayload(audience, meterId, source = null) {
   const prefix = audience === "sutd" ? "sutd" : "nus";
-  return `${prefix}_${meterId}_${SHARE_SUFFIX}`;
+  return `${prefix}_${meterId}${source ? `_${source}` : ""}`;
+}
+
+function shareStartPayload(audience, meterId) {
+  return meterStartPayload(audience, meterId, SHARE_SUFFIX);
+}
+
+/** Link that opens the bot in a private chat, ready to top up this meter. */
+function topupStartUrl(username, audience, meterId, source = null) {
+  return `https://t.me/${username}?start=${meterStartPayload(audience, meterId, source)}`;
 }
 
 function buildShareUrl(username, audience, meterId) {
-  const deepLink = `https://t.me/${username}?start=${shareStartPayload(audience, meterId)}`;
+  const deepLink = topupStartUrl(username, audience, meterId, SHARE_SUFFIX);
   const params = new URLSearchParams({ url: deepLink, text: SHARE_TEXT });
   return `https://t.me/share/url?${params.toString()}`;
 }
@@ -54,7 +64,7 @@ async function roommateShareKeyboard(bot, audience, meterId) {
 
 /**
  * Reads a /start payload such as "nus_12345678" or "nus_12345678_share".
- * @returns {{ meterId: string, shared: boolean } | null}
+ * @returns {{ meterId: string, shared: boolean, source: string | null } | null}
  */
 function parseMeterStartPayload(
   payload,
@@ -62,10 +72,12 @@ function parseMeterStartPayload(
   { prefixOptional = false } = {},
 ) {
   const pattern = new RegExp(
-    `^${prefixOptional ? `(?:${prefix}_)?` : `${prefix}_`}(\\d{8})(_${SHARE_SUFFIX})?$`,
+    `^${prefixOptional ? `(?:${prefix}_)?` : `${prefix}_`}(\\d{8})(?:_(${LINK_SOURCES.join("|")}))?$`,
   );
   const match = String(payload || "").match(pattern);
-  return match ? { meterId: match[1], shared: Boolean(match[2]) } : null;
+  if (!match) return null;
+  const source = match[2] || null;
+  return { meterId: match[1], shared: source === SHARE_SUFFIX, source };
 }
 
 module.exports = {
@@ -74,4 +86,5 @@ module.exports = {
   parseMeterStartPayload,
   roommateShareKeyboard,
   shareStartPayload,
+  topupStartUrl,
 };

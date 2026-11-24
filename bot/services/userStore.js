@@ -109,6 +109,87 @@ function setSetting(key, value) {
   ).run(key, String(value));
 }
 
+// Successful top-ups made through the bot, for /paid. Keyed by the payment
+// reference so a repeated notification is only counted once.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS topup_payments (
+    ref      TEXT PRIMARY KEY,
+    chat_id  TEXT NOT NULL,
+    meter_id TEXT NOT NULL,
+    hostel   TEXT NOT NULL,
+    amount   REAL NOT NULL,
+    paid_at  INTEGER NOT NULL
+  )
+`);
+db.exec(
+  "CREATE INDEX IF NOT EXISTS topup_payments_meter ON topup_payments (meter_id, hostel, paid_at)",
+);
+
+/** @returns {boolean} false if this payment was already recorded */
+function recordTopupPayment({ ref, chatId, meterId, hostel, amount, paidAt }) {
+  return (
+    db
+      .prepare(
+        `
+        INSERT OR IGNORE INTO topup_payments
+          (ref, chat_id, meter_id, hostel, amount, paid_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `,
+      )
+      .run(String(ref), String(chatId), meterId, hostel, amount, paidAt)
+      .changes > 0
+  );
+}
+
+/** Each chat's total for a meter since a time, largest first. */
+function getTopupTotals(meterId, hostels, since) {
+  if (!hostels.length) return [];
+  return db
+    .prepare(
+      `
+      SELECT chat_id, SUM(amount) AS total, COUNT(*) AS count
+      FROM topup_payments
+      WHERE meter_id = ?
+        AND hostel IN (${hostels.map(() => "?").join(", ")})
+        AND paid_at >= ?
+      GROUP BY chat_id
+      ORDER BY total DESC, chat_id
+    `,
+    )
+    .all(meterId, ...hostels, since)
+    .map((row) => ({ chatId: row.chat_id, total: row.total, count: row.count }));
+}
+
+/**
+ * Links a group chat to one meter, replacing any earlier link. Alerts start
+ * on, since getting them in the room's chat is the point of linking. Groups
+ * only get a user_meters row, so they stay out of broadcasts and user counts.
+ */
+function setGroupMeter(groupId, meterId, hostel, ownedHostels) {
+  const placeholders = ownedHostels.map(() => "?").join(", ");
+  const now = Date.now();
+  db.transaction(() => {
+    db.prepare(
+      `DELETE FROM user_meters WHERE chat_id = ? AND hostel IN (${placeholders})`,
+    ).run(String(groupId), ...ownedHostels);
+    db.prepare(
+      `
+      INSERT INTO user_meters
+        (chat_id, meter_id, hostel, label, saved_at, last_used, low_balance_alerts)
+      VALUES (?, ?, ?, 'Room', ?, ?, 1)
+    `,
+    ).run(String(groupId), meterId, hostel, now, now);
+  })();
+}
+
+/** A group that became a supergroup gets a new ID; keep its meter. */
+function moveChat(fromChatId, toChatId) {
+  db.prepare("UPDATE OR REPLACE user_meters SET chat_id = ? WHERE chat_id = ?").run(
+    String(toChatId),
+    String(fromChatId),
+  );
+}
+
 function defaultLabel(meterId) {
   return `Meter ${String(meterId).slice(-4)}`;
 }
@@ -467,6 +548,9 @@ function forgetUser(chatId, hostels = null) {
 
   if (allowedHostels?.length) {
     const placeholders = allowedHostels.map(() => "?").join(", ");
+    db.prepare(
+      `DELETE FROM topup_payments WHERE chat_id = ? AND hostel IN (${placeholders})`,
+    ).run(chatIdText, ...allowedHostels);
     const result = db
       .prepare(
         `DELETE FROM user_meters WHERE chat_id = ? AND hostel IN (${placeholders})`,
@@ -478,6 +562,7 @@ function forgetUser(chatId, hostels = null) {
   }
 
   db.prepare("DELETE FROM user_meters WHERE chat_id = ?").run(chatIdText);
+  db.prepare("DELETE FROM topup_payments WHERE chat_id = ?").run(chatIdText);
   const result = db.prepare("DELETE FROM users WHERE chat_id = ?").run(chatIdText);
   return result.changes > 0;
 }
@@ -501,4 +586,8 @@ module.exports = {
   disableLowBalanceAlertsForChat,
   getSetting,
   setSetting,
+  recordTopupPayment,
+  getTopupTotals,
+  setGroupMeter,
+  moveChat,
 };

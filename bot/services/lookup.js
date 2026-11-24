@@ -123,10 +123,16 @@ async function handleMeterIdLookup(
     fromSaved = false,
     hostel = null,
     config = DEFAULT_BOT_CONFIG,
+    // Group chats pass an inline keyboard and no follow-up, since a reply
+    // keyboard there would pop up for everyone in the group.
+    replyMarkup = null,
+    followUp = true,
   } = {},
 ) {
   const session = getSession(chatId, config.sessionKey);
   session.stage = "idle";
+  const resultExtra = replyMarkup ? { reply_markup: replyMarkup } : {};
+  const fallbackExtra = followUp ? config.mainKeyboard : resultExtra;
   const lookupHostel = hostel || session.lookupHostel || null;
   delete session.lookupHostel;
   const isSutd = lookupHostel === HOSTELS.SUTD;
@@ -232,17 +238,19 @@ async function handleMeterIdLookup(
         lines.join("\n"),
         {
           parse_mode: "HTML",
+          ...resultExtra,
         },
       )
       .catch(async () => {
         await ctx.reply(lines.join("\n"), {
           parse_mode: "HTML",
-          ...config.mainKeyboard,
+          ...fallbackExtra,
         });
         return null;
       });
 
-    if (edited) return ctx.reply("Choose an option:", config.mainKeyboard);
+    if (edited && followUp)
+      return ctx.reply("Choose an option:", config.mainKeyboard);
   } catch (err) {
     track(`${mode}_error`, {
       chatId,
@@ -258,11 +266,12 @@ async function handleMeterIdLookup(
     const edited = await ctx.telegram
       .editMessageText(chatId, loadingMsg.message_id, undefined, errorText)
       .catch(async () => {
-        await ctx.reply(errorText, config.mainKeyboard);
+        await ctx.reply(errorText, followUp ? config.mainKeyboard : {});
         return null;
       });
 
-    if (edited) return ctx.reply("Choose an option:", config.mainKeyboard);
+    if (edited && followUp)
+      return ctx.reply("Choose an option:", config.mainKeyboard);
   }
 }
 

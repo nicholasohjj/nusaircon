@@ -8,6 +8,7 @@ const { getMeterSummary } = require("../../services/ore");
 const { getSutdMeterSummary } = require("../../services/sutdService");
 const { escHtml } = require("../../services/utils");
 const balanceReset = require("./balanceReset");
+const { getBotUsername, topupStartUrl } = require("./roommateShare");
 
 const THRESHOLD_TEXT = `SGD ${LOW_BALANCE_THRESHOLD_SGD.toFixed(2)}`;
 
@@ -27,7 +28,20 @@ async function fetchMeterBalance({ meterId, hostel }) {
   return parseBalance(summary?.credit_bal);
 }
 
-function buildAlertMessage(meter, balance) {
+// Group chat IDs are negative; private chat IDs are the user's ID.
+function isGroupChatId(chatId) {
+  return String(chatId).startsWith("-");
+}
+
+/**
+ * @param {string|null} groupTopupUrl for a group chat, a link to top up in a
+ *   private chat; groups can't use the callback button or the payment page
+ */
+function buildAlertMessage(meter, balance, groupTopupUrl = null) {
+  const isGroup = isGroupChatId(meter.chatId);
+  const button = isGroup
+    ? groupTopupUrl && Markup.button.url("⚡ Top up", groupTopupUrl)
+    : Markup.button.callback("⚡ Top up", savedMeterCallbackData("topup", meter));
   return {
     text:
       `⚠️ <b>Low balance</b>\n\n` +
@@ -37,14 +51,7 @@ function buildAlertMessage(meter, balance) {
       `Use /alerts off to stop these messages.`,
     extra: {
       parse_mode: "HTML",
-      ...Markup.inlineKeyboard([
-        [
-          Markup.button.callback(
-            "⚡ Top up",
-            savedMeterCallbackData("topup", meter),
-          ),
-        ],
-      ]),
+      ...(button ? Markup.inlineKeyboard([[button]]) : {}),
     },
   };
 }
@@ -132,6 +139,13 @@ async function runLowBalanceCheck({
     }
   }
 
+  async function groupLink(context, meter) {
+    const username = await getBotUsername(context.bot);
+    return username
+      ? topupStartUrl(username, context.config.audience, meter.meterId, "group")
+      : null;
+  }
+
   // Sharing a lookup means roommates on one meter cost one EVS request.
   function lookupBalance(meter) {
     const key = `${meter.hostel}:${meter.meterId}`;
@@ -174,7 +188,10 @@ async function runLowBalanceCheck({
 
     if (meter.alertSentAt) continue;
 
-    const { text, extra } = buildAlertMessage(meter, balance);
+    const groupTopupUrl = isGroupChatId(meter.chatId)
+      ? await groupLink(context, meter)
+      : null;
+    const { text, extra } = buildAlertMessage(meter, balance, groupTopupUrl);
     try {
       await context.bot.telegram.sendMessage(meter.chatId, text, extra);
       store.setLowBalanceAlertSentAt(
@@ -262,6 +279,7 @@ async function handleAlertsCommand(ctx, config, store = userStore) {
 }
 
 module.exports = {
+  buildAlertMessage,
   fetchMeterBalance,
   handleAlertsCommand,
   parseBalance,

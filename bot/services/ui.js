@@ -1,7 +1,15 @@
 const { DEFAULT_BOT_CONFIG } = require("../constants");
+const { groupCommands } = require("./groupChat");
 
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
 const GITHUB_URL = process.env.GITHUB_URL;
+
+// No bot @username here: underscores in it would break legacy Markdown.
+const ROOMMATES_HELP =
+  `*Sharing a meter with roommates*\n` +
+  `• Add me to your room's group chat and send /meter with your meter ID. ` +
+  `Everyone there can then check the balance, and alerts go to the group.\n` +
+  `• In any chat, type my @username and a space to send a balance card.\n\n`;
 
 function helpText(config = DEFAULT_BOT_CONFIG) {
   if (config.audience === "sutd") {
@@ -20,10 +28,12 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
       `• /balance — check SUTD meter balance\n` +
       `• /topups — show SUTD top-up history\n` +
       `• /alerts — get a message when your balance is low\n` +
+      `• /paid — who has topped up your meter this semester\n` +
       `• /feedback — share feedback or report an issue\n` +
       `• /forget — clear your saved meters\n` +
       `• /cancel — cancel the current flow\n` +
       `• /help — show this message\n\n` +
+      ROOMMATES_HELP +
       `*Terms of Use*\n` +
       `${SERVER_URL}/app/terms\n\n` +
       `Open source · ${GITHUB_URL}`
@@ -52,10 +62,12 @@ function helpText(config = DEFAULT_BOT_CONFIG) {
     `  estimated days remaining, and current balance\n` +
     `• /topups — show recent top-ups from the last 90 days\n` +
     `• /alerts — get a message when your balance is low\n` +
+    `• /paid — who has topped up your meter this semester\n` +
     `• /feedback — share feedback or report an issue\n` +
     `• /forget — clear your saved meters\n` +
     `• /cancel — cancel the current flow\n` +
     `• /help — show this message\n\n` +
+    ROOMMATES_HELP +
     `*Terms of Use*\n` +
     `${SERVER_URL}/app/terms\n\n` +
     `Open source · ${GITHUB_URL}`
@@ -114,11 +126,15 @@ async function setupTelegramUi(bot, config = DEFAULT_BOT_CONFIG) {
         : []),
       ...lookupCommands,
       { command: "alerts", description: "Get low-balance alerts" },
+      { command: "paid", description: "Who has topped up this semester" },
       { command: "forget", description: "Clear saved meters" },
       { command: "feedback", description: "Share feedback or report an issue" },
       { command: "help", description: "Show help and usage" },
       { command: "cancel", description: "Cancel current flow" },
     ]),
+    bot.telegram.setMyCommands(groupCommands(config), {
+      scope: { type: "all_group_chats" },
+    }),
     bot.telegram.setMyShortDescription(shortDescription(config)),
     bot.telegram.setMyDescription(longDescription(config)),
   ]);

@@ -270,6 +270,8 @@ To have an agent check your balance daily and send you a payment link when it ru
 | `/usage`     | Show last 7 days of usage                       |
 | `/topups`    | Show recent top-ups                             |
 | `/alerts`    | Show or change low-balance alerts               |
+| `/paid`      | Who has topped up a meter this semester         |
+| `/meter`     | Group chats only: link the group to a meter     |
 | `/feedback`  | Share feedback or report an issue               |
 | `/cancel`    | Cancel the current flow                         |
 | `/help`      | Show help and supported systems                 |
@@ -282,6 +284,18 @@ To have an agent check your balance daily and send you a payment link when it ru
 People opt in with `/alerts on`, which covers the saved meters on that bot. Meters are saved when someone starts a top-up in the bot. Once a day, each opted-in meter is checked and its chat gets a message if the balance is below SGD 5. The message has a button that starts the bot's normal top-up flow, so the person still chooses the amount and pays by card.
 
 Each meter gets one alert per low-balance episode, and can alert again once a check sees the balance back at SGD 5 or more. A failed lookup is skipped and never counts as a zero balance. Alerts stop if someone blocks the bot, and `/forget` removes them along with the meter.
+
+## Roommates
+
+Roommates usually share one meter, so the bot has three ways to reach them.
+
+- **Room group chats:** add the bot to a group and send `/meter 12345678`. Anyone in the group can then use `/balance`, `/usage`, `/topups` and `/paid`, and low-balance alerts and reset reminders go to the group (`/alerts off` stops them). Payment pages only open in private chats, so `/topup` and the alert's button link to a private chat with the meter filled in. Removing the bot unlinks the group. Groups are stored as saved meters only, so they are never sent `/announce` or `/broadcast` messages.
+- **Inline balance cards:** typing the bot's `@username` and a meter ID in any chat posts a card with the balance and a Top up button. With nothing after the username, it offers the person's saved meters.
+- **`/paid`:** totals each person's successful top-ups through the bot since the last reset date, or over the last 120 days if none has passed. In a private chat it shows you and an anonymous total for everyone else. In a linked group it names payers who are members and combines everyone else into one line. Top-ups made outside the bot are not counted, and `/forget` deletes that chat's records.
+
+Links from these places end in `_share`, `_group` or `_card`, and `bot_start_deeplink` records them as `source` in PostHog.
+
+Inline mode is off until you turn it on in @BotFather: send `/setinline`, pick each bot, and set the placeholder to `Meter ID`. Leave group privacy on, since the bot only needs commands.
 
 ## End-of-semester balance reset
 

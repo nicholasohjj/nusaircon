@@ -52,6 +52,18 @@ function createGlobalMaintenanceGuard(runtime = {}) {
         .catch(() => {});
     }
 
+    if (ctx.inlineQuery) {
+      return ctx.answerInlineQuery([], { cache_time: 0 }).catch(() => {});
+    }
+
+    if (!ctx.chat) return;
+    const chatType = ctx.chat.type;
+    if (chatType && chatType !== "private") {
+      // In a group, only answer commands, and never with a reply keyboard.
+      if (!getTextCommand(ctx)) return;
+      return ctx.reply(status.message);
+    }
+
     return ctx.reply(status.message, config.mainKeyboard);
   };
 }

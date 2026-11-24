@@ -1,4 +1,5 @@
 const { roommateShareKeyboard } = require("../bot/services/roommateShare");
+const { recordSuccessfulTopup } = require("../bot/services/whoPaid");
 
 function buildPaymentNotificationLines(session) {
   const {
@@ -51,7 +52,13 @@ async function sendPaymentNotification(
   session,
   { audience = "nus" } = {},
 ) {
-  if (!session?.chatId || session.notifiedAt) return null;
+  if (!session?.chatId) return null;
+  // Recorded before the duplicate checks: the store ignores a reference it
+  // has already seen, and a payment still counts if the message can't be sent.
+  if (session.status === "success") {
+    recordSuccessfulTopup(session, audience === "sutd" ? "sutd" : "cp2nus");
+  }
+  if (session.notifiedAt) return null;
 
   const key = notificationDedupeKey(session);
   const expiresAt = sentNotifications.get(key);
